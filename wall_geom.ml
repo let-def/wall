@@ -345,7 +345,8 @@ module T = struct
     bezier_to t (last_x t) (last_y t) x1 y1 x2 y2 x3 y3 0 flag_corner
 
   (* Calculate which joins needs extra vertices to append, and gather vertex count. *)
-  let calculate_joins t iw line_join miter_limit p =
+  let calculate_joins t w line_join miter_limit p =
+    let iw = if w > 0.0 then 1.0 /. w else 0.0 in
     let nleft = ref 0 in
     let nbevel = ref 0 in
     let first = p.path_first in
@@ -377,9 +378,12 @@ module T = struct
       in
 
       let flags =
-        let limit = max 1.01 (min (T.aux_dlen t p0) (T.aux_dlen t p1) *. iw) in
-        if dmr2 *. limit *. limit < 1.0 then
-          flags lor flag_innerbevel
+        let dlen0 = T.aux_dlen t p0 and dlen1 = T.aux_dlen t p1 in
+        if max dlen0 dlen1 > w then
+          let limit = max 1.01 (min dlen0 dlen1 *. iw) in
+          if dmr2 *. limit *. limit < 1.0 then
+            flags lor flag_innerbevel
+          else flags
         else flags
       in
 
@@ -401,8 +405,7 @@ module T = struct
     p.path_convex <- !nleft = p.path_count
 
   let calculate_joins t ~w ~line_join ~miter_limit paths =
-    let iw = if w > 0.0 then 1.0 /. w else 0.0 in
-    List.iter (calculate_joins t iw line_join miter_limit) paths
+    List.iter (calculate_joins t w line_join miter_limit) paths
 
   let get_x     = T.get_x
   let get_y     = T.get_y
@@ -825,8 +828,8 @@ module V = struct
           first + 1, last - 1
       in
       for p1 = s to e do
-        let p0 = if p1 = first then last else p1 - 1 in
         if T.get_flags t p1 land (T.flag_bevel lor T.flag_innerbevel) <> 0 then begin
+          let p0 = if p1 = first then last else p1 - 1 in
           if line_join = `ROUND then
             failwith "FIXME" (*nvg__roundJoin(dst, p0, p1, w, w, 0, 1, ncap, aa)*)
           else
