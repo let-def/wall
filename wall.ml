@@ -255,12 +255,14 @@ module Frame = struct
     xform          : Transform.t;
     scissor_xform  : Transform.t;
     scissor_extent : size2;
+    alpha          : float;
   }
 
   let default = {
     xform = Transform.identity;
     scissor_xform = Transform.identity;
     scissor_extent = Size2.v (-1.0) (-1.0);
+    alpha = 1.0;
   }
 
   open Transform

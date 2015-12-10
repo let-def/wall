@@ -276,11 +276,11 @@ module Frag = struct
     buf.{c + 2} <- f2;
     buf.{c + 3} <- f3
 
-  let set_color c col =
+  let set_color c a col =
     let r = Color.r col in
     let g = Color.g col in
     let b = Color.b col in
-    let a = Color.a col in
+    let a = Color.a col *. a in
     set_4 c (r*.a) (g*.a) (b*.a) a
 
   let inner_color = 0
@@ -307,8 +307,15 @@ module Frag = struct
   let set_tool t ?typ paint frame width stroke_thr =
     let sextent = frame.Frame.scissor_extent in
     let sxform  = frame.Frame.scissor_xform in
-    set_color inner_color paint.Paint.inner;
-    set_color outer_color paint.Paint.outer;
+    let alpha = frame.Frame.alpha in
+    let alpha =
+      if width < 1.0 then
+        let da = min 1.0 (max 0.0 width (* /. fringe_width*)) in
+        alpha *. da *. da
+      else alpha
+    in
+    set_color inner_color alpha paint.Paint.inner;
+    set_color outer_color alpha paint.Paint.outer;
     set_inv_xform paint_mat paint.Paint.xform;
     let sw = Size2.w sextent and sh = Size2.h sextent in
     if sw < -0.5 || sh < -0.5 then begin

@@ -90,6 +90,7 @@ module Frame : sig
     xform          : Transform.t;
     scissor_xform  : Transform.t;
     scissor_extent : size2;
+    alpha          : float;
   }
 
   val default : t
