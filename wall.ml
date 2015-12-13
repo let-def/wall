@@ -264,6 +264,12 @@ module Paint = struct
       extent = Size2.zero; image = None;
       inner = color; outer = color }
 
+  let rgba r g b a = color (Gg.v r g b a)
+
+  let rgbai r g b a =
+    let f x = float x /. 255.0 in
+    rgba (f r) (f g) (f b) (f a)
+
   let white = color Color.white
   let black = color Color.black
 end

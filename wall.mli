@@ -84,6 +84,9 @@ module Paint : sig
     'image -> 'image t
 
   val color : color -> _ t
+  val rgba  : float -> float -> float -> float -> _ t
+  val rgbai : int -> int -> int -> int -> _ t
+
   val white : _ t
   val black : _ t
 end
