@@ -27,6 +27,7 @@ type t = {
   t : T.t;
   b : B.t;
   g : Wall_gl.t;
+  mutable xf : Transform.t;
   mutable p : Wall_gl.obj list;
 }
 
@@ -34,6 +35,7 @@ let create_gl ~antialias = {
   t = T.make ();
   b = B.make ();
   g = Wall_gl.create ~antialias:true ~stencil_strokes:true ~debug:false;
+  xf = Transform.identity;
   p = [];
 }
 
@@ -45,8 +47,9 @@ let delete t =
 let set_winding t w =
   T.set_winding t.t (match w with `CW -> T.CW | `CCW -> T.CCW)
 
-let new_path t =
-  T.clear t.t
+let new_path t xf =
+  T.clear t.t;
+  t.xf <- xf
 
 let close_path t =
   T.close_path t.t
@@ -83,32 +86,32 @@ let new_frame t =
 let flush_frame t sz =
   Wall_gl.render t.g sz t.b (List.rev t.p)
 
-let move_to t xf ~x ~y =
+let move_to t ~x ~y =
   T.move_to t.t
-    (Transform.px xf x y)
-    (Transform.py xf x y)
+    (Transform.px t.xf x y)
+    (Transform.py t.xf x y)
 
-let line_to t xf ~x ~y =
+let line_to t ~x ~y =
   T.line_to t.t
-    (Transform.px xf x y)
-    (Transform.py xf x y)
+    (Transform.px t.xf x y)
+    (Transform.py t.xf x y)
 
-let bezier_to t xf ~c1x ~c1y ~c2x ~c2y ~x ~y =
+let bezier_to t ~c1x ~c1y ~c2x ~c2y ~x ~y =
   T.bezier_to t.t
-    ~x1:(Transform.px xf c1x c1y)
-    ~y1:(Transform.py xf c1x c1y)
-    ~x2:(Transform.px xf c2x c2y)
-    ~y2:(Transform.py xf c2x c2y)
-    ~x3:(Transform.px xf x y)
-    ~y3:(Transform.py xf x y)
+    ~x1:(Transform.px t.xf c1x c1y)
+    ~y1:(Transform.py t.xf c1x c1y)
+    ~x2:(Transform.px t.xf c2x c2y)
+    ~y2:(Transform.py t.xf c2x c2y)
+    ~x3:(Transform.px t.xf x y)
+    ~y3:(Transform.py t.xf x y)
 
-let quad_to t xf ~cx ~cy ~x ~y =
+let quad_to t ~cx ~cy ~x ~y =
   let x0 = T.last_x t.t in
   let y0 = T.last_y t.t in
-  let cx = Transform.px xf cx cy in
-  let cy = Transform.py xf cx cy in
-  let x = Transform.px xf x y in
-  let y = Transform.py xf x y in
+  let cx = Transform.px t.xf cx cy in
+  let cy = Transform.py t.xf cx cy in
+  let x = Transform.px t.xf x y in
+  let y = Transform.py t.xf x y in
   T.bezier_to t.t
     ~x1:(x0 +. 2.0 /. 3.0 *. (cx -. x0))
     ~y1:(y0 +. 2.0 /. 3.0 *. (cy -. y0))
@@ -116,63 +119,63 @@ let quad_to t xf ~cx ~cy ~x ~y =
     ~y2:(y +. 2.0 /. 3.0 *. (cy -. y))
     ~x3:x ~y3:y
 
-let rect t xf ~x ~y ~w ~h =
-  move_to t xf ~x ~y;
-  line_to t xf ~x ~y:(y +. h);
-  line_to t xf ~x:(x +. w) ~y:(y +. h);
-  line_to t xf ~x:(x +. w) ~y;
+let rect t ~x ~y ~w ~h =
+  move_to t ~x ~y;
+  line_to t ~x ~y:(y +. h);
+  line_to t ~x:(x +. w) ~y:(y +. h);
+  line_to t ~x:(x +. w) ~y;
   close_path t
 
-let round_rect t xf ~x ~y ~w ~h ~r =
+let round_rect t ~x ~y ~w ~h ~r =
   if r < 0.1 then
-    rect t xf ~x ~y ~w ~h
+    rect t ~x ~y ~w ~h
   else begin
     let rx = copysign (min r (abs_float w *. 0.5)) w in
     let ry = copysign (min r (abs_float h *. 0.5)) h in
-    move_to t xf ~x ~y:(y +. ry);
-    line_to t xf ~x ~y:(y +. h -. ry);
-    bezier_to t xf
+    move_to t ~x ~y:(y +. ry);
+    line_to t ~x ~y:(y +. h -. ry);
+    bezier_to t
       ~c1x:x ~c1y:(y +. h -. ry *. (1.0 -. kappa90))
       ~c2x:(x +. rx *. (1.0 -. kappa90)) ~c2y:(y +. h)
       ~x:(x +. rx) ~y:(y +. h);
-    line_to t xf ~x:(x +. w -. rx) ~y:(y +. h);
-    bezier_to t xf
+    line_to t ~x:(x +. w -. rx) ~y:(y +. h);
+    bezier_to t 
       ~c1x:(x +. w -. rx *. (1.0 -. kappa90)) ~c1y:(y +. h)
       ~c2x:(x +. w) ~c2y:(y +. h -. ry *. (1.0 -. kappa90))
       ~x:(x +. w) ~y:(y +. h -. ry);
-    line_to t xf ~x:(x +. w) ~y:(y +. ry);
-    bezier_to t xf
+    line_to t ~x:(x +. w) ~y:(y +. ry);
+    bezier_to t 
       ~c1x:(x +. w) ~c1y:(y +. ry *. (1.0 -. kappa90))
       ~c2x:(x +. w -. rx *. (1.0 -. kappa90)) ~c2y:y
       ~x:(x +. w -. rx) ~y;
-    line_to t xf ~x:(x +. rx) ~y;
-    bezier_to t xf
+    line_to t ~x:(x +. rx) ~y;
+    bezier_to t
       ~c1x:(x +. rx *. (1.0 -. kappa90)) ~c1y:y
       ~c2x:x ~c2y:(y +. ry *. (1.0 -. kappa90))
       ~x ~y:(y +. ry);
     close_path t
   end
 
-let ellipse t xf ~cx ~cy ~rx ~ry =
-  move_to t xf ~x:(cx -. rx) ~y:cy;
-  bezier_to t xf
+let ellipse t ~cx ~cy ~rx ~ry =
+  move_to t ~x:(cx -. rx) ~y:cy;
+  bezier_to t 
     ~c1x:(cx -. rx) ~c1y:(cy +. ry *. kappa90)
     ~c2x:(cx -. rx *. kappa90) ~c2y:(cy +. ry) ~x:cx ~y:(cy +. ry);
-  bezier_to t xf
+  bezier_to t 
     ~c1x:(cx +. rx *. kappa90) ~c1y:(cy +. ry)
     ~c2x:(cx +. rx) ~c2y:(cy +. ry *. kappa90) ~x:(cx +. rx) ~y:cy;
-  bezier_to t xf
+  bezier_to t 
     ~c1x:(cx  +. rx) ~c1y:(cy -. ry *. kappa90)
     ~c2x:(cx +. rx *. kappa90) ~c2y:(cy -. ry) ~x:cx ~y:(cy -. ry);
-  bezier_to t xf
+  bezier_to t 
     ~c1x:(cx  -. rx *. kappa90) ~c1y:(cy -. ry)
     ~c2x:(cx -. rx) ~c2y:(cy -. ry *. kappa90) ~x:(cx -. rx) ~y:cy;
   close_path t
 
-let circle t xf ~cx ~cy ~r =
-  ellipse t xf ~cx ~cy ~rx:r ~ry:r
+let circle t ~cx ~cy ~r =
+  ellipse t ~cx ~cy ~rx:r ~ry:r
 
-let arc t xf ~cx ~cy ~r ~a0 ~a1 dir =
+let arc t ~cx ~cy ~r ~a0 ~a1 dir =
   let da = (a1 -. a0) in
   let da =
     if abs_float da > 2.0 *. pi then
@@ -202,7 +205,7 @@ let arc t xf ~cx ~cy ~r ~a0 ~a1 dir =
   let rec step (px, py, ptanx, ptany) i =
     if i > ndivs then () else
       let (x, y, tanx, tany) as coords = coords i in
-      bezier_to t xf
+      bezier_to t 
         ~c1x:(px +. ptanx) ~c1y:(py +. ptany)
         ~c2x:(x -. tanx) ~c2y:(y -. tany)
         ~x ~y;
@@ -210,9 +213,9 @@ let arc t xf ~cx ~cy ~r ~a0 ~a1 dir =
   in
   let (x, y, _, _) as coords = coords 0 in
   if T.has_path t.t then
-    line_to t xf ~x ~y
+    line_to t ~x ~y
   else
-    move_to t xf ~x ~y;
+    move_to t ~x ~y;
   step coords 1
 
 (*let arc_to vg xf ~x1 ~y1 ~x2 ~y2 ~r =

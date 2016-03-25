@@ -23,42 +23,33 @@ type t
 val create_gl : antialias:bool -> t
 val delete : t -> unit
 
-val new_path : t -> unit
+val new_path : t -> transform -> unit
 
 val set_winding : t -> [`CW | `CCW] -> unit
 
-val move_to : t ->
-  Wall.transform -> x:float -> y:float -> unit
+val move_to : t -> x:float -> y:float -> unit
 
-val line_to : t ->
-  Wall.transform -> x:float -> y:float -> unit
+val line_to : t -> x:float -> y:float -> unit
 
-val bezier_to : t ->
-  transform -> c1x:float -> c1y:float ->
-               c2x:float -> c2y:float ->
-               x:float   -> y:float   -> unit
+val bezier_to : t -> c1x:float -> c1y:float ->
+                     c2x:float -> c2y:float ->
+                     x:float   -> y:float   -> unit
 
-val quad_to : t ->
-  transform -> cx:float -> cy:float ->
-               x:float  -> y:float  -> unit
+val quad_to : t -> cx:float -> cy:float ->
+                   x:float  -> y:float  -> unit
 
-val rect : t ->
-  transform -> x:float -> y:float ->
-               w:float -> h:float -> unit
+val rect : t -> x:float -> y:float ->
+                w:float -> h:float -> unit
 
-val round_rect : t ->
-  transform -> x:float -> y:float ->
-               w:float -> h:float -> r:float -> unit
+val round_rect : t -> x:float -> y:float ->
+                      w:float -> h:float -> r:float -> unit
 
-val circle : t ->
-  transform -> cx:float -> cy:float -> r:float -> unit
+val circle : t -> cx:float -> cy:float -> r:float -> unit
 
-val ellipse : t ->
-  transform -> cx:float -> cy:float ->
-               rx:float -> ry:float -> unit
+val ellipse : t -> cx:float -> cy:float ->
+                   rx:float -> ry:float -> unit
 
-val arc : t ->
-  transform -> cx:float -> cy:float -> r:float ->
+val arc : t -> cx:float -> cy:float -> r:float ->
                a0:float -> a1:float -> [ `CW | `CCW ] -> unit
 
 (*val arc_to : t ->
