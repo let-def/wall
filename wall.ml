@@ -264,7 +264,7 @@ module Paint = struct
       extent = Size2.zero; image = None;
       inner = color; outer = color }
 
-  let rgba r g b a = color (Gg.v r g b a)
+  let rgba r g b a = color (Gg.V4.v r g b a)
 
   let rgbai r g b a =
     let f x = float x /. 255.0 in
