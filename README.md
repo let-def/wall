@@ -45,3 +45,7 @@ texture atlases like in NanoVG.  Things to do:
   at the last minute
 * a reasonable bin-packing algorithm implementation, for portability and
   convenience (C library would be awkward to use for an online algorithm)
+
+A platform dependent library would still be used for font rasterization.
+Likely Stb_truetype in C and custom plumbing to browser rasterizers in web
+browsers.
