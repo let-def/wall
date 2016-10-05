@@ -601,6 +601,75 @@ module V = struct
       vbuffer_put vb ~x:rx1 ~y:ry1 ~u:ru ~v:1.0;
     end
 
+  let round_join vb t p0 p1 lw rw lu ru ncap =
+    let x1 = T.get_x t p1 in
+    let y1 = T.get_y t p1 in
+    let dlx0 = +. T.get_dy t p0 in
+    let dly0 = -. T.get_dx t p0 in
+    let dlx1 = +. T.get_dy t p1 in
+    let dly1 = -. T.get_dx t p1 in
+    let flags = T.get_flags t p1 in
+    if flags land T.flag_left <> 0 then begin
+      let lx0, ly0, lx1, ly1 =
+        choose_bevel (flags land T.flag_innerbevel <> 0) ~w:lw t p0 p1 in
+
+      vbuffer_put vb ~x:lx0 ~y:ly0 ~u:lu ~v:1.0;
+      vbuffer_put vb
+        ~x:(x1 -. dlx0 *. rw)
+        ~y:(y1 -. dly0 *. rw)
+        ~u:ru ~v:1.0;
+
+      let a0 = atan2 (-.dly0) (-.dlx0) in
+      let a1 = atan2 (-.dly1) (-.dlx1) in
+      let a1 = if a1 > a0 then a1 -. pi *. 2.0 else a1 in
+      let n = ceil (((a0 -. a1) /. pi) *. ncap) in
+      let n = if n <= 2 then 2 else if n >= ncap then ncap else n in
+      for i = 0 to n - 1 do
+        let u = float i /. float (n - 1) in
+        let a = a0 +. u *. (a1 -. a0) in
+        let rx = x1 +. cos a *. rw in
+        let ry = y1 +. sin a *. rw in
+        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5 ~v:1.0;
+        vbuffer_put vb ~x:rx ~y:ry ~u:ru ~v:1.0;
+      done;
+
+      vbuffer_put vb ~x:lx1 ~y:ly1 ~u:lu ~v:1.0;
+      vbuffer_put vb
+        ~x:(x1 -. dlx1 *. rw)
+        ~y:(y1 -. dly1 *. rw)
+        ~u:ru ~v:1.0
+
+    end else begin
+      let rx0, ry0, rx1, ry1 =
+        choose_bevel (flags land T.flag_innerbevel <> 0) ~w:(-.rw) t p0 p1 in
+
+      vbuffer_put vb
+        ~x:(x1 +. dlx0 *. rw)
+        ~y:(y1 +. dly0 *. rw)
+        ~u:lu ~v:1.0;
+      vbuffer_put vb ~x:rx0 ~y:ry0 ~u:ru ~v:1.0;
+
+      let a0 = atan2 dly0 dlx0 in
+      let a1 = atan2 dly1 dlx1 in
+      let a1 = if a1 < a0 then a1 +. pi *. 2.0 else a1 in
+      let n = ceil (((a1 -. a0) /. pi) *. ncap) in
+      let n = if n <= 2 then 2 else if n >= ncap then ncap else n in
+      for i = 0 to n - 1 do
+        let u = float i /. float (n - 1) in
+        let a = a0 +. u *. (a1 -. a0) in
+        let lx = x1 +. cos a *. lw in
+        let ly = y1 +. sin a *. lw in
+        vbuffer_put vb ~x:lx ~y:ly ~u:lu ~v:1.0;
+        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5 ~v:1.0;
+      done;
+
+      vbuffer_put vb
+        ~x:(x1 +. dlx1 *. rw)
+        ~y:(y1 +. dly1 *. rw)
+        ~u:lu ~v:1.0;
+      vbuffer_put vb ~x:rx1 ~y:ry1 ~u:ru ~v:1.0;
+    end
+
   (* Expand fill *)
 
   type path = {
@@ -852,7 +921,7 @@ module V = struct
         if T.get_flags t p1 land (T.flag_bevel lor T.flag_innerbevel) <> 0 then begin
           let p0 = if p1 = first then last else p1 - 1 in
           if line_join = `ROUND then
-            failwith "FIXME" (*nvg__roundJoin(dst, p0, p1, w, w, 0, 1, ncap, aa)*)
+            round_join vb t p0 p1 w w 0.0 1.0 ncap
           else
             bevel_join vb t p0 p1 w w 0.0 1.0
         end else begin
