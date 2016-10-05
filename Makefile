@@ -17,6 +17,7 @@ install:
 	ocamlfind install wall META wall.cma wall.a wall.cmxa \
 		wall.cmi wall.mli \
 		wall_tex.cmi wall_tex.mli \
+		wall_gl.cmi wall_gl.mli \
 		wall_canvas.cmi wall_canvas.mli
 
 uninstall:
