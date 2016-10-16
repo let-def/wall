@@ -211,7 +211,7 @@ module Paint = struct
                 x00 = dy; x01 = -.dx;
                 x10 = dx; x11 = dy;
                 x20 = sx -. dx *. large;
-                x21 = sx -. dy *. large;
+                x21 = sy -. dy *. large;
               };
       extent = Size2.v large (large +. d /. 2.0);
       radius = 0.0;
@@ -227,7 +227,7 @@ module Paint = struct
     {
       xform = Transform.translation cx cy;
       extent = Size2.v r r;
-      radius = 0.0;
+      radius = r;
       feather = max 1.0 f;
       inner;
       outer;

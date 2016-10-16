@@ -622,7 +622,7 @@ module V = struct
       let a0 = atan2 (-.dly0) (-.dlx0) in
       let a1 = atan2 (-.dly1) (-.dlx1) in
       let a1 = if a1 > a0 then a1 -. pi *. 2.0 else a1 in
-      let n = ceil (((a0 -. a1) /. pi) *. ncap) in
+      let n = int_of_float (ceil (((a0 -. a1) /. pi) *. float ncap)) in
       let n = if n <= 2 then 2 else if n >= ncap then ncap else n in
       for i = 0 to n - 1 do
         let u = float i /. float (n - 1) in
@@ -652,7 +652,7 @@ module V = struct
       let a0 = atan2 dly0 dlx0 in
       let a1 = atan2 dly1 dlx1 in
       let a1 = if a1 < a0 then a1 +. pi *. 2.0 else a1 in
-      let n = ceil (((a1 -. a0) /. pi) *. ncap) in
+      let n = int_of_float (ceil (((a1 -. a0) /. pi) *. float ncap)) in
       let n = if n <= 2 then 2 else if n >= ncap then ncap else n in
       for i = 0 to n - 1 do
         let u = float i /. float (n - 1) in
