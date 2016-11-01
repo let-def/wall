@@ -7,7 +7,7 @@ SOURCES = \
  	wall_gl.mli wall_gl.ml \
  	wall_canvas.mli wall_canvas.ml \
 
-PACKS = gg tgls.tgl4 tsdl result stb_image stb_truetype
+PACKS = gg tgls.tgles2 tsdl result stb_image stb_truetype
 
 RESULT = wall
 
