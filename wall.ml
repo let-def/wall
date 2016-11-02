@@ -149,10 +149,10 @@ module Transform = struct
       {
         x00 =    t.x11 *. invdet;
         x10 = -. t.x10 *. invdet;
-        x20 =    t.x10 *. t.x21 -. t.x11 *. t.x20 *. invdet;
+        x20 =    (t.x10 *. t.x21 -. t.x11 *. t.x20) *. invdet;
         x01 = -. t.x01 *. invdet;
         x11 =    t.x00 *. invdet;
-        x21 =    t.x01 *. t.x20 -. t.x00 *. t.x21 *. invdet;
+        x21 =    (t.x01 *. t.x20 -. t.x00 *. t.x21) *. invdet;
       }
 
   let translate ~x ~y xform =

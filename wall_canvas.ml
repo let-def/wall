@@ -139,12 +139,12 @@ let round_rect t ~x ~y ~w ~h ~r =
       ~c2x:(x +. rx *. (1.0 -. kappa90)) ~c2y:(y +. h)
       ~x:(x +. rx) ~y:(y +. h);
     line_to t ~x:(x +. w -. rx) ~y:(y +. h);
-    bezier_to t 
+    bezier_to t
       ~c1x:(x +. w -. rx *. (1.0 -. kappa90)) ~c1y:(y +. h)
       ~c2x:(x +. w) ~c2y:(y +. h -. ry *. (1.0 -. kappa90))
       ~x:(x +. w) ~y:(y +. h -. ry);
     line_to t ~x:(x +. w) ~y:(y +. ry);
-    bezier_to t 
+    bezier_to t
       ~c1x:(x +. w) ~c1y:(y +. ry *. (1.0 -. kappa90))
       ~c2x:(x +. w -. rx *. (1.0 -. kappa90)) ~c2y:y
       ~x:(x +. w -. rx) ~y;
@@ -158,16 +158,16 @@ let round_rect t ~x ~y ~w ~h ~r =
 
 let ellipse t ~cx ~cy ~rx ~ry =
   move_to t ~x:(cx -. rx) ~y:cy;
-  bezier_to t 
+  bezier_to t
     ~c1x:(cx -. rx) ~c1y:(cy +. ry *. kappa90)
     ~c2x:(cx -. rx *. kappa90) ~c2y:(cy +. ry) ~x:cx ~y:(cy +. ry);
-  bezier_to t 
+  bezier_to t
     ~c1x:(cx +. rx *. kappa90) ~c1y:(cy +. ry)
     ~c2x:(cx +. rx) ~c2y:(cy +. ry *. kappa90) ~x:(cx +. rx) ~y:cy;
-  bezier_to t 
+  bezier_to t
     ~c1x:(cx  +. rx) ~c1y:(cy -. ry *. kappa90)
     ~c2x:(cx +. rx *. kappa90) ~c2y:(cy -. ry) ~x:cx ~y:(cy -. ry);
-  bezier_to t 
+  bezier_to t
     ~c1x:(cx  -. rx *. kappa90) ~c1y:(cy -. ry)
     ~c2x:(cx -. rx) ~c2y:(cy -. ry *. kappa90) ~x:(cx -. rx) ~y:cy;
   close_path t
@@ -178,7 +178,7 @@ let circle t ~cx ~cy ~r =
 let arc t ~cx ~cy ~r ~a0 ~a1 dir =
   let da = (a1 -. a0) in
   let da =
-    if abs_float da > 2.0 *. pi then
+    if abs_float da >= 2.0 *. pi then
       match dir with
       | `CW  -> 2.0 *. pi
       | `CCW -> -. 2.0 *. pi
@@ -187,13 +187,15 @@ let arc t ~cx ~cy ~r ~a0 ~a1 dir =
       | `CW  -> if da < 0.0 then da +. 2.0 *. pi else da
       | `CCW -> if da > 0.0 then da -. 2.0 *. pi else da
   in
-  let ndivs = max 1 (min 5 (int_of_float (abs_float da /. pi *. 0.5 +. 0.5))) in
-  let hda = (da /. float ndivs) /. 2.0 in
+  let ndivs = max 1 (min 5 (int_of_float (abs_float da /. (pi *. 0.5) +. 0.5))) in
   (* Split arc into max 90 degree segments. *)
-  let kappa = abs_float (4.0 /. 3.0 *. (1.0 -. cos hda) /. sin hda) in
+  let kappa =
+    let hda = (da /. float ndivs) /. 2.0 in
+    abs_float (4.0 /. 3.0 *. (1.0 -. cos hda) /. sin hda)
+  in
   let kappa = match dir with
     | `CW  -> kappa
-    | `CCW -> kappa
+    | `CCW -> -.kappa
   in
   let coords i =
     let a = a0 +. da *. (float i /. float ndivs) in
@@ -205,7 +207,7 @@ let arc t ~cx ~cy ~r ~a0 ~a1 dir =
   let rec step (px, py, ptanx, ptany) i =
     if i > ndivs then () else
       let (x, y, tanx, tany) as coords = coords i in
-      bezier_to t 
+      bezier_to t
         ~c1x:(px +. ptanx) ~c1y:(py +. ptany)
         ~c2x:(x -. tanx) ~c2y:(y -. tany)
         ~x ~y;

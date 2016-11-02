@@ -176,7 +176,7 @@ module T = struct
       freeze_path t t.paths;
       let p = {
         path_first = t.point;
-        path_count = 0;
+        path_count = -1;
         path_closed = false;
         path_winding = CCW;
         path_convex = false;
@@ -193,7 +193,7 @@ module T = struct
     let flush_paths t =
       let paths = t.paths in
       freeze_path t paths;
-      t.paths <- [];
+      (*t.paths <- [];*)
       paths
 
     let last_x {points; point} =

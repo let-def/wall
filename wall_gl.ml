@@ -58,17 +58,17 @@ precision highp float;
 precision mediump float;
 #endif
 
-#define innerCol     frag[0]
-#define outerCol     frag[1]
-#define paintMat     mat3(frag[2].xyz, frag[3].xyz, frag[4].xyz)
-#define scissorMat   mat3(frag[5].xyz, frag[6].xyz, frag[7].xyz)
+#define innerCol     frag[6]
+#define outerCol     frag[7]
+#define paintMat     mat3(frag[3].xyz, frag[4].xyz, frag[5].xyz)
+#define scissorMat   mat3(frag[0].xyz, frag[1].xyz, frag[2].xyz)
 #define scissorExt   frag[8].xy
 #define scissorScale frag[8].zw
 #define extent       frag[9].xy
-#define strokeMult   frag[9].z
-#define strokeThr    frag[9].w
-#define radius       frag[10].x
-#define feather      frag[10].y
+#define radius       frag[9].z
+#define feather      frag[9].w
+#define strokeMult   frag[10].x
+#define strokeThr    frag[10].y
 #define texType      int(frag[10].z)
 #define type         int(frag[10].w)
 
@@ -304,13 +304,13 @@ module Frag = struct
     let a = Color.a col *. a in
     set_4 c (r*.a) (g*.a) (b*.a) a
 
-  let inner_color = 0
-  let outer_color = 4
-  let paint_mat   = 8
-  let sciss_mat   = 20
+  let paint_mat   = 12
+  let sciss_mat   = 0
+  let inner_color = 24
+  let outer_color = 28
   let sciss_extent_scale = 32
-  let paint_extent_fringe_stroke_thr = 36
-  let paint_radius_feather_type = 40
+  let paint_extent_radius_feather = 36
+  let strokemult_strokethr_textype_type = 40
 
   type shader_type = [
     | `FILLGRAD
@@ -351,9 +351,8 @@ module Frag = struct
         (sqrt (sxform.x01 *. sxform.x01 +. sxform.x11 *. sxform.x11) /. fringe)
     end;
     let pw = Size2.w paint.Paint.extent and ph = Size2.h paint.Paint.extent in
-    set_4 paint_extent_fringe_stroke_thr pw ph
-      ((width +. fringe) *. 0.5 /. fringe)
-      stroke_thr;
+    set_4 paint_extent_radius_feather pw ph
+      paint.Paint.radius paint.Paint.feather;
     begin match paint.Paint.image with
       | None -> ()
       | Some tex -> Gl.bind_texture Gl.texture_2d (Wall_tex.tex tex);
@@ -365,16 +364,18 @@ module Frag = struct
         else `FILLGRAD
       | Some typ -> typ
     in
-    set_4 paint_radius_feather_type
-      paint.Paint.radius paint.Paint.feather 0.0(*texType*) (shader_type typ);
+    set_4 strokemult_strokethr_textype_type
+      ((width +. fringe) *. 0.5 /. fringe)
+      stroke_thr
+      0.0(*texType*) (shader_type typ);
     Gl.uniform4fv t.frag 11 buf
 
   let set_simple t stroke_thr typ =
     for i = 0 to 43 do
       buf.{i} <- 0.0;
     done;
-    buf.{paint_extent_fringe_stroke_thr + 3} <- stroke_thr;
-    buf.{paint_radius_feather_type + 3} <- shader_type typ;
+    buf.{strokemult_strokethr_textype_type + 1} <- stroke_thr;
+    buf.{strokemult_strokethr_textype_type + 3} <- shader_type typ;
     Gl.uniform4fv t.frag 11 buf
 end
 
