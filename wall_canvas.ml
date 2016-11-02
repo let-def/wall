@@ -54,7 +54,7 @@ let new_path t xf =
 let close_path t =
   T.close_path t.t
 
-let stroke t ?(frame=Frame.default) p o =
+let stroke t ?(frame=Frame.default) paint o =
   let _bounds, paths = T.flush t.t in
   let paths =
     V.stroke t.t t.b
@@ -66,9 +66,10 @@ let stroke t ?(frame=Frame.default) p o =
       ~line_cap:o.Outline.line_cap
       paths
   in
-  t.p <- Wall_gl.Stroke (p, frame, o.Outline.stroke_width, paths) :: t.p
+  let paint = Paint.transform paint t.xf in
+  t.p <- Wall_gl.Stroke (paint, frame, o.Outline.stroke_width, paths) :: t.p
 
-let fill t ?(frame=Frame.default) p =
+let fill t ?(frame=Frame.default) paint =
   let bounds, paths = T.flush t.t in
   let paths =
     V.fill t.t t.b
@@ -76,7 +77,8 @@ let fill t ?(frame=Frame.default) p =
       ~fringe_width:1.0
       paths
   in
-  t.p <- Wall_gl.Fill (p, frame, bounds, paths) :: t.p
+  let paint = Paint.transform paint t.xf in
+  t.p <- Wall_gl.Fill (paint, frame, bounds, paths) :: t.p
 
 let new_frame t =
   T.clear t.t;

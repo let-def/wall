@@ -89,6 +89,8 @@ module Paint : sig
 
   val white : _ t
   val black : _ t
+
+  val transform : 'a t -> Transform.t -> 'a t
 end
 
 module Outline : sig

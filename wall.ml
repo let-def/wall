@@ -140,6 +140,10 @@ module Transform = struct
     let x = P2.x p and y = P2.y p in
     P2.v (px t x y) (py t x y)
 
+  let dump oc t =
+    Printf.fprintf oc "{%f,%f,%f,%f,%f,%f}"
+    t.x00 t.x01 t.x10 t.x11 t.x20 t.x21
+
   let inverse t =
     let det = t.x00 *. t.x11 -. t.x10 *. t.x01 in
     if det > -1e-6 && det < 1e-6 then
@@ -195,6 +199,11 @@ module Paint = struct
     outer   : color;
     image   : 'image option;
   }
+
+  let dump oc t =
+    Printf.fprintf oc "{ xform = %a; extent = (%f,%f); radius = %f; feather = %f }"
+    Transform.dump t.xform (Size2.w t.extent) (Size2.h t.extent) t.radius t.feather
+
   let linear_gradient ~sx ~sy ~ex ~ey ~inner ~outer =
     let large = 1e5 in
     let dx = ex -. sx in
@@ -272,6 +281,10 @@ module Paint = struct
 
   let white = color Color.white
   let black = color Color.black
+
+  let transform t xf =
+    if xf == Transform.identity then t
+    else { t with xform = Transform.compose t.xform xf }
 end
 
 module Frame = struct
