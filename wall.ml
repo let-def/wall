@@ -160,13 +160,13 @@ module Transform = struct
       }
 
   let translate ~x ~y xform =
-    compose xform (translation ~x ~y)
+    compose (translation ~x ~y) xform
 
   let rotate angle xform =
-    compose xform (rotation angle)
+    compose (rotation angle) xform
 
   let rescale ~sx ~sy xform =
-    compose xform (scale ~sx ~sy)
+    compose (scale ~sx ~sy) xform
 end
 
 module Outline = struct
@@ -304,7 +304,7 @@ module Frame = struct
 
   open Transform
 
-  let apply_transform xform ctx = {ctx with xform = compose xform ctx.xform}
+  let transform ctx xf = {ctx with xform = compose ctx.xform xf}
   let reset_transform ctx = {ctx with xform = identity}
   let translate x y ctx = {ctx with xform = translate ~x ~y ctx.xform}
   let rotate a ctx = {ctx with xform = rotate a ctx.xform}

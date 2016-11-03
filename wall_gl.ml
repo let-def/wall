@@ -52,11 +52,6 @@ void main(void) {
 "
 
 let shader_fragment = "\
-#if defined(GL_FRAGMENT_PRECISION_HIGH)
-precision highp float;
-#else
-precision mediump float;
-#endif
 
 #define innerCol     frag[6]
 #define outerCol     frag[7]
@@ -226,7 +221,7 @@ let create
   =
   let program =
     let prefix = if antialias then Some "#define EDGE_AA 1" else None in
-    Utils.create_program ~version:100 ?prefix
+    Utils.create_program ?prefix
       (fun program ->
          Gl.bind_attrib_location program 0 "vertex";
          Gl.bind_attrib_location program 1 "tcoord")

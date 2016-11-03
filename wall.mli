@@ -118,7 +118,7 @@ module Frame : sig
 
   val default : t
 
-  val apply_transform : Transform.t -> t -> t
+  val transform : t -> Transform.t -> t
   val reset_transform : t -> t
   val translate : float -> float -> t -> t
   val rotate    : float -> t -> t
