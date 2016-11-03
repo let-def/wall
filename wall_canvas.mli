@@ -25,7 +25,7 @@ val delete : t -> unit
 
 val new_path : t -> transform -> unit
 
-val set_winding : t -> [`CW | `CCW] -> unit
+val set_winding : t -> [< `HOLE | `SOLID | `CW | `CCW ] -> unit
 
 val move_to : t -> x:float -> y:float -> unit
 

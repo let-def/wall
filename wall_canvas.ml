@@ -45,7 +45,7 @@ let delete t =
   Wall_gl.delete t.g
 
 let set_winding t w =
-  T.set_winding t.t (match w with `CW -> T.CW | `CCW -> T.CCW)
+  T.set_winding t.t (match w with `CW | `HOLE -> T.CW | `SOLID | `CCW -> T.CCW)
 
 let new_path t xf =
   T.clear t.t;
