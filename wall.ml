@@ -289,47 +289,39 @@ end
 
 module Frame = struct
   type t = {
-    xform          : Transform.t;
-    scissor_xform  : Transform.t;
-    scissor_extent : size2;
-    alpha          : float;
+    xform  : Transform.t;
+    extent : size2;
+    alpha  : float;
   }
 
   let default = {
-    xform = Transform.identity;
-    scissor_xform = Transform.identity;
-    scissor_extent = Size2.v (-1.0) (-1.0);
-    alpha = 1.0;
+    xform  = Transform.identity;
+    extent = Size2.v (-1.0) (-1.0);
+    alpha  = 1.0;
   }
 
   open Transform
 
-  let transform ctx xf = {ctx with xform = compose ctx.xform xf}
-  let reset_transform ctx = {ctx with xform = identity}
-  let translate x y ctx = {ctx with xform = translate ~x ~y ctx.xform}
-  let rotate a ctx = {ctx with xform = rotate a ctx.xform}
-  let skew sx sy ctx = {ctx with xform = compose (skew sx sy) ctx.xform}
-  let scale x y ctx = {ctx with xform = compose (scale x y) ctx.xform}
+  let transform frame xf = {frame with xform = compose frame.xform xf}
+  let reset_transform frame = {frame with xform = identity}
+  let translate ~x ~y frame = {frame with xform = translate ~x ~y frame.xform}
+  let rotate a frame = {frame with xform = rotate a frame.xform}
+  let scale ~sx ~sy frame = {frame with xform = rescale sx sy frame.xform}
 
-  let scissor x y w h ctx =
+  let set_scissor ~x ~y ~w ~h xf frame =
     let w = w /. 2.0 and h = h /. 2.0 in
-    {ctx with
-     scissor_xform = compose
-         {identity with x20 = x +. w; x21 = y +. w}
-         ctx.xform;
-     scissor_extent = Size2.v w h
-    }
+    let mat = {identity with x20 = x +. w; x21 = y +. h} in
+    {frame with xform = compose mat xf; extent = Size2.v w h }
 
-  let intersect_scissor x y w h ctx =
+  let intersect_scissor ~x ~y ~w ~h xf frame =
     (* If no previous scissor has been set, set the scissor as current scissor. *)
-    if Size2.w ctx.scissor_extent < 0.0 then
-      scissor x y w h ctx
+    if Size2.w frame.extent < 0.0 then
+      set_scissor x y w h xf frame
     else begin
-      let pxform = compose ctx.scissor_xform (inverse ctx.xform) in
-      let w = Size2.w ctx.scissor_extent in
-      let h = Size2.h ctx.scissor_extent in
-      let tex = w *. pxform.x00 +. h *. pxform.x10 in
-      let tey = w *. pxform.x01 +. h *. pxform.x11 in
+      let ex = Size2.w frame.extent and ey = Size2.h frame.extent in
+      let pxform = compose frame.xform (inverse xf) in
+      let tex = ex *. abs_float pxform.x00 +. ey *. abs_float pxform.x10 in
+      let tey = ex *. abs_float pxform.x01 +. ey *. abs_float pxform.x11 in
 
       let isect_rect (ax,ay,aw,ah) (bx,by,bw,bh) =
         let minx = max ax bx and miny = max ay by in
@@ -341,13 +333,13 @@ module Frame = struct
           (x, y, w, h)
       in
 
-      scissor x y w h ctx
+      set_scissor x y w h xf frame
     end
 
-  let reset_scissor ctx =
-    {ctx with
-     scissor_xform = default.scissor_xform;
-     scissor_extent = default.scissor_extent
+  let reset_scissor frame =
+    {frame with
+     xform = default.xform;
+     extent = default.extent
     }
 end
 

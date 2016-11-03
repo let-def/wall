@@ -110,23 +110,22 @@ end
 
 module Frame : sig
   type t = {
-    xform          : Transform.t;
-    scissor_xform  : Transform.t;
-    scissor_extent : size2;
-    alpha          : float;
+    xform  : Transform.t;
+    extent : size2;
+    alpha  : float;
   }
 
   val default : t
 
+  val set_scissor : x:float -> y:float -> w:float -> h:float -> Transform.t -> t -> t
+  val intersect_scissor : x:float -> y:float -> w:float -> h:float -> Transform.t -> t -> t
+  val reset_scissor : t -> t
+
   val transform : t -> Transform.t -> t
   val reset_transform : t -> t
-  val translate : float -> float -> t -> t
+  val translate : x:float -> y:float -> t -> t
   val rotate    : float -> t -> t
-  val skew      : float -> float -> t -> t
-  val scale     : float -> float -> t -> t
-  val scissor   : float -> float -> float -> float -> t -> t
-  val intersect_scissor : float -> float -> float -> float -> t -> t
-  val reset_scissor : t -> t
+  val scale     : sx:float -> sy:float -> t -> t
 end
 
 type transform = Transform.t

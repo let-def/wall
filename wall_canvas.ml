@@ -67,7 +67,8 @@ let stroke t ?(frame=Frame.default) paint o =
       paths
   in
   let paint = Paint.transform paint t.xf in
-  t.p <- Wall_gl.Stroke (paint, frame, o.Outline.stroke_width, paths) :: t.p
+  let width = o.Outline.stroke_width in
+  t.p <- Wall_gl.Stroke (paint, frame, width, paths) :: t.p
 
 let fill t ?(frame=Frame.default) paint =
   let bounds, paths = T.flush t.t in

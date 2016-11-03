@@ -271,7 +271,7 @@ module Frag = struct
     buf.{c + 11} <- 0.0
 
   let set_inv_xform c xf =
-    let open Wall.Transform in
+    let open Transform in
     let xf = inverse xf in
     buf.{c + 00} <- xf.x00;
     buf.{c + 01} <- xf.x01;
@@ -321,8 +321,8 @@ module Frag = struct
 
 
   let set_tool t ?typ paint frame width stroke_thr =
-    let sextent = frame.Frame.scissor_extent in
-    let sxform  = frame.Frame.scissor_xform in
+    let sextent = frame.Frame.extent in
+    let sxform  = frame.Frame.xform in
     let alpha = frame.Frame.alpha in
     let alpha =
       if width < 1.0 then

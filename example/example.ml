@@ -317,6 +317,7 @@ let draw_caps vg xf x y w =
   done
 
 let draw_scissor vg xf x y t =
+  let frame = Frame.default in
   let xf = Transform.(rotate (5.0 /. 180.0 *. C.pi) (translate ~x ~y xf)) in
 
 	(* Draw first rect and set scissor to it's area. *)
@@ -325,7 +326,7 @@ let draw_scissor vg xf x y t =
   C.fill vg (Paint.color (Color.v 1.0 0.0 0.0 1.0));
 
 	(* Draw second rectangle with offset and rotation. *)
-  let frame = Frame.(scissor (-20.0) (-20.0) 60.0 40.0 default) in
+  let frame = Frame.set_scissor (-20.0) (-20.0) 60.0 40.0 xf frame in
   let xf = Transform.(rotate t (translate 40.0 0.0 xf)) in
 
 	(* Draw the intended second rectangle without any scissoring. *)
@@ -333,9 +334,8 @@ let draw_scissor vg xf x y t =
   C.rect vg (-20.0) (-10.0) 60.0 30.0;
   C.fill vg (Paint.color (Color.v 1.0 0.5 0.0 0.25));
 	(* Draw second rectangle with combined scissoring. *)
-  let frame = Frame.intersect_scissor (-20.0) (-10.0) 60.0 30.0 frame in
-  let frame = Frame.apply_transform xf frame in
-  C.fill vg ~frame (Paint.color (Color.v 1.0 0.5 0.0 0.25))
+  let frame = Frame.intersect_scissor (-20.0) (-10.0) 60.0 30.0 xf frame in
+  C.fill vg ~frame (Paint.color (Color.v 1.0 0.5 0.0 1.0))
 
 let draw_demo vg xf mx my w h t = (
   draw_eyes vg xf (w -. 250.0) 50.0 150.0 100.0 mx my t;
@@ -372,10 +372,10 @@ let main () =
       | Ok ctx ->
         let vg = C.create_gl ~antialias:false in
         let t = ref 0.0 in
-        for i = 0 to 400 do
+        for i = 0 to 1000 do
           Sdl.pump_events ();
-          Unix.sleepf 0.015;
-          t := !t +. 0.015;
+          Unix.sleepf 0.020;
+          t := !t +. 0.030;
           Gl.viewport 0 0 1000 600;
           Gl.clear_color 0.3 0.3 0.32 1.0;
           Gl.(clear (color_buffer_bit lor depth_buffer_bit lor stencil_buffer_bit));
