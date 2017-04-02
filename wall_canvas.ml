@@ -54,21 +54,21 @@ let new_path t xf =
 let close_path t =
   T.close_path t.t
 
-let stroke t ?(frame=Frame.default) paint o =
+let stroke t ?(frame=Frame.default) paint
+    {Outline. stroke_width; miter_limit; line_join; line_cap} =
   let _bounds, paths = T.flush t.t in
   let paths =
     V.stroke t.t t.b
       ~edge_antialias:true
       ~fringe_width:1.0
-      ~stroke_width:o.Outline.stroke_width
-      ~miter_limit:o.Outline.miter_limit
-      ~line_join:o.Outline.line_join
-      ~line_cap:o.Outline.line_cap
+      ~stroke_width
+      ~miter_limit
+      ~line_join
+      ~line_cap
       paths
   in
   let paint = Paint.transform paint t.xf in
-  let width = o.Outline.stroke_width in
-  t.p <- Wall_gl.Stroke (paint, frame, width, paths) :: t.p
+  t.p <- Wall_gl.Stroke (paint, frame, stroke_width, paths) :: t.p
 
 let fill t ?(frame=Frame.default) paint =
   let bounds, paths = T.flush t.t in
