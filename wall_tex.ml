@@ -133,9 +133,8 @@ let load_image ?(float=false) ?(alpha=true) ?(flip=false) ?name s =
     | Some name -> name
   in
   let load = function
-    | `Error msg ->
-      Result.Error (`Msg msg)
-    | `Ok image ->
+    | Result.Error _ as error -> error
+    | Result.Ok image ->
       if flip then flip_image image;
       let t = from_image ~name image in
       Stb_image.free_unmanaged image;
