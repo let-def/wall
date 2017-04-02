@@ -581,8 +581,7 @@ let image_texture image = image
 
 let load_demo_data () =
   Array.init 12 (fun i ->
-      let name = Printf.sprintf
-          "/Users/def/Sandbox/nanovg/example/images/image%d.jpg" (i+1)
+      let name = Printf.sprintf "images/image%d.jpg" (i+1)
       in
       match Wall_tex.load_image ~alpha:false ~name name with
       | Result.Ok image -> image
@@ -755,8 +754,14 @@ let main () =
       | Ok ctx ->
         let vg = C.create_gl ~antialias:false in
         let t = ref 0.0 in
-        for i = 0 to 1000 do
-          Sdl.pump_events ();
+        let quit = ref false in
+        let event = Sdl.Event.create () in
+        while not !quit do
+          while Sdl.poll_event (Some event) do
+            match Sdl.Event.enum (Sdl.Event.get event Sdl.Event.typ) with
+            | `Quit -> quit := true
+            | _ -> ()
+          done;
           Unix.sleepf 0.020;
           t := !t +. 0.050;
           Gl.viewport 0 0 1000 600;
