@@ -223,6 +223,10 @@ let arc t ~cx ~cy ~r ~a0 ~a1 dir =
     move_to t ~x ~y;
   step coords 1
 
+let text t ?(frame=Frame.default) paint font ~x ~y text =
+  let paint = Paint.transform paint t.xf in
+  t.p <- Wall_gl. Text (paint, frame, x, y, t.xf, font, text) :: t.p
+
 (*let arc_to vg xf ~x1 ~y1 ~x2 ~y2 ~r =
 {
 	float x0 = ctx->commandx;

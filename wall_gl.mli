@@ -24,7 +24,8 @@ val create : antialias:bool -> stencil_strokes:bool -> debug:bool -> t
 val delete : t -> unit
 
 type obj =
-  | Fill of Wall_tex.t paint * frame * T.bounds * V.path list
+  | Fill   of Wall_tex.t paint * frame * T.bounds * V.path list
   | Stroke of Wall_tex.t paint * frame * float * V.path list
+  | Text   of unit paint * frame * float * float * transform * font * string
 
 val render : t -> Gg.size2 -> B.t -> obj list -> unit

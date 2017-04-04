@@ -27,7 +27,8 @@ module B : sig
 
   val make : unit -> t
   val clear : t -> unit
-  val prepare : t -> int -> unit
+  val reserve : t -> int -> unit
+  val release : t -> int -> unit
 
   val data : t -> bigarray
   val alloc : t -> int -> int

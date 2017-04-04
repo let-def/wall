@@ -21,6 +21,12 @@ open Gg
 open Wall
 open Wall_geom
 
+type font_buffer = {
+  image: Stb_image.int8 Stb_image.t;
+  texture: Wall_tex.t;
+  mutable room : unit Maxrects.t;
+}
+
 type t = {
   program  : int;
   viewsize : int;
@@ -31,6 +37,11 @@ type t = {
   antialias: bool;
   stencil_strokes: bool;
   debug: bool;
+
+  font_glyphes: (int * int * Stb_truetype.t,
+                 Stb_truetype.box * Stb_truetype.box * int ref) Hashtbl.t;
+  font_todo: (int * int * Stb_truetype.t, unit) Hashtbl.t;
+  mutable font_buffer: font_buffer option;
 }
 
 (* OpenGL rendered from
@@ -108,7 +119,7 @@ void main(void) {
     color *= strokeAlpha * scissor;
     result = color;
   } else if (type == 1) {    // Image
-    // Calculate color fron texture
+    // Calculate color from texture
     vec2 pt = (paintMat * vec3(fpos,1.0)).xy / extent;
     vec4 color = texture2D(tex, pt);
     if (texType == 1) color = vec4(color.xyz*color.w,color.w);
@@ -237,6 +248,10 @@ let create
     vert_vbo;
 
     antialias; stencil_strokes; debug;
+
+    font_glyphes = Hashtbl.create 8;
+    font_todo = Hashtbl.create 8;
+    font_buffer = None;
   }
 
 let delete t =
@@ -246,8 +261,9 @@ let delete t =
 let fringe = 1.0
 
 type obj =
-  | Fill of Wall_tex.t paint * frame * T.bounds * V.path list
+  | Fill   of Wall_tex.t paint * frame * T.bounds * V.path list
   | Stroke of Wall_tex.t paint * frame * float * V.path list
+  | Text   of unit paint * frame * float * float * transform * font * string
 
 module Frag = struct
 
@@ -313,12 +329,12 @@ module Frag = struct
     | `SIMPLE
     | `IMG
   ]
-  let shader_type = function
-    | `FILLGRAD -> float 0
-    | `FILLIMG  -> float 1
-    | `SIMPLE   -> float 2
-    | `IMG      -> float 3
 
+  let shader_type = function
+    | `FILLGRAD -> 0.
+    | `FILLIMG  -> 1.
+    | `SIMPLE   -> 2.
+    | `IMG      -> 3.
 
   let set_tool t ?typ paint frame width stroke_thr =
     let sextent = frame.Frame.extent in
@@ -352,17 +368,20 @@ module Frag = struct
       | None -> ()
       | Some tex -> Gl.bind_texture Gl.texture_2d (Wall_tex.tex tex);
     end;
-    let typ = match typ with
-      | None ->
-        if paint.Paint.image <> None
-        then `FILLIMG
-        else `FILLGRAD
-      | Some typ -> typ
+    let typ = match typ, paint.Paint.image  with
+      | None, Some _ -> `FILLIMG
+      | None, None   -> `FILLGRAD
+      | Some typ, _  -> typ
+    in
+    let texType = match paint.Paint.image with
+      | Some image when Wall_tex.channels image >= 3 ->
+        if Wall_tex.premultiplied image then 0.0 else 1.0
+      | _ -> 2.0
     in
     set_4 strokemult_strokethr_textype_type
       ((width +. fringe) *. 0.5 /. fringe)
       stroke_thr
-      0.0(*texType*) (shader_type typ);
+      texType (shader_type typ);
     Gl.uniform4fv t.frag 11 buf
 
   let set_simple t stroke_thr typ =
@@ -398,7 +417,7 @@ let push_4 b f0 f1 f2 f3 =
   data.{c + 3} <- f3
 
 let prepare_fill vb paint frame bounds paths =
-  B.prepare vb (6 * 4);
+  B.reserve vb (6 * 4);
   let convex = match paths with
     | [path] -> path.V.convex
     | _ -> false
@@ -525,25 +544,164 @@ let exec_stroke t { frame; paint; width; paths } =
 
   end
 
-(*let exec_triangles t uniform_offset triangle_offset triangle_count =
-  Uniform.set t uniform_offset;
-  Gl.draw_arrays Gl.triangles  triangle_offset triangle_count*)
+let exec_triangles t { frame; paint; triangle_offset; triangle_count } =
+  Frag.set_tool t ~typ:`IMG paint frame 1.0 (-1.0);
+  Gl.draw_arrays Gl.triangles  triangle_offset triangle_count
 
-let prepare_obj vbuffer = function
+let frame_nr = ref 0
+
+let estimate_scale {Transform. x00; x10; x01; x11; _} {Font. size} =
+  let sx = sqrt (x00 *. x00 +. x10 *. x10) in
+  let sy = sqrt (x01 *. x01 +. x11 *. x11) in
+  let scale = (sx +. sy) *. 0.5 *. size in
+  let f = int_of_float (scale *. 100.0) in
+  if f > 400 then 400 else f
+
+let alloc_text t = function
+  | Text (_, _, _, _, xf, font, text) ->
+    let scale = estimate_scale xf font in
+    let frame_nr = !frame_nr in
+    let r = ref 0 in
+    let len = String.length text in
+    while !r < len do
+      match utf8_decode r text with
+      | -1 -> ()
+      | cp ->
+        let key = (cp, scale, font.Font.glyphes) in
+        match Hashtbl.find t.font_glyphes key with
+        | (_,_,k) -> k := frame_nr
+        | exception Not_found ->
+          if not (Hashtbl.mem t.font_todo key) then
+            Hashtbl.add t.font_todo key ()
+    done
+  | _ -> ()
+
+let prepare_text t vb paint frame x y xf font text =
+  let r = ref 0 in
+  let len = String.length text in
+  begin
+    let count = ref 0 in
+    while !r < len do if utf8_decode r text <> -1 then incr count done;
+    B.reserve vb (!count * 4 * 6);
+  end;
+  r := 0;
+  let offset = B.offset vb in
+  let scale = estimate_scale xf font in
+  let x = ref x in
+  while !r < len do
+    match utf8_decode r text with
+    | -1 -> ()
+    | cp ->
+      let key = (cp, scale, font.Font.glyphes) in
+      match Hashtbl.find t.font_glyphes key with
+      | (box, uv,_) ->
+        let open Stb_truetype in
+        let x0 = !x +. float box.x0 /. 2.0 in
+        let y0 =  y +. float box.y0 /. 2.0 in
+        let x1 = !x +. float box.x1 /. 2.0 in
+        let y1 =  y +. float box.y1 /. 2.0 in
+        let s0 = float uv.x0 /. 512.0 in
+        let t0 = float uv.y0 /. 512.0 in
+        let s1 = float uv.x1 /. 512.0 in
+        let t1 = float uv.y1 /. 512.0 in
+        let cx00 = Transform.px xf x0 y0 in
+        let cy00 = Transform.py xf x0 y0 in
+        let cx10 = Transform.px xf x1 y0 in
+        let cy10 = Transform.py xf x1 y0 in
+        let cx01 = Transform.px xf x0 y1 in
+        let cy01 = Transform.py xf x0 y1 in
+        let cx11 = Transform.px xf x1 y1 in
+        let cy11 = Transform.py xf x1 y1 in
+        push_4 vb cx00 cy00 s0 t0;
+        push_4 vb cx11 cy11 s1 t1;
+        push_4 vb cx10 cy10 s1 t0;
+        push_4 vb cx00 cy00 s0 t0;
+        push_4 vb cx01 cy01 s0 t1;
+        push_4 vb cx11 cy11 s1 t1;
+        x := !x +. float (box.x1 - box.x0) /. 2.0;
+      | exception Not_found -> ()
+  done;
+  { kind = TRIANGLES; frame = Frame.default; paint; width = 1.0; paths = [];
+    triangle_offset = offset / 4;
+    triangle_count  = (B.offset vb - offset) / 4;
+  }
+
+let prepare_obj t vbuffer = function
   | Fill (paint, frame, bounds, paths) ->
     prepare_fill vbuffer paint frame bounds paths
   | Stroke (paint, frame, width, paths) ->
     prepare_stroke paint frame width paths
+  | Text (paint, frame, x, y, xf, font, text) ->
+    begin match t.font_buffer with
+      | None -> { kind = TRIANGLES; frame = Frame.default; paint = Paint.black;
+                  width = 1.0; paths = [];
+                  triangle_offset = 0; triangle_count = 0; }
+      | Some buffer ->
+        let paint = {paint with Paint.image = Some buffer.texture} in
+        prepare_text t vbuffer paint frame x y xf font text
+    end
 
 let exec_call t call =
   match call.kind with
   | FILL -> exec_fill t call
   | CONVEXFILL -> exec_convex_fill t call
   | STROKE -> exec_stroke t call
-  | _ -> assert false
+  | TRIANGLES -> exec_triangles t call
+
+let new_font_buffer width height =
+  let data = Bigarray.(Array1.create int8_unsigned c_layout (width * height)) in
+  let image = {Stb_image. width = width; height = height; channels = 1; data } in
+  let texture = Wall_tex.from_image ~name:"font atlas" image in
+  let room = Maxrects.add_bin () width height Maxrects.empty in
+  { image; texture; room }
+
+let bake_glyphs t =
+  let buffer = match t.font_buffer with
+    | Some buffer -> buffer
+    | None ->
+      let buffer = new_font_buffer 512 512 in
+      t.font_buffer <- Some buffer;
+      buffer
+  in
+  let add_box (cp, scale_key, ttf as key) () boxes =
+    match Stb_truetype.find ttf cp with
+    | None -> boxes
+    | Some glyph ->
+      let scale = Stb_truetype.scale_for_pixel_height ttf (float scale_key /. 10.0) in
+      let box = Stb_truetype.get_glyph_bitmap_box ttf glyph ~scale_x:scale ~scale_y:scale in
+      let {Stb_truetype. x0; y0; x1; y1} = box in
+      Maxrects.box (key, ttf, glyph, scale, box) (x1 - x0 + 2) (y1 - y0 + 2) :: boxes
+  in
+  let boxes = Hashtbl.fold add_box t.font_todo [] in
+  let room, boxes = Maxrects.insert_batch buffer.room boxes in
+  buffer.room <- room;
+  List.iter (function
+      | None -> ()
+      | Some {Maxrects. x; y; w; h; box; bin =_} ->
+        let (key, ttf, glyph, scale, box) = box.Maxrects.tag in
+        let uv = {Stb_truetype. x0 = x + 1; x1 = x + w - 1; y0 = y + 1; y1 = y + h - 1} in
+        Stb_truetype.make_glyph_bitmap
+          ttf
+          buffer.image.Stb_image.data
+          ~width:buffer.image.Stb_image.width
+          ~height:buffer.image.Stb_image.height
+          ~scale_x:scale
+          ~scale_y:scale
+          uv
+          glyph;
+        Hashtbl.add t.font_glyphes key (box, uv, ref !frame_nr)
+    ) boxes;
+  Hashtbl.reset t.font_todo;
+  Wall_tex.update buffer.texture buffer.image
 
 let render t viewsize vbuffer objs =
-  let calls = List.map (prepare_obj vbuffer) objs in
+  (* Allocate font glyphs *)
+  incr frame_nr;
+  List.iter (alloc_text t) objs;
+  if Hashtbl.length t.font_todo <> 0 then (
+    bake_glyphs t
+  );
+  let calls = List.map (prepare_obj t vbuffer) objs in
 
   Gl.use_program    t.program;
   Gl.blend_func     Gl.one Gl.one_minus_src_alpha;

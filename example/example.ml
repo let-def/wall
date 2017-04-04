@@ -10,6 +10,21 @@ let normalize (dx, dy) =
   else
     (dx, dy)
 
+let load_font name =
+  let ic = open_in_bin name in
+  let dim = in_channel_length ic in
+  let fd = Unix.descr_of_in_channel ic in
+  let buffer = Bigarray.Array1.map_file fd Bigarray.int8_unsigned Bigarray.c_layout false dim in
+  let offset = List.hd (Stb_truetype.enum buffer) in
+  match Stb_truetype.init buffer offset with
+  | None -> assert false
+  | Some font -> font
+
+let font_icons = lazy (load_font "entypo.ttf")
+let font_sans = lazy (load_font "Roboto-Regular.ttf")
+let font_sans_bold = lazy (load_font "Roboto-Bold.ttf")
+let font_emoji = lazy (load_font "NotoEmoji-Regular.ttf")
+
 let draw_eyes vg xf x y w h mx my t =
   let ex = w *. 0.23 in
   let ey = h *. 0.5 in
@@ -342,7 +357,6 @@ let draw_window vg xf title x y w h =
   (* Window *)
   C.new_path vg xf;
   C.round_rect vg x y w h cornerRadius;
-  (* nvgFillColor(vg, nvgRGBA(0,0,0,128)); *)
   C.fill vg (Paint.color (Color.v 0.110 0.118 0.133 0.75));
 
   (* Drop shadow *)
@@ -363,13 +377,15 @@ let draw_window vg xf title x y w h =
   C.line_to vg (x+.0.5+.w-.1.0) (y+.0.5+.30.0);
   C.stroke vg (Paint.color (Color.gray ~a:0.125 0.0)) Outline.default;
 
-  (* nvgFontSize(vg, 18.0f); *)
-  (* nvgFontFace(vg, "sans-bold"); *)
-  (* nvgTextAlign(vg,NVG_ALIGN_CENTER|NVG_ALIGN_MIDDLE); *)
+  C.new_path vg xf;
 
   (* nvgFontBlur(vg,2); *)
   (* nvgFillColor(vg, nvgRGBA(0,0,0,128)); *)
   (* nvgText(vg, x+w/2,y+16+1, title, NULL); *)
+
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.6 0.9))
+    (Font.make ~size:18.0 (Lazy.force font_sans_bold))
+    ~x:(x+.w/.2.) ~y:(y+.16.) title;
 
   (* nvgFontBlur(vg,0); *)
   (* nvgFillColor(vg, nvgRGBA(220,220,220,160)); *)
@@ -384,30 +400,21 @@ let draw_searchbox vg xf text x y w h =
   C.fill vg (Paint.box_gradient x (y +. 1.5) w h (h /. 2.0) 5.0
                (Color.gray ~a:0.08 0.0) (Color.gray ~a:0.375 0.0));
 
-  (* nvgBeginPath(vg);
-     nvgRoundedRect(vg, x+0.5f,y+0.5f, w-1,h-1, cornerRadius-0.5f);
-     nvgStrokeColor(vg, nvgRGBA(0,0,0,48));
-     nvgStroke(vg);*)
+  C.new_path vg xf;
+  C.round_rect vg (x+.0.5) (y+.0.5) (w-.1.0) (h-.1.0) (cornerRadius-.0.5);
+  C.stroke vg (Paint.color (Color.gray ~a:0.2 0.0)) Outline.default;
 
-  (* nvgFontSize(vg, h*1.3f); *)
-  (* nvgFontFace(vg, "icons"); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,64)); *)
-  (* nvgTextAlign(vg,NVG_ALIGN_CENTER|NVG_ALIGN_MIDDLE); *)
-  (* nvgText(vg, x+h*0.55f, y+h*0.55f, cpToUTF8(ICON_SEARCH,icon), NULL); *)
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.25 1.0))
+    (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
+    ~x:(x+.h*.0.55) ~y:(y+.h*.0.55) "🔍";
 
-  (* nvgFontSize(vg, 20.0f); *)
-  (* nvgFontFace(vg, "sans"); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,32)); *)
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.125 1.0))
+    (Font.make ~size:20.0 (Lazy.force font_sans))
+    ~x:(x+.h*.1.05) ~y:(y+.h*.0.5) text;
 
-  (* nvgTextAlign(vg,NVG_ALIGN_LEFT|NVG_ALIGN_MIDDLE); *)
-  (* nvgText(vg, x+h*1.05f,y+h*0.5f,text, NULL); *)
-
-  (* nvgFontSize(vg, h*1.3f); *)
-  (* nvgFontFace(vg, "icons"); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,32)); *)
-  (* nvgTextAlign(vg,NVG_ALIGN_CENTER|NVG_ALIGN_MIDDLE); *)
-  (* nvgText(vg, x+w-h*0.55f, y+h*0.55f, cpToUTF8(ICON_CIRCLED_CROSS,icon), NULL); *)
-  ()
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.125 1.0))
+    (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
+    ~x:(x+.w-.h*.0.55) ~y:(y+.h*.0.55) "✖"
 
 let draw_dropdown vg xf text x y w h =
   let cornerRadius = 4.0 in
@@ -421,27 +428,21 @@ let draw_dropdown vg xf text x y w h =
   C.round_rect vg (x+.0.5) (y+.0.5) (w-.1.0) (h-.1.0) (cornerRadius-.0.5);
   C.stroke vg (Paint.color (Color.gray ~a:0.1875 0.0)) Outline.default;
 
-  (* nvgFontSize(vg, 20.0f); *)
-  (* nvgFontFace(vg, "sans"); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,160)); *)
-  (* nvgTextAlign(vg,NVG_ALIGN_LEFT|NVG_ALIGN_MIDDLE); *)
-  (* nvgText(vg, x+h*0.3f,y+h*0.5f,text, NULL); *)
+  C.new_path vg xf;
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.8 1.0))
+    (Font.make ~size:20.0 (Lazy.force font_sans))
+    ~x ~y text;
 
-  (* nvgFontSize(vg, h*1.3f); *)
-  (* nvgFontFace(vg, "icons"); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,64)); *)
-  (* nvgTextAlign(vg,NVG_ALIGN_CENTER|NVG_ALIGN_MIDDLE); *)
-  (* nvgText(vg, x+w-h*0.5f, y+h*0.5f, cpToUTF8(ICON_CHEVRON_RIGHT,icon), NULL); *)
-  ()
+  C.new_path vg xf;
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.8 1.0))
+    (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
+    ~x ~y " "
 
 let draw_label vg xf text x y w h =
-  (* nvgFontSize(vg, 18.0f); *)
-  (* nvgFontFace(vg, "sans"); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,128)); *)
-
-  (* nvgTextAlign(vg,NVG_ALIGN_LEFT|NVG_ALIGN_MIDDLE); *)
-  (* nvgText(vg, x,y+h*0.5f,text, NULL); *)
-  ()
+  C.new_path vg xf;
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.5 1.0))
+    (Font.make ~size:18.0 (Lazy.force font_sans))
+    ~x ~y:(y+.h*.0.5) text
 
 let draw_editboxbase vg xf x y w h =
   C.new_path vg xf;
@@ -455,30 +456,23 @@ let draw_editboxbase vg xf x y w h =
 let draw_editbox vg xf text x y w h =
   draw_editboxbase vg xf x y w h;
 
-  (* nvgFontSize(vg, 20.0f); *)
-  (* nvgFontFace(vg, "sans"); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,64)); *)
-  (* nvgTextAlign(vg,NVG_ALIGN_LEFT|NVG_ALIGN_MIDDLE); *)
-  (* nvgText(vg, x+h*0.3f,y+h*0.5f,text, NULL); *)
-  ()
+  C.new_path vg xf;
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.25 1.0))
+    (Font.make ~size:20.0 (Lazy.force font_sans))
+    ~x:(x+.h*.0.3) ~y:(y+.h*.0.5) text
 
 let draw_editboxnum vg xf text units x y w h =
   draw_editboxbase vg xf x y w h;
 
   (* uw = nvgTextBounds(vg, 0,0, units, NULL, NULL); *)
 
-  (* nvgFontSize(vg, 18.0f); *)
-  (* nvgFontFace(vg, "sans"); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,64)); *)
-  (* nvgTextAlign(vg,NVG_ALIGN_RIGHT|NVG_ALIGN_MIDDLE); *)
-  (* nvgText(vg, x+w-h*0.3f,y+h*0.5f,units, NULL); *)
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.25 1.0))
+    (Font.make ~size:18.0 (Lazy.force font_sans))
+    ~x:(x+.w-.h*.0.3) ~y:(y+.h*.0.5) units;
 
-  (* nvgFontSize(vg, 20.0f); *)
-  (* nvgFontFace(vg, "sans"); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,128)); *)
-  (* nvgTextAlign(vg,NVG_ALIGN_RIGHT|NVG_ALIGN_MIDDLE); *)
-  (* nvgText(vg, x+w-uw-h*0.5f,y+h*0.5f,text, NULL); *)
-  ()
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.5 1.0))
+    (Font.make ~size:20.0 (Lazy.force font_sans))
+    ~x:(x-.h*.0.5) ~y:(y+.h*.0.5) text
 
 let draw_slider vg xf pos x y w h =
   let cy = y +. floor (h*.0.5) in
@@ -513,25 +507,20 @@ let draw_slider vg xf pos x y w h =
   ()
 
 let draw_checkbox vg xf text x y w h =
-  (* nvgFontSize(vg, 18.0f); *)
-  (* nvgFontFace(vg, "sans"); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,160)); *)
-
-  (* nvgTextAlign(vg,NVG_ALIGN_LEFT|NVG_ALIGN_MIDDLE); *)
-  (* nvgText(vg, x+28,y+h*0.5f,text, NULL); *)
-
   C.new_path vg xf;
+
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.66 1.0))
+    (Font.make ~size:18.0 (Lazy.force font_sans))
+    ~x:(x+.28.) ~y:(y+.h*.0.5) text;
+
   C.round_rect vg (x+.1.0) (y+.floor(h/.2.0)-.9.0) 18.0 18.0 3.0;
   C.fill vg (Paint.box_gradient (x+.1.0) (y+.floor(h/.2.0)-.9.0+.1.0)
                18.0 18.0 3.0 3.0
                (Color.gray ~a:0.125 0.0) (Color.gray ~a:0.375 0.0));
 
-  (* nvgFontSize(vg, 40); *)
-  (* nvgFontFace(vg, "icons"); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,128)); *)
-  (* nvgTextAlign(vg,NVG_ALIGN_CENTER|NVG_ALIGN_MIDDLE); *)
-  (* nvgText(vg, x+9+2, y+h*0.5f, cpToUTF8(ICON_CHECK,icon), NULL); *)
-  ()
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.5 1.0))
+    (Font.make ~size:40.0 (Lazy.force font_icons))
+    ~x:(x+.11.) ~y:(y+.h*.0.5) "✓"
 
 let draw_button vg xf preicon text x y w h col =
   let is_black = Color.a col > 0.0 in
@@ -732,8 +721,9 @@ let draw_demo vg xf mx my w h t = (
 let render vg t =
   C.new_frame vg;
   let _, (x, y) = Sdl.get_mouse_state () in
-  draw_demo vg Transform.identity (float x) (float y) 1000.0 600.0 t;
-  C.flush_frame vg (Gg.V2.v 1000.0 600.0)
+  let x = x / 2 and y = y / 2 in
+  draw_demo vg (Transform.scale 2.0 2.0) (float x) (float y) 1000.0 600.0 t;
+  C.flush_frame vg (Gg.V2.v 2000.0 1200.0)
 
 open Tgles2
 
@@ -742,7 +732,7 @@ let main () =
   match Sdl.init Sdl.Init.video with
   | Error (`Msg e) -> Sdl.log "Init error: %s" e; exit 1
   | Ok () ->
-    match Sdl.create_window ~w:1000 ~h:600 "SDL OpenGL" Sdl.Window.opengl with
+    match Sdl.create_window ~w:2000 ~h:1200 "SDL OpenGL" Sdl.Window.opengl with
     | Error (`Msg e) -> Sdl.log "Create window error: %s" e; exit 1
     | Ok w ->
       (*Sdl.gl_set_attribute Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core;*)
@@ -764,7 +754,7 @@ let main () =
           done;
           Unix.sleepf 0.020;
           t := !t +. 0.050;
-          Gl.viewport 0 0 1000 600;
+          Gl.viewport 0 0 2000 1200;
           Gl.clear_color 0.3 0.3 0.32 1.0;
           Gl.(clear (color_buffer_bit lor depth_buffer_bit lor stencil_buffer_bit));
           Gl.enable Gl.blend;

@@ -128,7 +128,26 @@ module Frame : sig
   val scale     : sx:float -> sy:float -> t -> t
 end
 
+module Font : sig
+  type t = {
+    glyphes     : Stb_truetype.t;
+    size        : float;
+    spacing     : float;
+    line_height : float;
+  }
+
+  val make: ?size:float -> ?spacing:float -> ?line_height:float -> Stb_truetype.t -> t
+end
+
 type transform = Transform.t
 type 'image paint = 'image Paint.t
+type font = Font.t
 type outline = Outline.t
 type frame = Frame.t
+
+val utf8_decode : int ref -> string -> int
+(** [utf8_decode r s] returns the unicode codepoint starting at offset [!r],
+    advancing [r] to the beginning of next codepoint ot [String.length s] when
+    the end is reached.
+    If the string was not properly encoded, [-1] is returned and [r] is
+    advanced to hopefully resume parsing. *)

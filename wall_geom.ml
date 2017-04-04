@@ -456,7 +456,7 @@ module B = struct
   let data t = t.data
   let clear t = t.cursor <- 0
 
-  let prepare t size =
+  let reserve t size =
     let total = t.cursor + size in
     if BA.dim t.data < total then
       let data' = BA.create Bigarray.float32 Bigarray.c_layout
@@ -469,6 +469,9 @@ module B = struct
     let x = t.cursor in
     t.cursor <- x + n;
     x
+
+  let release t n =
+    t.cursor <- t.cursor - n
 
   let offset t = t.cursor
 
@@ -789,7 +792,7 @@ module V = struct
       let count = if w > 0.0 then count_fringe else count_no_fringe in
       let count = sum count paths * 4 in
       (*Printf.printf "count:%d w:%f\n" count w;*)
-      B.prepare vb count;
+      B.reserve vb count;
       let paths =
         if w > 0.0 then
           let convex = match paths with
@@ -967,7 +970,7 @@ module V = struct
       T.calculate_joins t ~w ~line_join ~miter_limit paths;
       let count = sum (count ~line_join ~line_cap ncap) paths * 4 in
       (*Printf.printf "count:%d w:%f\n" count w;*)
-      B.prepare vb count;
+      B.reserve vb count;
       List.map (expand_path t vb ~line_join ~line_cap ~w aa ncap) paths
   end
 

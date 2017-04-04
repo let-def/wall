@@ -26,5 +26,9 @@ val load_image :
   ?float:bool -> ?alpha:bool -> ?flip:bool -> ?name:string -> string ->
   (t, [`Msg of string]) Result.result
 
+val channels : t -> int
+val premultiplied : t -> bool
 val width : t -> int
 val height : t -> int
+
+val update : t -> 'a Stb_image.t -> unit

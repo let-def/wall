@@ -21,8 +21,9 @@ open Tgles2
 type t = {
   name: string;
   mutable tex: int;
-  width: int;
-  height: int;
+  mutable width: int;
+  mutable height: int;
+  mutable channels: int;
 }
 
 let release t =
@@ -45,7 +46,7 @@ let make ~name width height =
   let buf = Bigarray.Array1.create Bigarray.int32 Bigarray.c_layout 1 in
   Gl.gen_textures 1 buf;
   let result = {
-    name; width; height;
+    name; width; height; channels = 4;
     tex = Int32.to_int buf.{0};
   } in
   Gc.finalise finalize result;
@@ -90,6 +91,7 @@ let flip_image
 
 let channels image =
   match image.Stb_image.channels with
+  | 1 -> Gl.luminance
   | 3 -> Gl.rgb
   | 4 -> Gl.rgba
   | _ -> invalid_arg "Wall_tex: unsupported image format"
@@ -101,8 +103,7 @@ let format (type a) (type b)
   | Bigarray.Float32 -> Gl.float
   | _ -> invalid_arg "Wall_tex: unsupported image format"
 
-let from_image ~name image =
-  let t = make ~name image.Stb_image.width image.Stb_image.height in
+let update t image =
   Gl.active_texture Gl.texture0;
   Gl.bind_texture Gl.texture_2d (tex t);
   Gl.pixel_storei Gl.unpack_alignment 1;
@@ -124,6 +125,13 @@ let from_image ~name image =
   (* TODO: setup anisotropic filter *)
   Gl.generate_mipmap Gl.texture_2d;
   Gl.bind_texture Gl.texture_2d 0;
+  t.width <- image.Stb_image.width;
+  t.height <- image.Stb_image.height;
+  t.channels <- image.Stb_image.channels
+
+let from_image ~name image =
+  let t = make ~name image.Stb_image.width image.Stb_image.height in
+  update t image;
   t
 
 let load_image ?(float=false) ?(alpha=true) ?(flip=false) ?name s =
@@ -145,5 +153,7 @@ let load_image ?(float=false) ?(alpha=true) ?(flip=false) ?name s =
   else
     load (Stb_image.load_unmanaged ~channels s)
 
+let channels t = t.channels
+let premultiplied _ = true
 let width t = t.width
 let height t = t.height
