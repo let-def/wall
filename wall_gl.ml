@@ -27,6 +27,13 @@ type font_buffer = {
   mutable room : unit Maxrects.t;
 }
 
+type glyph_cache = {
+  box   : Stb_truetype.box;
+  uv    : Stb_truetype.box;
+  glyph : Stb_truetype.glyph;
+  mutable frame : int;
+}
+
 type t = {
   program  : int;
   viewsize : int;
@@ -38,8 +45,7 @@ type t = {
   stencil_strokes: bool;
   debug: bool;
 
-  font_glyphes: (int * int * Stb_truetype.t,
-                 Stb_truetype.box * Stb_truetype.box * int ref) Hashtbl.t;
+  font_glyphes: (int * int * Stb_truetype.t, glyph_cache) Hashtbl.t;
   font_todo: (int * int * Stb_truetype.t, unit) Hashtbl.t;
   mutable font_buffer: font_buffer option;
 }
@@ -569,7 +575,7 @@ let alloc_text t = function
       | cp ->
         let key = (cp, scale, font.Font.glyphes) in
         match Hashtbl.find t.font_glyphes key with
-        | (_,_,k) -> k := frame_nr
+        | cache -> cache.frame <- frame_nr
         | exception Not_found ->
           if not (Hashtbl.mem t.font_todo key) then
             Hashtbl.add t.font_todo key ()
@@ -586,16 +592,25 @@ let prepare_text t vb paint frame x y xf font text =
   end;
   r := 0;
   let offset = B.offset vb in
-  let scale = estimate_scale xf font in
+  let scale = Stb_truetype.scale_for_pixel_height font.Font.glyphes font.Font.size in
+  let size_key = estimate_scale xf font in
   let x = ref x in
+  let last_glyph = ref None in
   while !r < len do
     match utf8_decode r text with
     | -1 -> ()
     | cp ->
-      let key = (cp, scale, font.Font.glyphes) in
+      let key = (cp, size_key, font.Font.glyphes) in
       match Hashtbl.find t.font_glyphes key with
-      | (box, uv,_) ->
+      | { box; uv; glyph; _ } ->
         let open Stb_truetype in
+        begin match !last_glyph with
+          | None -> ()
+          | Some glyph' ->
+            x := !x +. float (Stb_truetype.kern_advance
+                                font.Font.glyphes glyph' glyph) *. scale;
+            last_glyph := Some glyph;
+        end;
         let x0 = !x +. float box.x0 /. 2.0 in
         let y0 =  y +. float box.y0 /. 2.0 in
         let x1 = !x +. float box.x1 /. 2.0 in
@@ -618,7 +633,7 @@ let prepare_text t vb paint frame x y xf font text =
         push_4 vb cx00 cy00 s0 t0;
         push_4 vb cx01 cy01 s0 t1;
         push_4 vb cx11 cy11 s1 t1;
-        x := !x +. float (box.x1 - box.x0) /. 2.0;
+        x := !x +. float (Stb_truetype.hmetrics font.Font.glyphes glyph).Stb_truetype.advance_width *. scale;
       | exception Not_found -> ()
   done;
   { kind = TRIANGLES; frame = Frame.default; paint; width = 1.0; paths = [];
@@ -689,7 +704,7 @@ let bake_glyphs t =
           ~scale_y:scale
           uv
           glyph;
-        Hashtbl.add t.font_glyphes key (box, uv, ref !frame_nr)
+        Hashtbl.add t.font_glyphes key { box; uv; frame = !frame_nr; glyph }
     ) boxes;
   Hashtbl.reset t.font_todo;
   Wall_tex.update buffer.texture buffer.image
