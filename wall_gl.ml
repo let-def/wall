@@ -270,9 +270,9 @@ let delete t =
 let fringe = 1.0
 
 type obj =
-  | Fill   of Wall_tex.t paint * frame * T.bounds * V.path list
-  | Stroke of Wall_tex.t paint * frame * float * V.path list
-  | Text   of unit paint * frame * float * float * transform * font * string
+  | Fill   of transform * Wall_tex.t paint * frame * T.bounds * V.path list
+  | Stroke of transform * Wall_tex.t paint * frame * float * V.path list
+  | Text   of transform * unit paint * frame * float * float * font * string
 
 module Shader = struct
 
@@ -429,6 +429,7 @@ type kind =
 type call = {
   kind  : kind;
   frame : frame;
+  xform : transform;
   paint : Wall_tex.t paint;
   width : float;
   paths : V.path list;
@@ -443,7 +444,7 @@ let push_4 b f0 f1 f2 f3 =
   data.{c + 2} <- f2;
   data.{c + 3} <- f3
 
-let prepare_fill vb paint frame bounds paths =
+let prepare_fill vb xform paint frame bounds paths =
   B.reserve vb (6 * 4);
   let convex = match paths with
     | [path] -> path.V.convex
@@ -458,7 +459,7 @@ let prepare_fill vb paint frame bounds paths =
   push_4 vb minx maxy 0.5 1.0;
   push_4 vb maxx miny 0.5 1.0;
   push_4 vb minx miny 0.5 1.0;
-  { kind; paths; width = 1.0;
+  { kind; paths; width = 1.0; xform;
     triangle_offset; triangle_count = 6; paint; frame }
 
 let exec_fill t
@@ -517,8 +518,8 @@ let exec_convex_fill t
           path.V.stroke_first path.V.stroke_count)
       paths
 
-let prepare_stroke paint frame width paths =
-  { kind = STROKE; paint; frame; width; paths;
+let prepare_stroke xform paint frame width paths =
+  { kind = STROKE; xform; paint; frame; width; paths;
     triangle_offset = 0; triangle_count = 6 }
 
 let exec_stroke t { frame; paint; width; paths } =
@@ -591,7 +592,7 @@ let estimate_scale {Transform. x00; x10; x01; x11; _} {Font. size} =
   if f > 400 then 400 else f
 
 let alloc_text t = function
-  | Text (_, _, _, _, xf, font, text) ->
+  | Text (xf, _, _, _, _, font, text) ->
     let scale = estimate_scale xf font in
     let frame_nr = !frame_nr in
     let r = ref 0 in
@@ -609,7 +610,7 @@ let alloc_text t = function
     done
   | _ -> ()
 
-let prepare_text t vb paint frame x y xf font text =
+let prepare_text t vb paint frame x y xform font text =
   let r = ref 0 in
   let len = String.length text in
   begin
@@ -620,7 +621,7 @@ let prepare_text t vb paint frame x y xf font text =
   r := 0;
   let offset = B.offset vb in
   let scale = Stb_truetype.scale_for_pixel_height font.Font.glyphes font.Font.size in
-  let size_key = estimate_scale xf font in
+  let size_key = estimate_scale xform font in
   let x = ref x in
   let last_glyph = ref None in
   while !r < len do
@@ -646,14 +647,14 @@ let prepare_text t vb paint frame x y xf font text =
         let t0 = float uv.y0 /. 512.0 in
         let s1 = float uv.x1 /. 512.0 in
         let t1 = float uv.y1 /. 512.0 in
-        let cx00 = Transform.px xf x0 y0 in
-        let cy00 = Transform.py xf x0 y0 in
-        let cx10 = Transform.px xf x1 y0 in
-        let cy10 = Transform.py xf x1 y0 in
-        let cx01 = Transform.px xf x0 y1 in
-        let cy01 = Transform.py xf x0 y1 in
-        let cx11 = Transform.px xf x1 y1 in
-        let cy11 = Transform.py xf x1 y1 in
+        let cx00 = Transform.px xform x0 y0 in
+        let cy00 = Transform.py xform x0 y0 in
+        let cx10 = Transform.px xform x1 y0 in
+        let cy10 = Transform.py xform x1 y0 in
+        let cx01 = Transform.px xform x0 y1 in
+        let cy01 = Transform.py xform x0 y1 in
+        let cx11 = Transform.px xform x1 y1 in
+        let cy11 = Transform.py xform x1 y1 in
         push_4 vb cx00 cy00 s0 t0;
         push_4 vb cx11 cy11 s1 t1;
         push_4 vb cx10 cy10 s1 t0;
@@ -663,24 +664,24 @@ let prepare_text t vb paint frame x y xf font text =
         x := !x +. float (Stb_truetype.hmetrics font.Font.glyphes glyph).Stb_truetype.advance_width *. scale;
       | exception Not_found -> ()
   done;
-  { kind = TRIANGLES; frame = Frame.default; paint; width = 1.0; paths = [];
+  { kind = TRIANGLES; frame = Frame.default; paint; width = 1.0; paths = []; xform;
     triangle_offset = offset / 4;
     triangle_count  = (B.offset vb - offset) / 4;
   }
 
 let prepare_obj t vbuffer = function
-  | Fill (paint, frame, bounds, paths) ->
-    prepare_fill vbuffer paint frame bounds paths
-  | Stroke (paint, frame, width, paths) ->
-    prepare_stroke paint frame width paths
-  | Text (paint, frame, x, y, xf, font, text) ->
+  | Fill (xform, paint, frame, bounds, paths) ->
+    prepare_fill vbuffer xform paint frame bounds paths
+  | Stroke (xform, paint, frame, width, paths) ->
+    prepare_stroke xform paint frame width paths
+  | Text (xform, paint, frame, x, y, font, text) ->
     begin match t.font_buffer with
       | None -> { kind = TRIANGLES; frame = Frame.default; paint = Paint.black;
-                  width = 1.0; paths = [];
+                  width = 1.0; paths = []; xform = Transform.identity;
                   triangle_offset = 0; triangle_count = 0; }
       | Some buffer ->
         let paint = {paint with Paint.image = Some buffer.texture} in
-        prepare_text t vbuffer paint frame x y xf font text
+        prepare_text t vbuffer paint frame x y xform font text
     end
 
 let exec_call t call =

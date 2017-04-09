@@ -68,7 +68,7 @@ let stroke t ?(frame=Frame.default) paint
       paths
   in
   let paint = Paint.transform paint t.xf in
-  t.p <- Wall_gl.Stroke (paint, frame, stroke_width, paths) :: t.p
+  t.p <- Wall_gl.Stroke (Transform.identity, paint, frame, stroke_width, paths) :: t.p
 
 let fill t ?(frame=Frame.default) paint =
   let bounds, paths = T.flush t.t in
@@ -79,7 +79,7 @@ let fill t ?(frame=Frame.default) paint =
       paths
   in
   let paint = Paint.transform paint t.xf in
-  t.p <- Wall_gl.Fill (paint, frame, bounds, paths) :: t.p
+  t.p <- Wall_gl.Fill (Transform.identity, paint, frame, bounds, paths) :: t.p
 
 let new_frame t =
   T.clear t.t;
@@ -225,7 +225,7 @@ let arc t ~cx ~cy ~r ~a0 ~a1 dir =
 
 let text t ?(frame=Frame.default) paint font ~x ~y text =
   let paint = Paint.transform paint t.xf in
-  t.p <- Wall_gl. Text (paint, frame, x, y, t.xf, font, text) :: t.p
+  t.p <- Wall_gl.Text (t.xf, paint, frame, x, y, font, text) :: t.p
 
 (*let arc_to vg xf ~x1 ~y1 ~x2 ~y2 ~r =
 {
