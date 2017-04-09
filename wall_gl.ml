@@ -35,15 +35,16 @@ type glyph_cache = {
 }
 
 type t = {
-  program  : int;
-  viewsize : int;
-  tex      : int;
-  frag     : int;
-  vert_vbo : int;
+  program   : int;
+  viewsize  : int;
+  viewxform : int;
+  tex       : int;
+  frag      : int;
+  vert_vbo  : int;
 
-  antialias: bool;
+  antialias : bool;
   stencil_strokes: bool;
-  debug: bool;
+  debug : bool;
 
   font_glyphes: (int * int * Stb_truetype.t, glyph_cache) Hashtbl.t;
   font_todo: (int * int * Stb_truetype.t, unit) Hashtbl.t;
@@ -55,6 +56,7 @@ type t = {
 
 let shader_vertex = "\
 uniform vec2 viewSize;
+uniform vec3[3] viewXform;
 attribute vec2 vertex;
 attribute vec2 tcoord;
 varying vec2 ftcoord;
@@ -62,9 +64,9 @@ varying vec2 fpos;
 
 void main(void) {
   ftcoord = tcoord;
-  fpos = vertex;
-  gl_Position = vec4(2.0 * vertex.x / viewSize.x - 1.0,
-                     1.0 - 2.0 * vertex.y / viewSize.y, 0, 1);
+  fpos = (mat3(viewXform[0], viewXform[1], viewXform[2]) * vec3(vertex,1.0)).xy;
+  gl_Position = vec4(2.0 * fpos.x / viewSize.x - 1.0,
+                     1.0 - 2.0 * fpos.y / viewSize.y, 0, 1);
 }
 "
 
@@ -244,13 +246,14 @@ let create
          Gl.bind_attrib_location program 1 "tcoord")
       shader_vertex shader_fragment
   in
-  let viewsize = Gl.get_uniform_location program "viewSize" in
-  let tex      = Gl.get_uniform_location program "tex" in
-  let frag     = Gl.get_uniform_location program "frag" in
-  let vert_vbo = Utils.gen_buffer () in
+  let viewsize  = Gl.get_uniform_location program "viewSize" in
+  let viewxform = Gl.get_uniform_location program "viewXform" in
+  let tex       = Gl.get_uniform_location program "tex" in
+  let frag      = Gl.get_uniform_location program "frag" in
+  let vert_vbo  = Utils.gen_buffer () in
   {
     program;
-    viewsize; tex; frag;
+    viewsize; tex; frag; viewxform;
     vert_vbo;
 
     antialias; stencil_strokes; debug;
@@ -271,7 +274,25 @@ type obj =
   | Stroke of Wall_tex.t paint * frame * float * V.path list
   | Text   of unit paint * frame * float * float * transform * font * string
 
-module Frag = struct
+module Shader = struct
+
+  let xfbuf =
+    Bigarray.Array1.create
+      Bigarray.float32 Bigarray.c_layout
+      9
+
+  let set_xform t xf =
+    let open Transform in
+    xfbuf.{00} <- xf.x00;
+    xfbuf.{01} <- xf.x01;
+    xfbuf.{02} <- 0.0;
+    xfbuf.{03} <- xf.x10;
+    xfbuf.{04} <- xf.x11;
+    xfbuf.{05} <- 0.0;
+    xfbuf.{06} <- xf.x20;
+    xfbuf.{07} <- xf.x21;
+    xfbuf.{08} <- 1.0;
+    Gl.uniform3fv t.viewxform 3 xfbuf
 
   let buf =
     Bigarray.Array1.create
@@ -442,6 +463,8 @@ let prepare_fill vb paint frame bounds paths =
 
 let exec_fill t
     { paint; frame; width; paths; triangle_offset; triangle_count} =
+  Shader.set_xform t Transform.identity;
+
   (* Draw shapes *)
   Gl.enable Gl.stencil_test;
   Gl.stencil_mask 0xff;
@@ -449,7 +472,7 @@ let exec_fill t
   Gl.color_mask false false false false;
 
   (* set bindpoint for solid loc *)
-  Frag.set_simple t (-1.0) `SIMPLE;
+  Shader.set_simple t (-1.0) `SIMPLE;
   Gl.stencil_op_separate Gl.front Gl.keep Gl.keep Gl.incr_wrap;
   Gl.stencil_op_separate Gl.back  Gl.keep Gl.keep Gl.decr_wrap;
   Gl.disable Gl.cull_face_enum;
@@ -462,7 +485,7 @@ let exec_fill t
   Gl.enable Gl.cull_face_enum;
 
   Gl.color_mask true true true true;
-  Frag.set_tool t paint frame width (-1.0);
+  Shader.set_tool t paint frame width (-1.0);
 
   (* Draw anti-aliased pixels *)
   if t.antialias then (
@@ -482,7 +505,8 @@ let exec_fill t
 
 let exec_convex_fill t
     { paint; frame; width; paths; triangle_offset; triangle_count} =
-  Frag.set_tool t paint frame width (-1.0);
+  Shader.set_xform t Transform.identity;
+  Shader.set_tool t paint frame width (-1.0);
   List.iter
     (fun path -> Gl.draw_arrays Gl.triangle_fan
         path.V.fill_first path.V.fill_count)
@@ -506,7 +530,8 @@ let exec_stroke t { frame; paint; width; paths } =
     Gl.stencil_func Gl.equal 0x0 0xff;
     Gl.stencil_op Gl.keep Gl.keep Gl.incr;
 
-    Frag.set_tool t paint frame width (1.0 -. 0.5 /. 255.0);
+    Shader.set_xform t Transform.identity;
+    Shader.set_tool t paint frame width (1.0 -. 0.5 /. 255.0);
 
     List.iter
       (fun path -> Gl.draw_arrays Gl.triangle_strip
@@ -514,7 +539,7 @@ let exec_stroke t { frame; paint; width; paths } =
       paths;
 
     (*  Draw anti-aliased pixels. *)
-    Frag.set_tool t paint frame width (-1.0);
+    Shader.set_tool t paint frame width (-1.0);
 
     Gl.stencil_func Gl.equal 0x00 0xff;
     Gl.stencil_op Gl.keep Gl.keep Gl.keep;
@@ -540,7 +565,8 @@ let exec_stroke t { frame; paint; width; paths } =
 
   end else begin
 
-    Frag.set_tool t paint frame width (-1.0);
+    Shader.set_xform t Transform.identity;
+    Shader.set_tool t paint frame width (-1.0);
 
     (*  Draw Strokes *)
     List.iter
@@ -551,7 +577,8 @@ let exec_stroke t { frame; paint; width; paths } =
   end
 
 let exec_triangles t { frame; paint; triangle_offset; triangle_count } =
-  Frag.set_tool t ~typ:`IMG paint frame 1.0 (-1.0);
+  Shader.set_xform t Transform.identity;
+  Shader.set_tool t ~typ:`IMG paint frame 1.0 (-1.0);
   Gl.draw_arrays Gl.triangles  triangle_offset triangle_count
 
 let frame_nr = ref 0
