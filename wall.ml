@@ -360,6 +360,7 @@ type outline = Outline.t
 type 'image paint = 'image Paint.t
 type font = Font.t
 type frame = Frame.t
+type color = Color.t
 
 (* utf-8 decoding dfa, from http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ *)
 

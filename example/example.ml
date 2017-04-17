@@ -722,8 +722,8 @@ let render vg t =
   C.new_frame vg;
   let _, (x, y) = Sdl.get_mouse_state () in
   let x = x / 2 and y = y / 2 in
-  draw_demo vg (Transform.scale 2.0 2.0) (float x) (float y) 1000.0 600.0 t;
-  C.flush_frame vg (Gg.V2.v 2000.0 1200.0)
+  draw_demo vg (Transform.scale 1.0 1.0) (float x) (float y) 1000.0 600.0 t;
+  C.flush_frame vg (Gg.V2.v 1000.0 600.0)
 
 open Tgles2
 
@@ -732,7 +732,7 @@ let main () =
   match Sdl.init Sdl.Init.video with
   | Error (`Msg e) -> Sdl.log "Init error: %s" e; exit 1
   | Ok () ->
-    match Sdl.create_window ~w:2000 ~h:1200 "SDL OpenGL" Sdl.Window.opengl with
+    match Sdl.create_window ~w:1000 ~h:600 "SDL OpenGL" Sdl.Window.opengl with
     | Error (`Msg e) -> Sdl.log "Create window error: %s" e; exit 1
     | Ok w ->
       (*Sdl.gl_set_attribute Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core;*)
@@ -754,7 +754,7 @@ let main () =
           done;
           Unix.sleepf 0.020;
           t := !t +. 0.050;
-          Gl.viewport 0 0 2000 1200;
+          Gl.viewport 0 0 1000 600;
           Gl.clear_color 0.3 0.3 0.32 1.0;
           Gl.(clear (color_buffer_bit lor depth_buffer_bit lor stencil_buffer_bit));
           Gl.enable Gl.blend;

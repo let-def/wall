@@ -68,7 +68,7 @@ let stroke t ?(frame=Frame.default) paint
       paths
   in
   let paint = Paint.transform paint t.xf in
-  t.p <- Wall_gl.Stroke (Transform.identity, paint, frame, stroke_width, paths) :: t.p
+  t.p <- Wall_gl.Stroke (t.xf, paint, frame, stroke_width, paths) :: t.p
 
 let fill t ?(frame=Frame.default) paint =
   let bounds, paths = T.flush t.t in
@@ -79,7 +79,7 @@ let fill t ?(frame=Frame.default) paint =
       paths
   in
   let paint = Paint.transform paint t.xf in
-  t.p <- Wall_gl.Fill (Transform.identity, paint, frame, bounds, paths) :: t.p
+  t.p <- Wall_gl.Fill (t.xf, paint, frame, bounds, paths) :: t.p
 
 let new_frame t =
   T.clear t.t;
@@ -90,31 +90,23 @@ let flush_frame t sz =
   Wall_gl.render t.g sz t.b (List.rev t.p)
 
 let move_to t ~x ~y =
-  T.move_to t.t
-    (Transform.px t.xf x y)
-    (Transform.py t.xf x y)
+  T.move_to t.t x y
 
 let line_to t ~x ~y =
-  T.line_to t.t
-    (Transform.px t.xf x y)
-    (Transform.py t.xf x y)
+  T.line_to t.t x y
 
 let bezier_to t ~c1x ~c1y ~c2x ~c2y ~x ~y =
   T.bezier_to t.t
-    ~x1:(Transform.px t.xf c1x c1y)
-    ~y1:(Transform.py t.xf c1x c1y)
-    ~x2:(Transform.px t.xf c2x c2y)
-    ~y2:(Transform.py t.xf c2x c2y)
-    ~x3:(Transform.px t.xf x y)
-    ~y3:(Transform.py t.xf x y)
+    ~x1:(c1x)
+    ~y1:(c1y)
+    ~x2:(c2x)
+    ~y2:(c2y)
+    ~x3:(x)
+    ~y3:(y)
 
 let quad_to t ~cx ~cy ~x ~y =
   let x0 = T.last_x t.t in
   let y0 = T.last_y t.t in
-  let cx = Transform.px t.xf cx cy in
-  let cy = Transform.py t.xf cx cy in
-  let x = Transform.px t.xf x y in
-  let y = Transform.py t.xf x y in
   T.bezier_to t.t
     ~x1:(x0 +. 2.0 /. 3.0 *. (cx -. x0))
     ~y1:(y0 +. 2.0 /. 3.0 *. (cy -. y0))
@@ -227,58 +219,59 @@ let text t ?(frame=Frame.default) paint font ~x ~y text =
   let paint = Paint.transform paint t.xf in
   t.p <- Wall_gl.Text (t.xf, paint, frame, x, y, font, text) :: t.p
 
-(*let arc_to vg xf ~x1 ~y1 ~x2 ~y2 ~r =
-{
-	float x0 = ctx->commandx;
-	float y0 = ctx->commandy;
-	float dx0,dy0, dx1,dy1, a, d, cx,cy, a0,a1;
-	int dir;
+let dist_pt_seg x y px py qx qy =
+  let pqx = qx -. px in
+	let pqy = qy -. py in
+	let dx = x -. px in
+	let dy = y -. py in
+	let d = pqx *. pqx +. pqy *. pqy in
+	let t = pqx *. dx +. pqy *. dy in
+  let t =
+    if t < 0.0 then 0.0 else
+      let t = if d > 0.0 then t /. d else t in
+      if t > 1.0 then 1.0 else t
+  in
+  let dx = px +. t *. pqx -. x in
+	let dy = py +. t *. pqy -. y in
+	(dx *. dx +. dy *. dy)
 
-	if (ctx->ncommands == 0) {
-		return;
-	}
-
-	// Handle degenerate cases.
-	if (nvg__ptEquals(x0,y0, x1,y1, ctx->distTol) ||
-		nvg__ptEquals(x1,y1, x2,y2, ctx->distTol) ||
-		nvg__distPtSeg(x1,y1, x0,y0, x2,y2) < ctx->distTol*ctx->distTol ||
-		radius < ctx->distTol) {
-		nvgLineTo(ctx, x1,y1);
-		return;
-	}
-
-	// Calculate tangential circle to lines (x0,y0)-(x1,y1) and (x1,y1)-(x2,y2).
-	dx0 = x0-x1;
-	dy0 = y0-y1;
-	dx1 = x2-x1;
-	dy1 = y2-y1;
-	nvg__normalize(&dx0,&dy0);
-	nvg__normalize(&dx1,&dy1);
-	a = nvg__acosf(dx0*dx1 + dy0*dy1);
-	d = radius / nvg__tanf(a/2.0f);
-
-//	printf("a=%f° d=%f\n", a/NVG_PI*180.0f, d);
-
-	if (d > 10000.0f) {
-		nvgLineTo(ctx, x1,y1);
-		return;
-	}
-
-	if (nvg__cross(dx0,dy0, dx1,dy1) > 0.0f) {
-		cx = x1 + dx0*d + dy0*radius;
-		cy = y1 + dy0*d + -dx0*radius;
-		a0 = nvg__atan2f(dx0, -dy0);
-		a1 = nvg__atan2f(-dx1, dy1);
-		dir = NVG_CW;
-//		printf("CW c=(%f, %f) a0=%f° a1=%f°\n", cx, cy, a0/NVG_PI*180.0f, a1/NVG_PI*180.0f);
-	} else {
-		cx = x1 + dx0*d + -dy0*radius;
-		cy = y1 + dy0*d + dx0*radius;
-		a0 = nvg__atan2f(-dx0, dy0);
-		a1 = nvg__atan2f(dx1, -dy1);
-		dir = NVG_CCW;
-//		printf("CCW c=(%f, %f) a0=%f° a1=%f°\n", cx, cy, a0/NVG_PI*180.0f, a1/NVG_PI*180.0f);
-	}
-
-	nvgArc(ctx, cx, cy, radius, a0, a1, dir);
-  }*)
+let arc_to t ~x1 ~y1 ~x2 ~y2 ~r =
+  if T.has_path t.t then (
+    let tol = T.tess_tol t.t in
+    let x0 = T.last_x t.t and y0 = T.last_y t.t in
+    (* Handle degenerate cases. *)
+    if r < tol ||
+       (abs_float (x1 -. x0) < tol && abs_float (y1 -. y0) < tol) ||
+       (abs_float (x2 -. x1) < tol && abs_float (y2 -. y1) < tol) ||
+       (dist_pt_seg x1 y1 x0 y0 x2 y2 < tol *. tol)
+    then line_to t x1 y1
+    else
+      let dx0 = x0 -. x1 and dy0 = y0 -. y1 in
+      let dx1 = x2 -. x1 and dy1 = y2 -. y1 in
+      let n0 = 1. /. sqrt (dx0 *. dx0 +. dy0 *. dy0) in
+      let n1 = 1. /. sqrt (dx1 *. dx1 +. dy1 *. dy1) in
+      let dx0 = dx0 *. n0 and dy0 = dy0 *. n0 in
+      let dx1 = dx1 *. n1 and dy1 = dy1 *. n1 in
+      let a = acos (dx0 *. dx1 +. dy0 *. dy1) in
+      let d = r /. tan (a /. 2.0) in
+      (* printf("a=%f° d=%f\n", a/NVG_PI*180.0f, d); *)
+      if d > 10000.0
+      then line_to t x1 y1
+      else (
+        let cross = dx1 *. dy0 -. dx0 *. dy1 in
+        if cross > 0.0
+        then (
+          arc t `CW ~r
+            ~cx:(x1 +. dx0 *. d +. (dy0 *. r))
+            ~cy:(y1 +. dy0 *. d -. (dx0 *. r))
+            ~a0:(atan2 dx0 (-.dy0)) ~a1:(atan2 (-.dx1) dy1)
+            (* printf("CW c=(%f, %f) a0=%f° a1=%f°\n", cx, cy, a0/NVG_PI*180.0f, a1/NVG_PI*180.0f); *)
+        ) else (
+          arc t `CCW ~r
+            ~cx:(x1 +. dx0 *. d -. dy0 *. r)
+            ~cy:(y1 +. dy0 *. d +. dx0 *. r)
+            ~a0:(atan2 (-.dx0) dy0) ~a1:(atan2 dx1 (-.dy1))
+            (* printf("CCW c=(%f, %f) a0=%f° a1=%f°\n", cx, cy, a0/NVG_PI*180.0f, a1/NVG_PI*180.0f); *)
+        )
+      )
+  )

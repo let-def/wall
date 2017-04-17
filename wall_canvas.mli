@@ -52,9 +52,8 @@ val ellipse : t -> cx:float -> cy:float ->
 val arc : t -> cx:float -> cy:float -> r:float ->
                a0:float -> a1:float -> [ `CW | `CCW ] -> unit
 
-(*val arc_to : t ->
-  transform -> x1:float -> y1:float ->
-               x2:float -> y2:float -> radius:float -> unit*)
+val arc_to : t -> x1:float -> y1:float ->
+                  x2:float -> y2:float -> r:float -> unit
 
 val close_path : t -> unit
 

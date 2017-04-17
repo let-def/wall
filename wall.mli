@@ -144,6 +144,7 @@ type 'image paint = 'image Paint.t
 type font = Font.t
 type outline = Outline.t
 type frame = Frame.t
+type color = Color.t
 
 val utf8_decode : int ref -> string -> int
 (** [utf8_decode r s] returns the unicode codepoint starting at offset [!r],

@@ -463,8 +463,8 @@ let prepare_fill vb xform paint frame bounds paths =
     triangle_offset; triangle_count = 6; paint; frame }
 
 let exec_fill t
-    { paint; frame; width; paths; triangle_offset; triangle_count} =
-  Shader.set_xform t Transform.identity;
+    { paint; frame; xform; width; paths; triangle_offset; triangle_count} =
+  Shader.set_xform t xform;
 
   (* Draw shapes *)
   Gl.enable Gl.stencil_test;
@@ -505,8 +505,8 @@ let exec_fill t
   Gl.disable Gl.stencil_test
 
 let exec_convex_fill t
-    { paint; frame; width; paths; triangle_offset; triangle_count} =
-  Shader.set_xform t Transform.identity;
+    { paint; frame; xform; width; paths; triangle_offset; triangle_count} =
+  Shader.set_xform t xform;
   Shader.set_tool t paint frame width (-1.0);
   List.iter
     (fun path -> Gl.draw_arrays Gl.triangle_fan
@@ -522,7 +522,7 @@ let prepare_stroke xform paint frame width paths =
   { kind = STROKE; xform; paint; frame; width; paths;
     triangle_offset = 0; triangle_count = 6 }
 
-let exec_stroke t { frame; paint; width; paths } =
+let exec_stroke t { frame; paint; width; paths; xform; } =
   if t.stencil_strokes then begin
     Gl.enable Gl.stencil_test;
     Gl.stencil_mask 0xff;
@@ -531,7 +531,7 @@ let exec_stroke t { frame; paint; width; paths } =
     Gl.stencil_func Gl.equal 0x0 0xff;
     Gl.stencil_op Gl.keep Gl.keep Gl.incr;
 
-    Shader.set_xform t Transform.identity;
+    Shader.set_xform t xform;
     Shader.set_tool t paint frame width (1.0 -. 0.5 /. 255.0);
 
     List.iter
@@ -566,7 +566,7 @@ let exec_stroke t { frame; paint; width; paths } =
 
   end else begin
 
-    Shader.set_xform t Transform.identity;
+    Shader.set_xform t xform;
     Shader.set_tool t paint frame width (-1.0);
 
     (*  Draw Strokes *)
@@ -577,8 +577,8 @@ let exec_stroke t { frame; paint; width; paths } =
 
   end
 
-let exec_triangles t { frame; paint; triangle_offset; triangle_count } =
-  Shader.set_xform t Transform.identity;
+let exec_triangles t { frame; xform; paint; triangle_offset; triangle_count } =
+  Shader.set_xform t xform;
   Shader.set_tool t ~typ:`IMG paint frame 1.0 (-1.0);
   Gl.draw_arrays Gl.triangles  triangle_offset triangle_count
 
@@ -647,20 +647,12 @@ let prepare_text t vb paint frame x y xform font text =
         let t0 = float uv.y0 /. 512.0 in
         let s1 = float uv.x1 /. 512.0 in
         let t1 = float uv.y1 /. 512.0 in
-        let cx00 = Transform.px xform x0 y0 in
-        let cy00 = Transform.py xform x0 y0 in
-        let cx10 = Transform.px xform x1 y0 in
-        let cy10 = Transform.py xform x1 y0 in
-        let cx01 = Transform.px xform x0 y1 in
-        let cy01 = Transform.py xform x0 y1 in
-        let cx11 = Transform.px xform x1 y1 in
-        let cy11 = Transform.py xform x1 y1 in
-        push_4 vb cx00 cy00 s0 t0;
-        push_4 vb cx11 cy11 s1 t1;
-        push_4 vb cx10 cy10 s1 t0;
-        push_4 vb cx00 cy00 s0 t0;
-        push_4 vb cx01 cy01 s0 t1;
-        push_4 vb cx11 cy11 s1 t1;
+        push_4 vb x0 y0 s0 t0;
+        push_4 vb x1 y1 s1 t1;
+        push_4 vb x1 y0 s1 t0;
+        push_4 vb x0 y0 s0 t0;
+        push_4 vb x0 y1 s0 t1;
+        push_4 vb x1 y1 s1 t1;
         x := !x +. float (Stb_truetype.hmetrics font.Font.glyphes glyph).Stb_truetype.advance_width *. scale;
       | exception Not_found -> ()
   done;
