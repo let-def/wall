@@ -27,12 +27,37 @@ type font_buffer = {
   mutable room : unit Maxrects.t;
 }
 
-type glyph_cache = {
-  box   : Stb_truetype.box;
-  uv    : Stb_truetype.box;
-  glyph : Stb_truetype.glyph;
-  mutable frame : int;
-}
+module Glyph = struct
+  let quantize x = int_of_float (x *. 100.0)
+
+  let estimate_scale {Transform. x00; x10; x01; x11; _} {Font. size} =
+    let sx = sqrt (x00 *. x00 +. x10 *. x10) in
+    let sy = sqrt (x01 *. x01 +. x11 *. x11) in
+    let scale = (sx +. sy) *. 0.5 *. size in
+    let x = quantize scale in
+    if x > 400 then 400 else x
+
+  type key = {
+    cp    : int;
+    scale : int;
+    ttf   : Stb_truetype.t;
+    blur  : int;
+  }
+
+  let key xf font =
+    let ttf = font.Font.glyphes in
+    let blur = quantize font.Font.blur in
+    let scale = estimate_scale xf font in
+    fun cp ->
+      { cp; scale; ttf; blur }
+
+  type cell = {
+    box   : Stb_truetype.box;
+    uv    : Stb_truetype.box;
+    glyph : Stb_truetype.glyph;
+    mutable frame : int;
+  }
+end
 
 type t = {
   program   : int;
@@ -46,8 +71,8 @@ type t = {
   stencil_strokes: bool;
   debug : bool;
 
-  font_glyphes: (int * int * Stb_truetype.t, glyph_cache) Hashtbl.t;
-  font_todo: (int * int * Stb_truetype.t, unit) Hashtbl.t;
+  font_glyphes: (Glyph.key, Glyph.cell) Hashtbl.t;
+  font_todo: (Glyph.key, unit) Hashtbl.t;
   mutable font_buffer: font_buffer option;
 }
 
@@ -584,16 +609,9 @@ let exec_triangles t { frame; xform; paint; triangle_offset; triangle_count } =
 
 let frame_nr = ref 0
 
-let estimate_scale {Transform. x00; x10; x01; x11; _} {Font. size} =
-  let sx = sqrt (x00 *. x00 +. x10 *. x10) in
-  let sy = sqrt (x01 *. x01 +. x11 *. x11) in
-  let scale = (sx +. sy) *. 0.5 *. size in
-  let f = int_of_float (scale *. 100.0) in
-  if f > 400 then 400 else f
-
 let alloc_text t = function
   | Text (xf, _, _, _, _, font, text) ->
-    let scale = estimate_scale xf font in
+    let key = Glyph.key xf font in
     let frame_nr = !frame_nr in
     let r = ref 0 in
     let len = String.length text in
@@ -601,9 +619,9 @@ let alloc_text t = function
       match utf8_decode r text with
       | -1 -> ()
       | cp ->
-        let key = (cp, scale, font.Font.glyphes) in
+        let key = key cp in
         match Hashtbl.find t.font_glyphes key with
-        | cache -> cache.frame <- frame_nr
+        | cache -> cache.Glyph.frame <- frame_nr
         | exception Not_found ->
           if not (Hashtbl.mem t.font_todo key) then
             Hashtbl.add t.font_todo key ()
@@ -620,25 +638,21 @@ let prepare_text t vb paint frame x y xform font text =
   end;
   r := 0;
   let offset = B.offset vb in
-  let scale = Stb_truetype.scale_for_pixel_height font.Font.glyphes font.Font.size in
-  let size_key = estimate_scale xform font in
+  let glyphes = font.Font.glyphes in
+  let scale = Stb_truetype.scale_for_pixel_height glyphes font.Font.size in
+  let key = Glyph.key xform font in
   let x = ref x in
-  let last_glyph = ref None in
+  let last = ref Stb_truetype.invalid_glyph in
   while !r < len do
     match utf8_decode r text with
-    | -1 -> ()
+    | -1 -> last := Stb_truetype.invalid_glyph
     | cp ->
-      let key = (cp, size_key, font.Font.glyphes) in
+      let key = key cp in
       match Hashtbl.find t.font_glyphes key with
-      | { box; uv; glyph; _ } ->
+      | { Glyph. box; uv; glyph; _ } ->
         let open Stb_truetype in
-        begin match !last_glyph with
-          | None -> ()
-          | Some glyph' ->
-            x := !x +. float (Stb_truetype.kern_advance
-                                font.Font.glyphes glyph' glyph) *. scale;
-            last_glyph := Some glyph;
-        end;
+        x := !x +. float (Stb_truetype.kern_advance glyphes !last glyph) *. scale;
+        last := glyph;
         let x0 = !x +. float box.x0 /. 2.0 in
         let y0 =  y +. float box.y0 /. 2.0 in
         let x1 = !x +. float box.x1 /. 2.0 in
@@ -653,8 +667,9 @@ let prepare_text t vb paint frame x y xform font text =
         push_4 vb x0 y0 s0 t0;
         push_4 vb x0 y1 s0 t1;
         push_4 vb x1 y1 s1 t1;
-        x := !x +. float (Stb_truetype.hmetrics font.Font.glyphes glyph).Stb_truetype.advance_width *. scale;
-      | exception Not_found -> ()
+        x := !x +. float (Stb_truetype.glyph_advance glyphes glyph) *. scale;
+      | exception Not_found ->
+        last := Stb_truetype.invalid_glyph
   done;
   { kind = TRIANGLES; frame = Frame.default; paint; width = 1.0; paths = []; xform;
     triangle_offset = offset / 4;
@@ -698,11 +713,11 @@ let bake_glyphs t =
       t.font_buffer <- Some buffer;
       buffer
   in
-  let add_box (cp, scale_key, ttf as key) () boxes =
+  let add_box ({ Glyph. scale; cp; ttf } as key) () boxes =
     match Stb_truetype.find ttf cp with
     | None -> boxes
     | Some glyph ->
-      let scale = Stb_truetype.scale_for_pixel_height ttf (float scale_key /. 10.0) in
+      let scale = Stb_truetype.scale_for_pixel_height ttf (float scale /. 10.0) in
       let box = Stb_truetype.get_glyph_bitmap_box ttf glyph ~scale_x:scale ~scale_y:scale in
       let {Stb_truetype. x0; y0; x1; y1} = box in
       Maxrects.box (key, ttf, glyph, scale, box) (x1 - x0 + 2) (y1 - y0 + 2) :: boxes
@@ -724,7 +739,7 @@ let bake_glyphs t =
           ~scale_y:scale
           uv
           glyph;
-        Hashtbl.add t.font_glyphes key { box; uv; frame = !frame_nr; glyph }
+        Hashtbl.add t.font_glyphes key { Glyph. box; uv; frame = !frame_nr; glyph }
     ) boxes;
   Hashtbl.reset t.font_todo;
   Wall_tex.update buffer.texture buffer.image

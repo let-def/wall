@@ -132,11 +132,22 @@ module Font : sig
   type t = {
     glyphes     : Stb_truetype.t;
     size        : float;
+    blur        : float;
     spacing     : float;
     line_height : float;
   }
 
-  val make: ?size:float -> ?spacing:float -> ?line_height:float -> Stb_truetype.t -> t
+  val make: ?size:float -> ?blur:float -> ?spacing:float -> ?line_height:float -> Stb_truetype.t -> t
+
+  type metrics = {
+    ascent   : float;
+    descent  : float;
+    line_gap : float;
+  }
+
+  val font_metrics: t -> metrics
+
+  val text_width: t -> string -> float
 end
 
 type transform = Transform.t

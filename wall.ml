@@ -343,25 +343,6 @@ module Frame = struct
     }
 end
 
-module Font = struct
-  type t = {
-    glyphes: Stb_truetype.t;
-    size: float;
-    spacing: float;
-    line_height: float;
-  }
-
-  let make ?(size=16.0) ?(spacing=0.0) ?(line_height=1.0) glyphes =
-    { glyphes; size; spacing; line_height }
-end
-
-type transform = Transform.t
-type outline = Outline.t
-type 'image paint = 'image Paint.t
-type font = Font.t
-type frame = Frame.t
-type color = Color.t
-
 (* utf-8 decoding dfa, from http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ *)
 
 let utf8d =
@@ -397,3 +378,55 @@ let utf8_decode index str =
   done;
   index := !index';
   if !state = 0 then !codep else (-1)
+
+module Font = struct
+  type t = {
+    glyphes: Stb_truetype.t;
+    size: float;
+    blur: float;
+    spacing: float;
+    line_height: float;
+  }
+
+  let make ?(size=16.0) ?(blur=0.0) ?(spacing=0.0) ?(line_height=1.0) glyphes =
+    { glyphes; blur; size; spacing; line_height }
+
+  type metrics = {
+    ascent   : float;
+    descent  : float;
+    line_gap : float;
+  }
+
+  let font_metrics t =
+    let scale = Stb_truetype.scale_for_pixel_height t.glyphes t.size in
+    let {Stb_truetype. ascent; descent; line_gap} =
+      Stb_truetype.vmetrics t.glyphes in
+    { ascent = float ascent *. scale;
+      descent = float descent *. scale;
+      line_gap = float line_gap *. scale;
+    }
+
+  let text_width t text =
+    let len = String.length text in
+    let index = ref 0 in
+    let width = ref 0 in
+    let last = ref Stb_truetype.invalid_glyph in
+    while !index < len  do
+      match utf8_decode index text with
+      | -1 -> last := Stb_truetype.invalid_glyph
+      | cp ->
+        let glyph = Stb_truetype.get t.glyphes cp in
+        width := !width
+                 + Stb_truetype.kern_advance t.glyphes !last glyph
+                 + Stb_truetype.glyph_advance t.glyphes glyph;
+        last := glyph
+    done;
+    (float !width *. Stb_truetype.scale_for_pixel_height t.glyphes t.size)
+end
+
+type transform = Transform.t
+type outline = Outline.t
+type 'image paint = 'image Paint.t
+type font = Font.t
+type frame = Frame.t
+type color = Color.t
