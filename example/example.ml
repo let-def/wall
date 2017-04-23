@@ -385,6 +385,7 @@ let draw_window vg xf title x y w h =
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.6 0.9))
     (Font.make ~size:18.0 (Lazy.force font_sans_bold))
+    ~valign:`TOP
     ~x:(x+.w/.2.) ~y:(y+.16.) title;
 
   (* nvgFontBlur(vg,0); *)
@@ -406,14 +407,17 @@ let draw_searchbox vg xf text x y w h =
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.25 1.0))
     (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
+    ~valign:`TOP
     ~x:(x+.h*.0.55) ~y:(y+.h*.0.55) "🔍";
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.125 1.0))
     (Font.make ~size:20.0 (Lazy.force font_sans))
+    ~valign:`TOP
     ~x:(x+.h*.1.05) ~y:(y+.h*.0.5) text;
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.125 1.0))
     (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
+    ~valign:`TOP
     ~x:(x+.w-.h*.0.55) ~y:(y+.h*.0.55) "✖"
 
 let draw_dropdown vg xf text x y w h =
@@ -431,17 +435,20 @@ let draw_dropdown vg xf text x y w h =
   C.new_path vg xf;
   C.text vg (Paint.color (Gg.Color.gray ~a:0.8 1.0))
     (Font.make ~size:20.0 (Lazy.force font_sans))
+    ~valign:`TOP
     ~x ~y text;
 
   C.new_path vg xf;
   C.text vg (Paint.color (Gg.Color.gray ~a:0.8 1.0))
     (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
+    ~valign:`TOP
     ~x ~y " "
 
 let draw_label vg xf text x y w h =
   C.new_path vg xf;
   C.text vg (Paint.color (Gg.Color.gray ~a:0.5 1.0))
     (Font.make ~size:18.0 (Lazy.force font_sans))
+    ~valign:`TOP
     ~x ~y:(y+.h*.0.5) text
 
 let draw_editboxbase vg xf x y w h =
@@ -459,6 +466,7 @@ let draw_editbox vg xf text x y w h =
   C.new_path vg xf;
   C.text vg (Paint.color (Gg.Color.gray ~a:0.25 1.0))
     (Font.make ~size:20.0 (Lazy.force font_sans))
+    ~valign:`TOP
     ~x:(x+.h*.0.3) ~y:(y+.h*.0.5) text
 
 let draw_editboxnum vg xf text units x y w h =
@@ -468,10 +476,12 @@ let draw_editboxnum vg xf text units x y w h =
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.25 1.0))
     (Font.make ~size:18.0 (Lazy.force font_sans))
+    ~valign:`TOP
     ~x:(x+.w-.h*.0.3) ~y:(y+.h*.0.5) units;
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.5 1.0))
     (Font.make ~size:20.0 (Lazy.force font_sans))
+    ~valign:`TOP
     ~x:(x-.h*.0.5) ~y:(y+.h*.0.5) text
 
 let draw_slider vg xf pos x y w h =
@@ -511,6 +521,7 @@ let draw_checkbox vg xf text x y w h =
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.66 1.0))
     (Font.make ~size:18.0 (Lazy.force font_sans))
+    ~valign:`TOP
     ~x:(x+.28.) ~y:(y+.h*.0.5) text;
 
   C.round_rect vg (x+.1.0) (y+.floor(h/.2.0)-.9.0) 18.0 18.0 3.0;
@@ -520,6 +531,7 @@ let draw_checkbox vg xf text x y w h =
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.5 1.0))
     (Font.make ~size:40.0 (Lazy.force font_icons))
+    ~valign:`TOP
     ~x:(x+.11.) ~y:(y+.h*.0.5) "✓"
 
 let draw_button vg xf preicon text x y w h col =
@@ -722,8 +734,8 @@ let render vg t =
   C.new_frame vg;
   let _, (x, y) = Sdl.get_mouse_state () in
   let x = x / 2 and y = y / 2 in
-  draw_demo vg (Transform.scale 1.0 1.0) (float x) (float y) 1000.0 600.0 t;
-  C.flush_frame vg (Gg.V2.v 1000.0 600.0)
+  draw_demo vg (Transform.scale 2.0 2.0) (float x) (float y) 1000.0 600.0 t;
+  C.flush_frame vg (Gg.V2.v 2000.0 1200.0)
 
 open Tgles2
 
@@ -732,7 +744,7 @@ let main () =
   match Sdl.init Sdl.Init.video with
   | Error (`Msg e) -> Sdl.log "Init error: %s" e; exit 1
   | Ok () ->
-    match Sdl.create_window ~w:1000 ~h:600 "SDL OpenGL" Sdl.Window.opengl with
+    match Sdl.create_window ~w:2000 ~h:1200 "SDL OpenGL" Sdl.Window.opengl with
     | Error (`Msg e) -> Sdl.log "Create window error: %s" e; exit 1
     | Ok w ->
       (*Sdl.gl_set_attribute Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core;*)
@@ -754,7 +766,7 @@ let main () =
           done;
           Unix.sleepf 0.020;
           t := !t +. 0.050;
-          Gl.viewport 0 0 1000 600;
+          Gl.viewport 0 0 2000 1200;
           Gl.clear_color 0.3 0.3 0.32 1.0;
           Gl.(clear (color_buffer_bit lor depth_buffer_bit lor stencil_buffer_bit));
           Gl.enable Gl.blend;
