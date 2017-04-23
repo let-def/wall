@@ -59,7 +59,9 @@ val close_path : t -> unit
 
 val stroke : t -> ?frame:frame -> Wall_tex.t paint -> outline -> unit
 val fill   : t -> ?frame:frame -> Wall_tex.t paint -> unit
-val text   : t -> ?frame:frame -> unit paint -> font -> x:float -> y:float -> string -> unit
+val text   : t -> ?frame:frame -> ?halign:[`LEFT | `CENTER | `RIGHT]
+                               -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
+                               -> unit paint -> font -> x:float -> y:float -> string -> unit
 
 val new_frame : t -> unit
 val flush_frame : t -> Gg.size2 -> unit

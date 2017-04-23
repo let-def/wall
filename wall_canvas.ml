@@ -215,7 +215,20 @@ let arc t ~cx ~cy ~r ~a0 ~a1 dir =
     move_to t ~x ~y;
   step coords 1
 
-let text t ?(frame=Frame.default) paint font ~x ~y text =
+let text t ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) paint font ~x ~y text =
+  let x = match halign with
+    | `LEFT   -> x
+    | `CENTER -> (x -. Font.text_width font text *. 0.5)
+    | `RIGHT  -> (x -. Font.text_width font text)
+  in
+  let y = match valign with
+    | `TOP    -> y +. (Font.font_metrics font).Font.ascent
+    | `BASELINE -> y
+    | `BOTTOM -> y +. (Font.font_metrics font).Font.descent
+    | `MIDDLE ->
+      let {Font. ascent; descent} = Font.font_metrics font in
+      (y +. (ascent +. descent) *. 0.5)
+  in
   let paint = Paint.transform paint t.xf in
   t.p <- Wall_gl.Text (t.xf, paint, frame, x, y, font, text) :: t.p
 
