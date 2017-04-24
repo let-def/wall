@@ -28,14 +28,14 @@ type font_buffer = {
 }
 
 module Glyph = struct
-  let quantize x = int_of_float (x *. 100.0)
+  let quantize x = int_of_float (x *. 10.0)
 
   let estimate_scale {Transform. x00; x10; x01; x11; _} {Font. size} =
     let sx = sqrt (x00 *. x00 +. x10 *. x10) in
     let sy = sqrt (x01 *. x01 +. x11 *. x11) in
     let scale = (sx +. sy) *. 0.5 *. size in
     let x = quantize scale in
-    if x > 400 then 400 else x
+    if x > 2000 then (float x /. 2000.0, 2000) else (1.0, x)
 
   type key = {
     cp    : int;
@@ -47,9 +47,8 @@ module Glyph = struct
   let key xf font =
     let ttf = font.Font.glyphes in
     let blur = quantize font.Font.blur in
-    let scale = estimate_scale xf font in
-    fun cp ->
-      { cp; scale; ttf; blur }
+    let factor, scale = estimate_scale xf font in
+    (factor, (fun cp -> { cp; scale; ttf; blur }))
 
   type cell = {
     box   : Stb_truetype.box;
@@ -611,7 +610,7 @@ let frame_nr = ref 0
 
 let alloc_text t = function
   | Text (xf, _, _, _, _, font, text) ->
-    let key = Glyph.key xf font in
+    let _, key = Glyph.key xf font in
     let frame_nr = !frame_nr in
     let r = ref 0 in
     let len = String.length text in
@@ -640,7 +639,8 @@ let prepare_text t vb paint frame x y xform font text =
   let offset = B.offset vb in
   let glyphes = font.Font.glyphes in
   let scale = Stb_truetype.scale_for_pixel_height glyphes font.Font.size in
-  let key = Glyph.key xform font in
+  let factor, key = Glyph.key xform font in
+  let factor = factor *. 0.5 in
   let x = ref x in
   let last = ref Stb_truetype.invalid_glyph in
   while !r < len do
@@ -653,10 +653,10 @@ let prepare_text t vb paint frame x y xform font text =
         let open Stb_truetype in
         x := !x +. float (Stb_truetype.kern_advance glyphes !last glyph) *. scale;
         last := glyph;
-        let x0 = !x +. float box.x0 /. 2.0 in
-        let y0 =  y +. float box.y0 /. 2.0 in
-        let x1 = !x +. float box.x1 /. 2.0 in
-        let y1 =  y +. float box.y1 /. 2.0 in
+        let x0 = !x +. float box.x0 *. factor in
+        let y0 =  y +. float box.y0 *. factor in
+        let x1 = !x +. float box.x1 *. factor in
+        let y1 =  y +. float box.y1 *. factor in
         let s0 = float uv.x0 /. 512.0 in
         let t0 = float uv.y0 /. 512.0 in
         let s1 = float uv.x1 /. 512.0 in
