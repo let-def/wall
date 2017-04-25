@@ -379,19 +379,17 @@ let draw_window vg xf title x y w h =
 
   C.new_path vg xf;
 
-  (* nvgFontBlur(vg,2); *)
-  (* nvgFillColor(vg, nvgRGBA(0,0,0,128)); *)
-  (* nvgText(vg, x+w/2,y+16+1, title, NULL); *)
+  let font = Lazy.force font_sans_bold in
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.6 0.9))
-    (Font.make ~size:18.0 (Lazy.force font_sans_bold))
-    ~valign:`TOP
-    ~x:(x+.w/.2.) ~y:(y+.16.) title;
+    (Font.make ~blur:2.0 ~size:18.0 font)
+    ~valign:`MIDDLE ~halign:`CENTER
+    ~x:(x+.w/.2.) ~y:(y+.16.+.1.0) title;
 
-  (* nvgFontBlur(vg,0); *)
-  (* nvgFillColor(vg, nvgRGBA(220,220,220,160)); *)
-  (* nvgText(vg, x+w/2,y+16, title, NULL); *)
-  ()
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.6 0.9))
+    (Font.make ~size:18.0 font)
+    ~valign:`MIDDLE ~halign:`CENTER
+    ~x:(x+.w/.2.) ~y:(y+.16.) title
 
 let draw_searchbox vg xf text x y w h =
   let cornerRadius = h /. 2.0 -. 1.0 in
@@ -407,17 +405,17 @@ let draw_searchbox vg xf text x y w h =
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.25 1.0))
     (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
-    ~valign:`TOP
+    ~valign:`MIDDLE ~halign:`CENTER
     ~x:(x+.h*.0.55) ~y:(y+.h*.0.55) "🔍";
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.125 1.0))
     (Font.make ~size:20.0 (Lazy.force font_sans))
-    ~valign:`TOP
+    ~valign:`MIDDLE ~halign:`LEFT
     ~x:(x+.h*.1.05) ~y:(y+.h*.0.5) text;
 
   C.text vg (Paint.color (Gg.Color.gray ~a:0.125 1.0))
     (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
-    ~valign:`TOP
+    ~valign:`MIDDLE ~halign:`CENTER
     ~x:(x+.w-.h*.0.55) ~y:(y+.h*.0.55) "✖"
 
 let draw_dropdown vg xf text x y w h =
@@ -435,20 +433,20 @@ let draw_dropdown vg xf text x y w h =
   C.new_path vg xf;
   C.text vg (Paint.color (Gg.Color.gray ~a:0.8 1.0))
     (Font.make ~size:20.0 (Lazy.force font_sans))
-    ~valign:`TOP
-    ~x ~y text;
+    ~valign:`MIDDLE ~halign:`LEFT
+    ~x:(x+.h*.0.3) ~y:(y+.h*.0.5) text;
 
   C.new_path vg xf;
   C.text vg (Paint.color (Gg.Color.gray ~a:0.8 1.0))
     (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
-    ~valign:`TOP
-    ~x ~y " "
+    ~valign:`MIDDLE ~halign:`CENTER
+    ~x:(x+.w-.h*.0.5) ~y:(y+.h*.0.5) " "
 
 let draw_label vg xf text x y w h =
   C.new_path vg xf;
   C.text vg (Paint.color (Gg.Color.gray ~a:0.5 1.0))
     (Font.make ~size:18.0 (Lazy.force font_sans))
-    ~valign:`TOP
+    ~valign:`MIDDLE ~halign:`LEFT
     ~x ~y:(y+.h*.0.5) text
 
 let draw_editboxbase vg xf x y w h =
@@ -466,23 +464,104 @@ let draw_editbox vg xf text x y w h =
   C.new_path vg xf;
   C.text vg (Paint.color (Gg.Color.gray ~a:0.25 1.0))
     (Font.make ~size:20.0 (Lazy.force font_sans))
-    ~valign:`TOP
+    ~valign:`MIDDLE ~halign:`LEFT
     ~x:(x+.h*.0.3) ~y:(y+.h*.0.5) text
 
 let draw_editboxnum vg xf text units x y w h =
   draw_editboxbase vg xf x y w h;
 
-  (* uw = nvgTextBounds(vg, 0,0, units, NULL, NULL); *)
-
+  let ufont = Font.make ~size:18.0 (Lazy.force font_sans) in
   C.text vg (Paint.color (Gg.Color.gray ~a:0.25 1.0))
-    (Font.make ~size:18.0 (Lazy.force font_sans))
-    ~valign:`TOP
+    ~valign:`MIDDLE ufont ~halign:`RIGHT
     ~x:(x+.w-.h*.0.3) ~y:(y+.h*.0.5) units;
 
+  let uw = Font.text_width ufont units in
   C.text vg (Paint.color (Gg.Color.gray ~a:0.5 1.0))
     (Font.make ~size:20.0 (Lazy.force font_sans))
-    ~valign:`TOP
-    ~x:(x-.h*.0.5) ~y:(y+.h*.0.5) text
+    ~valign:`MIDDLE ~halign:`RIGHT
+    ~x:(x+.w-.uw-.h*.0.5) ~y:(y+.h*.0.5) text
+
+let draw_checkbox vg xf text x y w h =
+  C.new_path vg xf;
+
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.66 1.0))
+    (Font.make ~size:18.0 (Lazy.force font_sans))
+    ~valign:`MIDDLE
+    ~x:(x+.28.) ~y:(y+.h*.0.5) text;
+
+  C.round_rect vg (x+.1.0) (y+.floor(h/.2.0)-.9.0) 18.0 18.0 3.0;
+  C.fill vg (Paint.box_gradient (x+.1.0) (y+.floor(h/.2.0)-.9.0+.1.0)
+               18.0 18.0 3.0 3.0
+               (Color.gray ~a:0.125 0.0) (Color.gray ~a:0.375 0.0));
+
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.5 1.0))
+    (Font.make ~size:40.0 (Lazy.force font_icons))
+    ~valign:`MIDDLE ~halign:`CENTER
+    ~x:(x+.11.) ~y:(y+.h*.0.5) "✓"
+
+let cp_to_utf8 cp =
+  let n =
+    if cp < 0x80 then 1
+    else if (cp < 0x800) then 2
+    else if (cp < 0x10000) then 3
+    else if (cp < 0x200000) then 4
+    else if (cp < 0x4000000) then 5
+    else if (cp <= 0x7fffffff) then 6
+    else assert false
+  in
+  let str= Bytes.create n in
+  let cp = ref cp in
+  begin try
+  if n > 5 then (str.[5] <- Char.chr (0x80 lor (!cp land 0x3f));
+                 cp := (!cp lsr 6) lor 0x4000000);
+  if n > 4 then (str.[4] <- Char.chr (0x80 lor (!cp land 0x3f));
+                 cp := (!cp lsr 6) lor 0x200000);
+  if n > 3 then (str.[3] <- Char.chr (0x80 lor (!cp land 0x3f));
+                 cp := (!cp lsr 6) lor 0x10000);
+  if n > 2 then (str.[2] <- Char.chr (0x80 lor (!cp land 0x3f));
+                 cp := (!cp lsr 6) lor 0x800);
+  if n > 1 then (str.[1] <- Char.chr (0x80 lor (!cp land 0x3f));
+                 cp := (!cp lsr 6) lor 0xc0);
+  str.[0] <- Char.chr !cp;
+    with exn ->
+      prerr_endline ("cp: " ^ string_of_int !cp);
+      raise exn
+  end;
+  Bytes.to_string str
+
+
+let draw_button vg xf preicon text x y w h col =
+  let is_black = Color.a col > 0.0 in
+  let cornerRadius = 4.0 in
+  C.new_path vg xf;
+  C.round_rect vg (x+.1.0) (y+.1.0) (w-.2.0) (h-.2.0) (cornerRadius-.1.0);
+  if is_black then (
+    C.fill vg (Paint.color col);
+  );
+  C.fill vg (Paint.linear_gradient x y x (y+.h)
+               (Color.gray 1.0 ~a:(if is_black then 0.125 else 0.25))
+               (Color.gray 0.0 ~a:(if is_black then 0.125 else 0.25)));
+  C.new_path vg xf;
+  C.round_rect vg (x+.0.5) (y+.0.5) (w-.1.0) (h-.1.0) (cornerRadius-.0.5);
+  C.stroke vg (Paint.color (Color.gray ~a:0.375 0.0)) Outline.default;
+  let font = Font.make ~size:20.0 (Lazy.force font_sans_bold) in
+  let tw = Font.text_width font text in
+  let iw = if preicon = 0 then 0.0 else
+      let font = Font.make ~size:(h*.1.3) (Lazy.force font_icons) in
+      let icon = cp_to_utf8 preicon in
+      let iw = Font.text_width font icon in
+      C.text vg (Paint.color (Gg.Color.gray ~a:0.40 1.0)) font
+        ~halign:`LEFT ~valign:`MIDDLE
+        ~x:(x+.w*.0.5-.tw*.0.5-.iw*.0.75) ~y:(y+.h*.0.5)
+        icon;
+      iw
+  in
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.66 0.0)) font
+    ~valign:`MIDDLE ~halign:`LEFT
+    ~x:(x+.w*.0.5-.tw*.0.5+.iw*.0.25) ~y:(y+.h*.0.5-.0.5) text;
+  C.text vg (Paint.color (Gg.Color.gray ~a:0.66 1.0)) font
+    ~valign:`MIDDLE ~halign:`LEFT
+    ~x:(x+.w*.0.5-.tw*.0.5+.iw*.0.25) ~y:(y+.h*.0.5) text
 
 let draw_slider vg xf pos x y w h =
   let cy = y +. floor (h*.0.5) in
@@ -514,67 +593,6 @@ let draw_slider vg xf pos x y w h =
   C.circle vg (x+.floor(pos*.w)) cy (kr-.0.5);
   C.stroke vg (Paint.color (Color.gray ~a:0.375 0.0)) Outline.default;
 
-  ()
-
-let draw_checkbox vg xf text x y w h =
-  C.new_path vg xf;
-
-  C.text vg (Paint.color (Gg.Color.gray ~a:0.66 1.0))
-    (Font.make ~size:18.0 (Lazy.force font_sans))
-    ~valign:`TOP
-    ~x:(x+.28.) ~y:(y+.h*.0.5) text;
-
-  C.round_rect vg (x+.1.0) (y+.floor(h/.2.0)-.9.0) 18.0 18.0 3.0;
-  C.fill vg (Paint.box_gradient (x+.1.0) (y+.floor(h/.2.0)-.9.0+.1.0)
-               18.0 18.0 3.0 3.0
-               (Color.gray ~a:0.125 0.0) (Color.gray ~a:0.375 0.0));
-
-  C.text vg (Paint.color (Gg.Color.gray ~a:0.5 1.0))
-    (Font.make ~size:40.0 (Lazy.force font_icons))
-    ~valign:`TOP
-    ~x:(x+.11.) ~y:(y+.h*.0.5) "✓"
-
-let draw_button vg xf preicon text x y w h col =
-  let is_black = Color.a col > 0.0 in
-  let cornerRadius = 4.0 in
-  C.new_path vg xf;
-  C.round_rect vg (x+.1.0) (y+.1.0) (w-.2.0) (h-.2.0) (cornerRadius-.1.0);
-  if is_black then (
-    C.fill vg (Paint.color col);
-  );
-  C.fill vg (Paint.linear_gradient x y x (y+.h)
-               (Color.gray 1.0 ~a:(if is_black then 0.125 else 0.25))
-               (Color.gray 0.0 ~a:(if is_black then 0.125 else 0.25)));
-  C.new_path vg xf;
-  C.round_rect vg (x+.0.5) (y+.0.5) (w-.1.0) (h-.1.0) (cornerRadius-.0.5);
-  C.stroke vg (Paint.color (Color.gray ~a:0.375 0.0)) Outline.default;
-
-  (* float tw = 0, iw = 0; *)
-  (* nvgFontSize(vg, 20.0f); *)
-  (* nvgFontFace(vg, "sans-bold"); *)
-  (* tw = nvgTextBounds(vg, 0,0, text, NULL, NULL); *)
-  (* if (preicon != 0) { *)
-  (*   nvgFontSize(vg, h*1.3f); *)
-  (*   nvgFontFace(vg, "icons"); *)
-  (*   iw = nvgTextBounds(vg, 0,0, cpToUTF8(preicon,icon), NULL, NULL); *)
-  (*   iw += h*0.15f; *)
-  (* } *)
-
-  (* if (preicon != 0) { *)
-  (*   nvgFontSize(vg, h*1.3f); *)
-  (*   nvgFontFace(vg, "icons"); *)
-  (*   nvgFillColor(vg, nvgRGBA(255,255,255,96)); *)
-  (*   nvgTextAlign(vg,NVG_ALIGN_LEFT|NVG_ALIGN_MIDDLE); *)
-  (*   nvgText(vg, x+w*0.5f-tw*0.5f-iw*0.75f, y+h*0.5f, cpToUTF8(preicon,icon), NULL); *)
-  (* } *)
-
-  (* nvgFontSize(vg, 20.0f); *)
-  (* nvgFontFace(vg, "sans-bold"); *)
-  (* nvgTextAlign(vg,NVG_ALIGN_LEFT|NVG_ALIGN_MIDDLE); *)
-  (* nvgFillColor(vg, nvgRGBA(0,0,0,160)); *)
-  (* nvgText(vg, x+w*0.5f-tw*0.5f+iw*0.25f,y+h*0.5f-1,text, NULL); *)
-  (* nvgFillColor(vg, nvgRGBA(255,255,255,160)); *)
-  (* nvgText(vg, x+w*0.5f-tw*0.5f+iw*0.25f,y+h*0.5f,text, NULL); *)
   ()
 
 let image_size image = Wall_tex.width image, Wall_tex.height image
@@ -712,7 +730,7 @@ let draw_demo vg xf mx my w h t = (
   draw_editbox vg xf "Password" x y 280.0 28.0;
   let y = y +. 38.0 in
   draw_checkbox vg xf "Remember me" x y 140.0 28.0;
-  draw_button vg xf (-1) "Sign in" (x+.138.0) y 140.0 28.0
+  draw_button vg xf (*ICON_LOGIN*)0xE740 "Sign in" (x+.138.0) y 140.0 28.0
     (Color.v 0.0 0.375 0.5 1.0);
   let y = y +. 45.0 in
 
