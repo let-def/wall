@@ -33,9 +33,14 @@ module Glyph = struct
   let estimate_scale {Transform. x00; x10; x01; x11; _} {Font. size} =
     let sx = sqrt (x00 *. x00 +. x10 *. x10) in
     let sy = sqrt (x01 *. x01 +. x11 *. x11) in
-    let scale = (sx +. sy) *. 0.5 *. size in
+    let factor = (sx +. sy) *. 0.5 in
+    let scale = factor *. size in
+    (*Printf.eprintf "sx = %f, sy = %f, size = %f, scale = %f\n%!"
+      sx sy size scale;*)
     let x = quantize scale in
-    if x > 2000 then (float x /. 2000.0, 2000) else (1.0, x)
+    if x > 2000
+    then (float x /. 2000.0 /. factor, 2000)
+    else (1.0 /. factor, x)
 
   type key = {
     cp    : int;
@@ -640,7 +645,7 @@ let prepare_text t vb paint frame x y xform font text =
   let glyphes = font.Font.glyphes in
   let scale = Stb_truetype.scale_for_pixel_height glyphes font.Font.size in
   let factor, key = Glyph.key xform font in
-  let factor = factor *. 0.5 in
+  let factor = factor in
   let x = ref x in
   let last = ref Stb_truetype.invalid_glyph in
   while !r < len do
@@ -653,6 +658,9 @@ let prepare_text t vb paint frame x y xform font text =
         let open Stb_truetype in
         x := !x +. float (Stb_truetype.kern_advance glyphes !last glyph) *. scale;
         last := glyph;
+        (*Printf.eprintf
+          "character { x0 = %d; y0 = %d; x1 = %d; y1 = %d }, factor %.02fx\n%!"
+          box.x0 box.y0 box.x1 box.y1 factor;*)
         let x0 = !x +. float box.x0 *. factor in
         let y0 =  y +. float box.y0 *. factor in
         let x1 = !x +. float box.x1 *. factor in

@@ -741,19 +741,30 @@ let draw_demo vg xf mx my w h t = (
   draw_slider vg xf 0.4 x y 170.0 28.0;
   let y = y +. 55.0 in
 
-  draw_button vg xf (-1) "Delete" x y 160.0 28.0 (Color.v 0.5 0.0625 0.03125 1.0);
+  draw_button vg xf (*ICON_TRASH*)0xE729 "Delete" x y 160.0 28.0 (Color.v 0.5 0.0625 0.03125 1.0);
   draw_button vg xf 0 "Cancel" (x+.170.0) y 110.0 28.0 (Color.gray ~a:0.0 0.0);
 
   draw_thumbnails vg xf 365.0 (popy-.30.0) 160.0 300.0 (Lazy.force images) t;
   ()
 )
 
+let w = 1000
+let h = 600
+let f = 1
+let fw = f * w
+let fh = f * h
+
+let lw = float w
+let lh = float h
+let pw = lw *. float f
+let ph = lh *. float f
+
 let render vg t =
   C.new_frame vg;
   let _, (x, y) = Sdl.get_mouse_state () in
   let x = x / 2 and y = y / 2 in
-  draw_demo vg (Transform.scale 2.0 2.0) (float x) (float y) 1000.0 600.0 t;
-  C.flush_frame vg (Gg.V2.v 2000.0 1200.0)
+  draw_demo vg (Transform.scale (float f) (float f)) (float x) (float y) lw lh t;
+  C.flush_frame vg (Gg.V2.v pw ph)
 
 open Tgles2
 
@@ -762,7 +773,7 @@ let main () =
   match Sdl.init Sdl.Init.video with
   | Error (`Msg e) -> Sdl.log "Init error: %s" e; exit 1
   | Ok () ->
-    match Sdl.create_window ~w:2000 ~h:1200 "SDL OpenGL" Sdl.Window.opengl with
+    match Sdl.create_window ~w:fw ~h:fh "SDL OpenGL" Sdl.Window.opengl with
     | Error (`Msg e) -> Sdl.log "Create window error: %s" e; exit 1
     | Ok w ->
       (*Sdl.gl_set_attribute Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core;*)
@@ -784,7 +795,7 @@ let main () =
           done;
           Unix.sleepf 0.020;
           t := !t +. 0.050;
-          Gl.viewport 0 0 2000 1200;
+          Gl.viewport 0 0 fw fh;
           Gl.clear_color 0.3 0.3 0.32 1.0;
           Gl.(clear (color_buffer_bit lor depth_buffer_bit lor stencil_buffer_bit));
           Gl.enable Gl.blend;
