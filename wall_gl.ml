@@ -645,9 +645,10 @@ let prepare_text t vb paint frame x y xform font text =
   let glyphes = font.Font.glyphes in
   let scale = Stb_truetype.scale_for_pixel_height glyphes font.Font.size in
   let factor, key = Glyph.key xform font in
-  let factor = factor in
-  let x = ref x in
+  let xoff = ref 0 in
   let last = ref Stb_truetype.invalid_glyph in
+  let y = y +. factor /. 2.0 in
+  let y = y -. mod_float y factor in
   while !r < len do
     match utf8_decode r text with
     | -1 -> last := Stb_truetype.invalid_glyph
@@ -656,15 +657,18 @@ let prepare_text t vb paint frame x y xform font text =
       match Hashtbl.find t.font_glyphes key with
       | { Glyph. box; uv; glyph; _ } ->
         let open Stb_truetype in
-        x := !x +. float (Stb_truetype.kern_advance glyphes !last glyph) *. scale;
+        xoff := !xoff + Stb_truetype.kern_advance glyphes !last glyph;
         last := glyph;
         (*Printf.eprintf
           "character { x0 = %d; y0 = %d; x1 = %d; y1 = %d }, factor %.02fx\n%!"
           box.x0 box.y0 box.x1 box.y1 factor;*)
-        let x0 = !x +. float box.x0 *. factor in
-        let y0 =  y +. float box.y0 *. factor in
-        let x1 = !x +. float box.x1 *. factor in
-        let y1 =  y +. float box.y1 *. factor in
+        let x = x +. float !xoff *. scale in
+        let x = x +. factor /. 2.0 in
+        let x = x -. mod_float x factor in
+        let x0 = x +. float box.x0 *. factor in
+        let y0 = y +. float box.y0 *. factor in
+        let x1 = x +. float box.x1 *. factor in
+        let y1 = y +. float box.y1 *. factor in
         let s0 = float uv.x0 /. 512.0 in
         let t0 = float uv.y0 /. 512.0 in
         let s1 = float uv.x1 /. 512.0 in
@@ -675,7 +679,7 @@ let prepare_text t vb paint frame x y xform font text =
         push_4 vb x0 y0 s0 t0;
         push_4 vb x0 y1 s0 t1;
         push_4 vb x1 y1 s1 t1;
-        x := !x +. float (Stb_truetype.glyph_advance glyphes glyph) *. scale;
+        xoff := !xoff + Stb_truetype.glyph_advance glyphes glyph;
       | exception Not_found ->
         last := Stb_truetype.invalid_glyph
   done;

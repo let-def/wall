@@ -762,8 +762,9 @@ let ph = lh *. float f
 let render vg t =
   C.new_frame vg;
   let _, (x, y) = Sdl.get_mouse_state () in
-  let x = x / 2 and y = y / 2 in
-  draw_demo vg (Transform.scale (float f) (float f)) (float x) (float y) lw lh t;
+  let f = float f in
+  let x = float x /. f and y = float y /. f in
+  draw_demo vg (Transform.scale f f) x y lw lh t;
   C.flush_frame vg (Gg.V2.v pw ph)
 
 open Tgles2
