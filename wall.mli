@@ -129,15 +129,20 @@ module Frame : sig
 end
 
 module Font : sig
+  type glyph_placement = [ `Align | `Exact ]
+
   type t = {
     glyphes     : Stb_truetype.t;
     size        : float;
     blur        : float;
     spacing     : float;
     line_height : float;
+    placement   : glyph_placement;
   }
 
-  val make: ?size:float -> ?blur:float -> ?spacing:float -> ?line_height:float -> Stb_truetype.t -> t
+  val make:
+    ?size:float -> ?blur:float -> ?spacing:float -> ?line_height:float ->
+    ?placement:glyph_placement -> Stb_truetype.t -> t
 
   type metrics = {
     ascent   : float;

@@ -380,16 +380,19 @@ let utf8_decode index str =
   if !state = 0 then !codep else (-1)
 
 module Font = struct
+  type glyph_placement = [ `Align | `Exact ]
+
   type t = {
     glyphes: Stb_truetype.t;
     size: float;
     blur: float;
     spacing: float;
     line_height: float;
+    placement   : glyph_placement;
   }
 
-  let make ?(size=16.0) ?(blur=0.0) ?(spacing=0.0) ?(line_height=1.0) glyphes =
-    { glyphes; blur; size; spacing; line_height }
+  let make ?(size=16.0) ?(blur=0.0) ?(spacing=0.0) ?(line_height=1.0) ?(placement=`Align) glyphes =
+    { glyphes; blur; size; spacing; line_height; placement }
 
   type metrics = {
     ascent   : float;

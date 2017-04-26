@@ -750,19 +750,18 @@ let draw_demo vg xf mx my w h t = (
 
 let w = 1000
 let h = 600
-let f = 1
-let fw = f * w
-let fh = f * h
+let f = (try float_of_string Sys.argv.(1) with _ -> 1.0)
+let fw = int_of_float (f *. float w)
+let fh = int_of_float (f *. float h)
 
 let lw = float w
 let lh = float h
-let pw = lw *. float f
-let ph = lh *. float f
+let pw = lw *. f
+let ph = lh *. f
 
 let render vg t =
   C.new_frame vg;
   let _, (x, y) = Sdl.get_mouse_state () in
-  let f = float f in
   let x = float x /. f and y = float y /. f in
   draw_demo vg (Transform.scale f f) x y lw lh t;
   C.flush_frame vg (Gg.V2.v pw ph)

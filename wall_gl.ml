@@ -632,6 +632,13 @@ let alloc_text t = function
     done
   | _ -> ()
 
+let align_place factor x =
+  let x = x +. factor *. 0.5 in x -. mod_float x factor
+
+let place factor = function
+  | `Exact -> (fun x -> x)
+  | `Align -> align_place factor
+
 let prepare_text t vb paint frame x y xform font text =
   let r = ref 0 in
   let len = String.length text in
@@ -647,8 +654,8 @@ let prepare_text t vb paint frame x y xform font text =
   let factor, key = Glyph.key xform font in
   let xoff = ref 0 in
   let last = ref Stb_truetype.invalid_glyph in
-  let y = y +. factor /. 2.0 in
-  let y = y -. mod_float y factor in
+  let place = place factor font.Font.placement in
+  let y = place y in
   while !r < len do
     match utf8_decode r text with
     | -1 -> last := Stb_truetype.invalid_glyph
@@ -662,9 +669,7 @@ let prepare_text t vb paint frame x y xform font text =
         (*Printf.eprintf
           "character { x0 = %d; y0 = %d; x1 = %d; y1 = %d }, factor %.02fx\n%!"
           box.x0 box.y0 box.x1 box.y1 factor;*)
-        let x = x +. float !xoff *. scale in
-        let x = x +. factor /. 2.0 in
-        let x = x -. mod_float x factor in
+        let x = place (x +. float !xoff *. scale) in
         let x0 = x +. float box.x0 *. factor in
         let y0 = y +. float box.y0 *. factor in
         let x1 = x +. float box.x1 *. factor in
