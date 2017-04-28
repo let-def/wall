@@ -30,10 +30,8 @@ type font_buffer = {
 module Glyph = struct
   let quantize x = int_of_float (x *. 10.0)
 
-  let estimate_scale {Transform. x00; x10; x01; x11; _} {Font. size} =
-    let sx = sqrt (x00 *. x00 +. x10 *. x10) in
-    let sy = sqrt (x01 *. x01 +. x11 *. x11) in
-    let factor = (sx +. sy) *. 0.5 in
+  let estimate_scale xf {Font. size} =
+    let factor = Transform.average_scale xf in
     let scale = factor *. size in
     (*Printf.eprintf "sx = %f, sy = %f, size = %f, scale = %f\n%!"
       sx sy size scale;*)

@@ -47,6 +47,7 @@ module T = struct
 
     val set_tol : t -> dist:float -> tess:float -> unit
     val dist_tol : t -> float
+    val set_tess_tol : t -> float -> unit
     val tess_tol : t -> float
 
     val add_point : t -> float -> float -> int -> unit
@@ -117,6 +118,10 @@ module T = struct
       t.tess_tol <- tess
 
     let dist_tol t = t.dist_tol
+
+    let set_tess_tol t tol =
+      t.tess_tol <- tol
+
     let tess_tol t = t.tess_tol
 
     let grow t =
@@ -316,6 +321,7 @@ module T = struct
   let last_y = T.last_y
 
   let set_tol = T.set_tol
+  let set_tess_tol = T.set_tess_tol
   let clear = T.clear
 
   let has_path = T.has_path
@@ -436,7 +442,7 @@ module T = struct
   let get_dlen  = T.aux_dlen
   let get_dmx   = T.aux_dmx
   let get_dmy   = T.aux_dmy
-  let tess_tol = T.tess_tol
+  let tess_tol  = T.tess_tol
 end
 
 module B = struct

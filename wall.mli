@@ -38,6 +38,7 @@ module Transform : sig
   }
 
   val identity : t
+  val average_scale : t -> float
 
   val translation : x:float -> y:float -> t
   val rotation    : a:float -> t

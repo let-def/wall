@@ -69,6 +69,7 @@ module T : sig
   val clear : t -> unit
 
   val set_tol : t -> dist:float -> tess:float -> unit
+  val set_tess_tol : t -> float -> unit
   val tess_tol : t -> float
 
   val has_path : t -> bool

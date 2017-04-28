@@ -23,7 +23,7 @@ type t
 val create_gl : antialias:bool -> t
 val delete : t -> unit
 
-val new_path : t -> transform -> unit
+val new_path : t -> ?quality:float -> transform -> unit
 
 val set_winding : t -> [< `HOLE | `SOLID | `CW | `CCW ] -> unit
 

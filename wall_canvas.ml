@@ -47,8 +47,9 @@ let delete t =
 let set_winding t w =
   T.set_winding t.t (match w with `CW | `HOLE -> T.CW | `SOLID | `CCW -> T.CCW)
 
-let new_path t xf =
+let new_path t ?(quality=4.0) xf =
   T.clear t.t;
+  T.set_tess_tol t.t (1.0 /. (Transform.average_scale xf *. quality));
   t.xf <- xf
 
 let close_path t =

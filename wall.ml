@@ -99,6 +99,11 @@ module Transform = struct
                    x20 = 0.0; x21 = 0.0;
                  }
 
+  let average_scale {x00; x10; x01; x11; _} =
+    let sx = sqrt (x00 *. x00 +. x10 *. x10) in
+    let sy = sqrt (x01 *. x01 +. x11 *. x11) in
+    (sx +. sy) *. 0.5
+
   let translation ~x ~y = {identity with x20 = x; x21 = y}
 
   let rotation ~a =
