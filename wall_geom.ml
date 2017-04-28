@@ -22,6 +22,9 @@ let ba_empty = BA.create Bigarray.float32 Bigarray.c_layout 0
 (* Algorithms from
    https://github.com/memononen/nanovg/blob/master/src/nanovg.c *)
 
+let minf a b : float = if a < b then a else b
+let maxf a b : float = if a >= b then a else b
+
 module T = struct
   type winding = CW | CCW
 
@@ -262,10 +265,10 @@ module T = struct
     dx *. dx +. dy *. dy < tol *. tol
 
   let update_bounds b x y =
-    b.m_minx <- min b.m_minx x;
-    b.m_miny <- min b.m_miny y;
-    b.m_maxx <- max b.m_maxx x;
-    b.m_maxy <- max b.m_maxy y
+    b.m_minx <- minf b.m_minx x;
+    b.m_miny <- minf b.m_miny y;
+    b.m_maxx <- maxf b.m_maxx x;
+    b.m_maxy <- maxf b.m_maxy y
 
   let freeze_bounds b =
     { minx = b.m_minx; miny = b.m_miny;
@@ -389,7 +392,7 @@ module T = struct
       let dmr2 = dmx *. dmx +. dmy *. dmy in
       let scale =
         if dmr2 <= 1e-6 then 1.0 else
-          min (1.0 /. dmr2) 600.0
+          minf (1.0 /. dmr2) 600.0
       in
       T.aux_set_dm t p1 (dmx *. scale) (dmy *. scale);
 
@@ -406,8 +409,8 @@ module T = struct
 
       let flags =
         let dlen0 = T.aux_dlen t p0 and dlen1 = T.aux_dlen t p1 in
-        if max dlen0 dlen1 > w then
-          let limit = max 1.01 (min dlen0 dlen1 *. iw) in
+        if maxf dlen0 dlen1 > w then
+          let limit = maxf 1.01 (minf dlen0 dlen1 *. iw) in
           if dmr2 *. limit *. limit < 1.0 then
             flags lor flag_innerbevel
           else flags
@@ -821,7 +824,7 @@ module V = struct
 
     let curve_divs r arc tol =
       let da = acos (r /. (r +. tol)) *. 2.0 in
-      max 2 (int_of_float (ceil (arc /. da)))
+      int_of_float (maxf 2.0 (ceil (arc /. da)))
 
     let count join_ncap cap_ncap {T. path_count; path_nbevel; path_closed} =
       ((path_count + path_nbevel * (join_ncap + 2) + 1) * 2) +
@@ -982,7 +985,7 @@ module V = struct
 
   let stroke t vb ~edge_antialias ~fringe_width
       ~stroke_width ~line_join ~line_cap ~miter_limit paths =
-    let stroke_width = max stroke_width fringe_width in
+    let stroke_width = maxf stroke_width fringe_width in
     let w =
       if edge_antialias then
         (stroke_width +. fringe_width) *. 0.5
