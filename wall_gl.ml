@@ -720,6 +720,9 @@ let new_font_buffer width height =
   let room = Maxrects.add_bin () width height Maxrects.empty in
   { image; texture; room }
 
+let box_offset {Stb_truetype. x0; x1; y0; y1 } p =
+  {Stb_truetype. x0 = x0 - p; x1 = x1 + p; y0 = y0 - p; y1 = y1 + p }
+
 let bake_glyphs t =
   let buffer = match t.font_buffer with
     | Some buffer -> buffer
@@ -728,14 +731,15 @@ let bake_glyphs t =
       t.font_buffer <- Some buffer;
       buffer
   in
-  let add_box ({ Glyph. scale; cp; ttf } as key) () boxes =
+  let add_box ({ Glyph. scale; cp; ttf; blur } as key) () boxes =
     match Stb_truetype.find ttf cp with
     | None -> boxes
     | Some glyph ->
       let scale = Stb_truetype.scale_for_pixel_height ttf (float scale /. 10.0) in
       let box = Stb_truetype.get_glyph_bitmap_box ttf glyph ~scale_x:scale ~scale_y:scale in
       let {Stb_truetype. x0; y0; x1; y1} = box in
-      Maxrects.box (key, ttf, glyph, scale, box) (x1 - x0 + 2) (y1 - y0 + 2) :: boxes
+      Maxrects.box (key, ttf, glyph, scale, box)
+        (x1 - x0 + 2 + blur / 10) (y1 - y0 + 2 + blur / 10) :: boxes
   in
   let boxes = Hashtbl.fold add_box t.font_todo [] in
   let room, boxes = Maxrects.insert_batch buffer.room boxes in
@@ -744,7 +748,9 @@ let bake_glyphs t =
       | None -> ()
       | Some {Maxrects. x; y; w; h; box; bin =_} ->
         let (key, ttf, glyph, scale, box) = box.Maxrects.tag in
-        let uv = {Stb_truetype. x0 = x + 1; x1 = x + w - 1; y0 = y + 1; y1 = y + h - 1} in
+        let pad = 1 + key.Glyph.blur / 20 in
+        let uv = {Stb_truetype. x0 = x + pad; x1 = x + w - pad;
+                  y0 = y + pad; y1 = y + h - pad} in
         Stb_truetype.make_glyph_bitmap
           ttf
           buffer.image.Stb_image.data
@@ -754,6 +760,17 @@ let bake_glyphs t =
           ~scale_y:scale
           uv
           glyph;
+        let uv, box = if key.Glyph.blur = 0 then uv, box else (
+            let uv = box_offset uv pad and box = box_offset box pad in
+            Stb_truetype.blur_glyph_bitmap
+              buffer.image.Stb_image.data
+              ~width:buffer.image.Stb_image.width
+              ~height:buffer.image.Stb_image.height
+              uv
+              (float key.Glyph.blur /. 10.0);
+            uv, box
+          )
+        in
         Hashtbl.add t.font_glyphes key { Glyph. box; uv; frame = !frame_nr; glyph }
     ) boxes;
   Hashtbl.reset t.font_todo;
