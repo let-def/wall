@@ -83,7 +83,7 @@ type t = {
 
 let shader_vertex = "\
 uniform vec2 viewSize;
-uniform vec3[3] viewXform;
+uniform vec3 viewXform[3];
 attribute vec2 vertex;
 attribute vec2 tcoord;
 varying vec2 ftcoord;
