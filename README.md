@@ -3,6 +3,16 @@ Wall is a vector graphics renderer using OpenGL written in pure OCaml.
 Code is licensed under BSD3.
 API is not stable yet.
 
+## Installation
+
+Project is heavily under development.
+
+```shell
+$ opam pin add --dev-repo stb_truetype
+$ git clone git@github.com:let-def/wall.git 
+$ opam pin add wall ./wall/
+```
+
 ## Credits
 
 The main inspiration for this project is

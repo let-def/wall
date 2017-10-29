@@ -14,5 +14,5 @@ install: [make "install"]
 remove: ["ocamlfind" "remove" "wall"]
 depends: [
   "ocamlfind" {build}
-  "gg" "tgls" "tsdl" "result" "stb_image" "stb_truetype"
+  "gg" "tgls" "tsdl" "result" "stb_image" "stb_truetype" "grenier"
 ]
