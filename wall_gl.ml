@@ -672,10 +672,10 @@ let prepare_text t vb paint frame x y xform font text =
         let y0 = y +. float box.y0 *. factor in
         let x1 = x +. float box.x1 *. factor in
         let y1 = y +. float box.y1 *. factor in
-        let s0 = float uv.x0 /. 512.0 in
-        let t0 = float uv.y0 /. 512.0 in
-        let s1 = float uv.x1 /. 512.0 in
-        let t1 = float uv.y1 /. 512.0 in
+        let s0 = float uv.x0 /. 1024.0 in
+        let t0 = float uv.y0 /. 1024.0 in
+        let s1 = float uv.x1 /. 1024.0 in
+        let t1 = float uv.y1 /. 1024.0 in
         push_4 vb x0 y0 s0 t0;
         push_4 vb x1 y1 s1 t1;
         push_4 vb x1 y0 s1 t0;
@@ -727,7 +727,7 @@ let bake_glyphs t =
   let buffer = match t.font_buffer with
     | Some buffer -> buffer
     | None ->
-      let buffer = new_font_buffer 512 512 in
+      let buffer = new_font_buffer 1024 1024 in
       t.font_buffer <- Some buffer;
       buffer
   in
