@@ -18,47 +18,51 @@
 
 open Wall
 
+module Path : sig
+  type ctx
+
+  val set_winding : ctx -> [< `HOLE | `SOLID | `CW | `CCW ] -> unit
+
+  val move_to : ctx -> x:float -> y:float -> unit
+
+  val line_to : ctx -> x:float -> y:float -> unit
+
+  val bezier_to : ctx -> c1x:float -> c1y:float ->
+    c2x:float -> c2y:float ->
+      x:float   -> y:float   -> unit
+
+  val quad_to : ctx -> cx:float -> cy:float ->
+    x:float  -> y:float  -> unit
+
+  val rect : ctx -> x:float -> y:float ->
+    w:float -> h:float -> unit
+
+  val round_rect : ctx -> x:float -> y:float ->
+    w:float -> h:float -> r:float -> unit
+
+  val circle : ctx -> cx:float -> cy:float -> r:float -> unit
+
+  val ellipse : ctx -> cx:float -> cy:float ->
+    rx:float -> ry:float -> unit
+
+  val arc : ctx -> cx:float -> cy:float -> r:float ->
+    a0:float -> a1:float -> [< `CW | `CCW ] -> unit
+
+  val arc_to : ctx -> x1:float -> y1:float ->
+    x2:float -> y2:float -> r:float -> unit
+
+  val close : ctx -> unit
+end
+type path
+val path : (Path.ctx -> unit) -> path
+
 type t
 
 val create_gl : antialias:bool -> t
 val delete : t -> unit
 
-val new_path : t -> ?quality:float -> transform -> unit
-
-val set_winding : t -> [< `HOLE | `SOLID | `CW | `CCW ] -> unit
-
-val move_to : t -> x:float -> y:float -> unit
-
-val line_to : t -> x:float -> y:float -> unit
-
-val bezier_to : t -> c1x:float -> c1y:float ->
-                     c2x:float -> c2y:float ->
-                     x:float   -> y:float   -> unit
-
-val quad_to : t -> cx:float -> cy:float ->
-                   x:float  -> y:float  -> unit
-
-val rect : t -> x:float -> y:float ->
-                w:float -> h:float -> unit
-
-val round_rect : t -> x:float -> y:float ->
-                      w:float -> h:float -> r:float -> unit
-
-val circle : t -> cx:float -> cy:float -> r:float -> unit
-
-val ellipse : t -> cx:float -> cy:float ->
-                   rx:float -> ry:float -> unit
-
-val arc : t -> cx:float -> cy:float -> r:float ->
-               a0:float -> a1:float -> [ `CW | `CCW ] -> unit
-
-val arc_to : t -> x1:float -> y1:float ->
-                  x2:float -> y2:float -> r:float -> unit
-
-val close_path : t -> unit
-
-val stroke : t -> ?frame:frame -> Wall_tex.t paint -> outline -> unit
-val fill   : t -> ?frame:frame -> Wall_tex.t paint -> unit
+val stroke : t -> ?frame:frame -> ?quality:float -> transform -> path -> Wall_tex.t paint -> outline -> unit
+val fill   : t -> ?frame:frame -> ?quality:float -> transform -> path -> Wall_tex.t paint -> unit
 val text   : t -> ?frame:frame -> ?halign:[`LEFT | `CENTER | `RIGHT]
                                -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
                                -> unit paint -> font -> x:float -> y:float -> string -> unit
@@ -66,6 +70,4 @@ val text   : t -> ?frame:frame -> ?halign:[`LEFT | `CENTER | `RIGHT]
 val new_frame : t -> unit
 val flush_frame : t -> Gg.size2 -> unit
 
-(* Length proportional to radius of a cubic bezier handle for 90deg arcs. *)
-val kappa90 : float
 val pi : float
