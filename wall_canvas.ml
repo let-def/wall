@@ -249,40 +249,47 @@ let delete t =
   B.clear t.b;
   Wall_gl.delete t.g
 
-let prepare_path t ?(quality=4.0) xf path =
+let prepare_path t ~quality xf path =
   T.clear t.t;
   T.set_tess_tol t.t (1.0 /. (Transform.average_scale xf *. quality));
   t.xf <- xf;
   path.closure t.t
 
-let stroke t ?(frame=Frame.default) ?quality xf path paint
-    {Outline. stroke_width; miter_limit; line_join; line_cap} =
-  prepare_path t ?quality xf path;
-  let _bounds, paths = T.flush t.t in
-  let paths =
-    V.stroke t.t t.b
-      ~edge_antialias:true
-      ~fringe_width:1.0
-      ~stroke_width
-      ~miter_limit
-      ~line_join
-      ~line_cap
-      paths
-  in
-  let paint = Paint.transform paint t.xf in
-  t.p <- Wall_gl.Stroke (t.xf, paint, frame, stroke_width, paths) :: t.p
+type shape = frame:frame -> quality:float -> transform -> Wall_tex.t paint -> t -> Wall_gl.obj
 
-let fill t ?(frame=Frame.default) ?quality xf path paint =
-  prepare_path t ?quality xf path;
-  let bounds, paths = T.flush t.t in
-  let paths =
-    V.fill t.t t.b
-      ~edge_antialias:true
-      ~fringe_width:1.0
-      paths
-  in
-  let paint = Paint.transform paint t.xf in
-  t.p <- Wall_gl.Fill (t.xf, paint, frame, bounds, paths) :: t.p
+let stroke {Outline. stroke_width; miter_limit; line_join; line_cap} path : shape =
+  fun ~frame ~quality xf paint t ->
+    prepare_path t ~quality xf path;
+    let _bounds, paths = T.flush t.t in
+    let paths =
+      V.stroke t.t t.b
+        ~edge_antialias:true
+        ~fringe_width:1.0
+        ~stroke_width
+        ~miter_limit
+        ~line_join
+        ~line_cap
+        paths
+    in
+    Wall_gl.Stroke (xf, Paint.transform paint xf, frame, stroke_width, paths)
+
+let fill path : shape =
+  fun ~frame ~quality xf paint t ->
+    prepare_path t ~quality xf path;
+    let bounds, paths = T.flush t.t in
+    let paths =
+      V.fill t.t t.b
+        ~edge_antialias:true
+        ~fringe_width:1.0
+        paths
+    in
+    Wall_gl.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
+
+let stroke_path outline f = stroke outline (path f)
+let fill_path f = fill (path f)
+
+let draw t ?(frame=Frame.default) ?(quality=4.0) xf paint (shape : shape) =
+  t.p <- shape ~frame ~quality xf paint t :: t.p
 
 let new_frame t =
   T.clear t.t;

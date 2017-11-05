@@ -56,16 +56,23 @@ end
 type path
 val path : (Path.ctx -> unit) -> path
 
+type shape
+val stroke : outline -> path -> shape
+val fill   : path -> shape
+
+val stroke_path : outline -> (Path.ctx -> unit) -> shape
+val fill_path   : (Path.ctx -> unit) -> shape
+
 type t
 
 val create_gl : antialias:bool -> t
 val delete : t -> unit
 
-val stroke : t -> ?frame:frame -> ?quality:float -> transform -> path -> Wall_tex.t paint -> outline -> unit
-val fill   : t -> ?frame:frame -> ?quality:float -> transform -> path -> Wall_tex.t paint -> unit
-val text   : t -> ?frame:frame -> ?halign:[`LEFT | `CENTER | `RIGHT]
-                               -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
-                               -> unit paint -> font -> x:float -> y:float -> string -> unit
+val draw : t -> ?frame:frame -> ?quality:float -> transform -> Wall_tex.t paint -> shape -> unit
+
+val text : t -> ?frame:frame -> ?halign:[`LEFT | `CENTER | `RIGHT]
+                             -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
+                             -> unit paint -> font -> x:float -> y:float -> string -> unit
 
 val new_frame : t -> unit
 val flush_frame : t -> Gg.size2 -> unit
