@@ -232,14 +232,21 @@ type t = {
   t : T.t;
   b : B.t;
   g : Wall_gl.t;
-  mutable p : Wall_gl.obj list;
+  mutable task : task;
 }
+
+and task =
+  | Node  of { mutable next : task; prepare : t -> Wall_gl.obj }
+  | Root  of { mutable next : task }
+  | After of { mutable next : task; node : task }
+  | Leaf
+  | Flushed
 
 let create_gl ~antialias = {
   t = T.make ();
   b = B.make ();
   g = Wall_gl.create ~antialias:true ~stencil_strokes:true ~debug:false;
-  p = [];
+  task = Flushed;
 }
 
 let delete t =
@@ -282,25 +289,87 @@ let fill path : shape =
     in
     Wall_gl.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
 
-let stroke_path outline f = stroke outline (path f)
-let fill_path f = fill (path f)
+let task_is_flushed = function
+  | Node {next=Flushed} | Root {next=Flushed} | After {next=Flushed} | Flushed ->
+    true
+  | _ -> false
 
-let draw t ?(frame=Frame.default) ?(quality=1.0) xf paint (shape : shape) =
-  t.p <- shape ~frame ~quality xf paint t :: t.p
+let task_add prepare = function
+  | Leaf | After _ -> assert false
+  | Node {next=Flushed} | Root {next=Flushed} | Flushed ->
+    invalid_arg "Wall_canvas.task: frame already flushed"
+  | Node n ->
+    let node = Node {next = n.next; prepare} in
+    n.next <- node; node
+  | Root n ->
+    let node = Node {next = n.next; prepare} in
+    n.next <- node; node
+
+let task_mark_flushed task =
+  let rec loop after = function
+    | Flushed | Leaf ->
+      begin match after with
+        | [] -> ()
+        | x :: xs -> loop xs x
+      end
+    | Root n ->
+      let next = n.next in
+      n.next <- Flushed;
+      loop after next
+    | Node n ->
+      let next = n.next in
+      n.next <- Flushed;
+      loop after next
+    | After n ->
+      let next = n.next in
+      n.next <- Flushed;
+      loop (n.node :: after) next
+  in
+  loop [] task
+
+let task_linearize t task =
+  let rec aux t acc after = function
+    | Flushed -> failwith "Wall_canvas.flush: frame already flushed"
+    | Leaf -> begin match after with
+        | [] -> acc
+        | x :: xs -> aux t acc xs x
+      end
+    | Root n ->
+      let next = n.next in
+      n.next <- Flushed;
+      aux t acc after next
+    | Node n ->
+      let next = n.next in
+      n.next <- Flushed;
+      aux t (n.prepare t :: acc) after next
+    | After n ->
+      let next = n.next in
+      n.next <- Flushed;
+      aux t acc (n.node :: after) next
+  in
+  aux t [] [] task
 
 let new_frame t =
   T.clear t.t;
   B.clear t.b;
-  t.p <- []
+  task_mark_flushed t.task;
+  let node = Root {next = Leaf} in
+  t.task <- node;
+  node
 
 let flush_frame t sz =
-  Wall_gl.render t.g sz t.b (List.rev t.p)
+  let task = t.task in
+  t.task <- Flushed;
+  Wall_gl.render t.g sz t.b (task_linearize t task)
 
-let text t ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) xf paint font text ~x ~y =
+let draw task ?(frame=Frame.default) ?(quality=1.0) xf paint (shape : shape) =
+  task_add (shape ~frame ~quality xf paint) task
+
+let text task ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) xf paint font ~x ~y str =
   let x = match halign with
     | `LEFT   -> x
-    | `CENTER -> (x -. Font.text_width font text *. 0.5)
-    | `RIGHT  -> (x -. Font.text_width font text)
+    | `CENTER -> (x -. Font.text_width font str *. 0.5)
+    | `RIGHT  -> (x -. Font.text_width font str)
   in
   let y = match valign with
     | `TOP    -> y +. (Font.font_metrics font).Font.ascent
@@ -310,5 +379,30 @@ let text t ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) xf paint f
       let {Font. ascent; descent} = Font.font_metrics font in
       (y +. (ascent +. descent) *. 0.5)
   in
-  let paint = paint xf in
-  t.p <- Wall_gl.Text (xf, Paint.transform paint xf, frame, x, y, font, text) :: t.p
+  let paint = Paint.transform paint xf in
+  task_add (fun _ -> Wall_gl.Text (xf, paint, frame, x, y, font, str)) task
+
+let after = function
+  | Leaf | After _ -> assert false
+  | Node {next=Flushed} | Root {next=Flushed} | Flushed ->
+    invalid_arg "Wall_canvas.task: frame already flushed"
+  | Node n ->
+    let node = Root {next = Leaf} in
+    n.next <- After {next = n.next; node};
+    node
+  | Root n ->
+    let node = Root {next = Leaf} in
+    n.next <- After {next = n.next; node};
+    node
+
+(* Convenient definitions *)
+
+let stroke_path outline f = stroke outline (path f)
+
+let fill_path f = fill (path f)
+
+let draw' task ?frame ?quality xf paint shape =
+  ignore (draw task ?frame ?quality xf paint shape : task)
+
+let text' task ?frame ?halign ?valign xf paint font ~x ~y str =
+  ignore (text task ?frame ?halign ?valign xf paint font str ~x ~y)

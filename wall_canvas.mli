@@ -53,28 +53,45 @@ module Path : sig
 
   val close : ctx -> unit
 end
+
 type path
 val path : (Path.ctx -> unit) -> path
 
 type shape
 val stroke : outline -> path -> shape
-val fill   : path -> shape
-
-val stroke_path : outline -> (Path.ctx -> unit) -> shape
-val fill_path   : (Path.ctx -> unit) -> shape
+val fill : path -> shape
 
 type t
 
 val create_gl : antialias:bool -> t
 val delete : t -> unit
 
-val draw : t -> ?frame:frame -> ?quality:float -> transform -> Wall_tex.t paint -> shape -> unit
+type task
 
-val text : t -> ?frame:frame -> ?halign:[`LEFT | `CENTER | `RIGHT]
-                             -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
-                             -> unit paint -> font -> x:float -> y:float -> string -> unit
+val new_frame : t -> task
 
-val new_frame : t -> unit
+val draw : task -> ?frame:frame -> ?quality:float -> transform -> Wall_tex.t paint -> shape -> task
+
+val text : task -> ?frame:frame
+           -> ?halign:[`LEFT | `CENTER | `RIGHT]
+           -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
+           -> transform -> unit paint -> font -> x:float -> y:float -> string -> task
+
+val after : task -> task
+
 val flush_frame : t -> Gg.size2 -> unit
 
+(* Convenient definitions *)
+
 val pi : float
+
+val stroke_path : outline -> (Path.ctx -> unit) -> shape
+
+val fill_path : (Path.ctx -> unit) -> shape
+
+val draw' : task -> ?frame:frame -> ?quality:float -> transform -> Wall_tex.t paint -> shape -> unit
+
+val text' : task -> ?frame:frame
+            -> ?halign:[`LEFT | `CENTER | `RIGHT]
+            -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
+            -> transform -> unit paint -> font -> x:float -> y:float -> string -> unit
