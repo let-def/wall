@@ -232,7 +232,6 @@ type t = {
   t : T.t;
   b : B.t;
   g : Wall_gl.t;
-  mutable xf : Transform.t;
   mutable p : Wall_gl.obj list;
 }
 
@@ -240,7 +239,6 @@ let create_gl ~antialias = {
   t = T.make ();
   b = B.make ();
   g = Wall_gl.create ~antialias:true ~stencil_strokes:true ~debug:false;
-  xf = Transform.identity;
   p = [];
 }
 
@@ -251,8 +249,7 @@ let delete t =
 
 let prepare_path t ~quality xf path =
   T.clear t.t;
-  T.set_tess_tol t.t (1.0 /. (Transform.average_scale xf *. quality));
-  t.xf <- xf;
+  T.set_tess_tol t.t (0.25 /. (Transform.average_scale xf *. quality));
   path.closure t.t
 
 type shape = frame:frame -> quality:float -> transform -> Wall_tex.t paint -> t -> Wall_gl.obj
@@ -288,7 +285,7 @@ let fill path : shape =
 let stroke_path outline f = stroke outline (path f)
 let fill_path f = fill (path f)
 
-let draw t ?(frame=Frame.default) ?(quality=4.0) xf paint (shape : shape) =
+let draw t ?(frame=Frame.default) ?(quality=1.0) xf paint (shape : shape) =
   t.p <- shape ~frame ~quality xf paint t :: t.p
 
 let new_frame t =
@@ -299,7 +296,7 @@ let new_frame t =
 let flush_frame t sz =
   Wall_gl.render t.g sz t.b (List.rev t.p)
 
-let text t ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) paint font ~x ~y text =
+let text t ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) xf paint font text ~x ~y =
   let x = match halign with
     | `LEFT   -> x
     | `CENTER -> (x -. Font.text_width font text *. 0.5)
@@ -313,6 +310,5 @@ let text t ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) paint font
       let {Font. ascent; descent} = Font.font_metrics font in
       (y +. (ascent +. descent) *. 0.5)
   in
-  let paint = Paint.transform paint t.xf in
-  t.p <- Wall_gl.Text (t.xf, paint, frame, x, y, font, text) :: t.p
-
+  let paint = paint xf in
+  t.p <- Wall_gl.Text (xf, Paint.transform paint xf, frame, x, y, font, text) :: t.p
