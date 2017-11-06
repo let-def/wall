@@ -228,6 +228,10 @@ type path = {
 
 let path closure = { closure; cache_key = () }
 
+type group_kind = Partial | Total | Partial_after | Total_after
+
+type order = [ `Partial | `Total ]
+
 type t = {
   t : T.t;
   b : B.t;
@@ -236,17 +240,16 @@ type t = {
 }
 
 and task =
-  | Node  of { mutable next : task; prepare : t -> Wall_gl.obj }
-  | Root  of { mutable next : task }
-  | After of { mutable next : task; node : task }
+  | Node  of {mutable sibling : task; mutable child : task; prepare : t -> Wall_gl.obj}
+  | Group of {mutable sibling : task; mutable child : task; kind: group_kind}
   | Leaf
-  | Flushed
+  | Done
 
 let create_gl ~antialias = {
   t = T.make ();
   b = B.make ();
   g = Wall_gl.create ~antialias:true ~stencil_strokes:true ~debug:false;
-  task = Flushed;
+  task = Done;
 }
 
 let delete t =
@@ -289,77 +292,84 @@ let fill path : shape =
     in
     Wall_gl.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
 
-let task_is_flushed = function
-  | Node {next=Flushed} | Root {next=Flushed} | After {next=Flushed} | Flushed ->
-    true
+let task_is_done = function
+  | Node {child=Done} | Group {child=Done} | Done -> true
   | _ -> false
 
 let task_add prepare = function
-  | Leaf | After _ -> assert false
-  | Node {next=Flushed} | Root {next=Flushed} | Flushed ->
+  | Leaf -> assert false
+  | Node {sibling=Done} | Group {sibling=Done} | Done ->
     invalid_arg "Wall_canvas.task: frame already flushed"
   | Node n ->
-    let node = Node {next = n.next; prepare} in
-    n.next <- node; node
-  | Root n ->
-    let node = Node {next = n.next; prepare} in
-    n.next <- node; node
+    let node = Node {sibling = n.child; child=Leaf; prepare} in
+    n.child <- node; node
+  | Group n ->
+    let node = Node {sibling = n.child; child=Leaf; prepare} in
+    n.child <- node; node
 
-let task_mark_flushed task =
-  let rec loop after = function
-    | Flushed | Leaf ->
-      begin match after with
-        | [] -> ()
-        | x :: xs -> loop xs x
-      end
-    | Root n ->
-      let next = n.next in
-      n.next <- Flushed;
-      loop after next
+let task_mark_done task =
+  let rec loop = function
+    | Done | Leaf -> ()
     | Node n ->
-      let next = n.next in
-      n.next <- Flushed;
-      loop after next
-    | After n ->
-      let next = n.next in
-      n.next <- Flushed;
-      loop (n.node :: after) next
+      let child = n.child in
+      n.child <- Done;
+      loop child;
+      let next = n.sibling in
+      n.sibling <- Done;
+      loop next
+    | Group n ->
+      let child = n.child in
+      n.child <- Done;
+      loop child;
+      let next = n.sibling in
+      n.sibling <- Done;
+      loop next
   in
-  loop [] task
+  loop task
 
 let task_linearize t task =
   let rec aux t acc after = function
-    | Flushed -> failwith "Wall_canvas.flush: frame already flushed"
+    | Done -> failwith "Wall_canvas.flush: frame already flushed"
     | Leaf -> begin match after with
         | [] -> acc
         | x :: xs -> aux t acc xs x
       end
-    | Root n ->
-      let next = n.next in
-      n.next <- Flushed;
-      aux t acc after next
     | Node n ->
-      let next = n.next in
-      n.next <- Flushed;
-      aux t (n.prepare t :: acc) after next
-    | After n ->
-      let next = n.next in
-      n.next <- Flushed;
-      aux t acc (n.node :: after) next
+      let child = n.child and next = n.sibling in
+      n.child <- Done;
+      n.sibling <- Done;
+      aux t (n.prepare t :: aux t acc [] child) after next
+    | Group ({kind = Partial | Total} as n) ->
+      let child = n.child and next = n.sibling in
+      n.child <- Done;
+      n.sibling <- Done;
+      aux t (aux t acc [] child) after next
+    | Group ({kind = Partial_after | Total_after} as n) ->
+      let child = n.child and next = n.sibling in
+      n.child <- Done;
+      n.sibling <- Done;
+      aux t acc (child :: after) next
   in
   aux t [] [] task
 
-let new_frame t =
+let group_kind order after =
+  match order, after with
+  | `Partial, true -> Partial_after
+  | `Partial, false -> Partial
+  | `Total, true -> Total_after
+  | `Total, false -> Total
+
+let new_frame ?(order=`Partial) t =
   T.clear t.t;
   B.clear t.b;
-  task_mark_flushed t.task;
-  let node = Root {next = Leaf} in
+  task_mark_done t.task;
+  let node = Group {kind = group_kind order false; sibling = Leaf; child = Leaf} in
   t.task <- node;
   node
 
 let flush_frame t sz =
   let task = t.task in
-  t.task <- Flushed;
+  t.task <- Done;
   Wall_gl.render t.g sz t.b (task_linearize t task)
 
 let draw task ?(frame=Frame.default) ?(quality=1.0) xf paint (shape : shape) =
@@ -382,17 +392,19 @@ let text task ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) xf pain
   let paint = Paint.transform paint xf in
   task_add (fun _ -> Wall_gl.Text (xf, paint, frame, x, y, font, str)) task
 
-let after = function
-  | Leaf | After _ -> assert false
-  | Node {next=Flushed} | Root {next=Flushed} | Flushed ->
+let group ?(order=`Partial) ?(after=false) = function
+  | Leaf | Done -> assert false
+  | Node {sibling=Done} | Group {sibling=Done} ->
     invalid_arg "Wall_canvas.task: frame already flushed"
   | Node n ->
-    let node = Root {next = Leaf} in
-    n.next <- After {next = n.next; node};
+    let kind = group_kind order after in
+    let node = Group {sibling = n.child; child = Leaf; kind} in
+    n.child <- node;
     node
-  | Root n ->
-    let node = Root {next = Leaf} in
-    n.next <- After {next = n.next; node};
+  | Group n ->
+    let kind = group_kind order after in
+    let node = Group {sibling = n.child; child = Leaf; kind} in
+    n.child <- node;
     node
 
 (* Convenient definitions *)

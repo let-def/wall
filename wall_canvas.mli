@@ -67,8 +67,9 @@ val create_gl : antialias:bool -> t
 val delete : t -> unit
 
 type task
+type order = [ `Partial | `Total ]
 
-val new_frame : t -> task
+val new_frame : ?order:order -> t -> task
 
 val draw : task -> ?frame:frame -> ?quality:float -> transform -> Wall_tex.t paint -> shape -> task
 
@@ -77,7 +78,7 @@ val text : task -> ?frame:frame
            -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
            -> transform -> unit paint -> font -> x:float -> y:float -> string -> task
 
-val after : task -> task
+val group : ?order:order -> ?after:bool -> task -> task
 
 val flush_frame : t -> Gg.size2 -> unit
 
