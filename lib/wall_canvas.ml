@@ -31,6 +31,9 @@ let mini x y : int   = if x <= y then x else y
 module Path = struct
   type ctx = T.t
 
+  let level_of_detail t =
+    T.tess_tol t *. 4.0
+
   let set_winding t w =
     T.set_winding t (match w with `CW | `HOLE -> T.CW | `SOLID | `CCW -> T.CCW)
 
@@ -236,6 +239,7 @@ type t = {
   t : T.t;
   b : B.t;
   g : Wall_gl.t;
+  mutable size : Gg.size2;
   mutable task : task;
 }
 
@@ -249,6 +253,7 @@ let create_gl ~antialias = {
   t = T.make ();
   b = B.make ();
   g = Wall_gl.create ~antialias:true ~stencil_strokes:true ~debug:false;
+  size = Gg.Size2.unit;
   task = Done;
 }
 
@@ -359,18 +364,19 @@ let group_kind order after =
   | `Total, true -> Total_after
   | `Total, false -> Total
 
-let new_frame ?(order=`Partial) t =
+let new_frame ?(order=`Partial) t sz =
   T.clear t.t;
   B.clear t.b;
   task_mark_done t.task;
   let node = Group {kind = group_kind order false; sibling = Leaf; child = Leaf} in
+  t.size <- sz;
   t.task <- node;
   node
 
-let flush_frame t sz =
+let flush_frame t =
   let task = t.task in
   t.task <- Done;
-  Wall_gl.render t.g sz t.b (task_linearize t task)
+  Wall_gl.render t.g t.size t.b (task_linearize t task)
 
 let draw task ?(frame=Frame.default) ?(quality=1.0) xf paint (shape : shape) =
   task_add (shape ~frame ~quality xf paint) task
