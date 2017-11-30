@@ -3,6 +3,6 @@
 (library
  ((name wall)
   (flags (-w -40 -w +26))
-  (public_name wall.lib)
+  (public_name wall)
   (wrapped false)
   (libraries (gg tgls.tgles2 tsdl result stb_image stb_truetype grenier.binpacking))))
