@@ -63,6 +63,7 @@ module T = struct
 
     val has_path : t -> bool
     val current_path : t -> path
+    val observed_tol : t -> bool
 
     val last_x : t -> float
     val last_y : t -> float
@@ -94,6 +95,7 @@ module T = struct
     type t = {
       mutable dist_tol : float;
       mutable tess_tol : float;
+      mutable observed_tol : bool;
       mutable paths: path list;
       mutable point: int;
       mutable points: fbuffer;
@@ -109,10 +111,12 @@ module T = struct
       point = 0;
       points = BA.create Bigarray.float32 Bigarray.c_layout 1024;
       points_flags = BA.create Bigarray.int8_unsigned Bigarray.c_layout 512;
-      points_aux = ba_empty
+      points_aux = ba_empty;
+      observed_tol = false;
     }
 
     let clear t =
+      t.observed_tol <- false;
       t.point <- 0;
       t.paths <- []
 
@@ -125,7 +129,11 @@ module T = struct
     let set_tess_tol t tol =
       t.tess_tol <- tol
 
-    let tess_tol t = t.tess_tol
+    let tess_tol t =
+      t.observed_tol <- true;
+      t.tess_tol
+
+    let observed_tol t = t.observed_tol
 
     let grow t =
       let d0 = BA.dim t.points_flags in
@@ -446,6 +454,8 @@ module T = struct
   let get_dmx   = T.aux_dmx
   let get_dmy   = T.aux_dmy
   let tess_tol  = T.tess_tol
+  let observed_tol = T.observed_tol
+
 end
 
 module B = struct

@@ -75,6 +75,7 @@ module T : sig
   val has_path : t -> bool
   val close_path : t -> unit
   val set_winding : t -> winding -> unit
+  val observed_tol : t -> bool
 
   val move_to : t -> float -> float -> unit
   val line_to : t -> float -> float -> unit
