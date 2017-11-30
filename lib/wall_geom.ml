@@ -419,8 +419,7 @@ module T = struct
 
       let flags =
         if (flags land flag_corner <> 0) &&
-           ((line_join = `BEVEL || line_join = `ROUND) ||
-            (dmr2 *. miter_limit *. miter_limit) < 1.0) then
+           (line_join || (dmr2 *. miter_limit *. miter_limit) < 1.0) then
           flags lor flag_bevel
         else flags
       in
@@ -435,6 +434,7 @@ module T = struct
     p.path_convex <- !nleft = p.path_count
 
   let calculate_joins t ~w ~line_join ~miter_limit paths =
+    let line_join = match line_join with `BEVEL | `ROUND -> true | _ -> false in
     List.iter (calculate_joins t w line_join miter_limit) paths
 
   let get_x     = T.get_x

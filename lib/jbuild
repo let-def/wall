@@ -3,6 +3,7 @@
 (library
  ((name wall)
   (flags (-w -40 -w +26))
+  (ocamlopt_flags (-inline 10))
   (public_name wall)
   (wrapped false)
   (libraries (gg tgls.tgles2 tsdl result stb_image stb_truetype grenier.binpacking))))
