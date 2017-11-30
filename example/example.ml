@@ -785,11 +785,11 @@ let lh = float h
 let pw = lw *. f
 let ph = lh *. f
 
-let render context t =
+let render context sw sh t =
   let vg = C.new_frame context in
   let _, (x, y) = Sdl.get_mouse_state () in
   let x = float x /. f and y = float y /. f in
-  draw_demo vg (Transform.scale f f) x y lw lh t;
+  draw_demo vg (Transform.scale (sw *. f) (sh *. f)) x y lw lh t;
   C.flush_frame context (Gg.V2.v pw ph)
 
 open Tgles2
@@ -810,6 +810,7 @@ let main () =
       (*Sdl.gl_set_attribute Sdl.Gl.context_minor_version 1;*)
       let ow, oh = Sdl.gl_get_drawable_size w in
       Sdl.log "window size: %d,%d\topengl drawable size: %d,%d" fw fh ow oh;
+      let sw = float ow /. float fw and sh = float oh /. float fh in
       ignore (Sdl.gl_set_attribute Sdl.Gl.stencil_size 1);
       match Sdl.gl_create_context w with
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
@@ -833,7 +834,7 @@ let main () =
           Gl.blend_func_separate Gl.one Gl.src_alpha Gl.one Gl.one_minus_src_alpha;
           Gl.enable Gl.cull_face_enum;
           Gl.disable Gl.depth_test;
-          render context !t;
+          render context sw sh !t;
           Sdl.gl_swap_window w;
         done;
         Sdl.gl_delete_context ctx;
