@@ -6,7 +6,7 @@ bug-reports: "https://github.com/let-def/wall"
 license: "BSD3"
 dev-repo: "https://github.com/let-def/wall.git"
 build: [
-  ["jbuilder" "build" "@install"]
+  ["jbuilder" "build" "--only" "wall" "--root" "." "-j" jobs "@install"]
 ]
 depends: [
   "ocamlfind" {build}
