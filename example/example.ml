@@ -780,17 +780,16 @@ let f = (try float_of_string Sys.argv.(1) with _ -> 1.0)
 let fw = int_of_float (f *. float w)
 let fh = int_of_float (f *. float h)
 
-let lw = float w
-let lh = float h
-let pw = lw *. f
-let ph = lh *. f
-
 let render context sw sh t =
-  let vg = C.new_frame context in
+  let lw = float w in
+  let lh = float h in
+  let pw = lw *. f *. sw in
+  let ph = lh *. f *. sh in
+  let vg = C.new_frame context (Gg.V2.v pw ph) in
   let _, (x, y) = Sdl.get_mouse_state () in
   let x = float x /. f and y = float y /. f in
   draw_demo vg (Transform.scale (sw *. f) (sh *. f)) x y lw lh t;
-  C.flush_frame context (Gg.V2.v pw ph)
+  C.flush_frame context
 
 open Tgles2
 
