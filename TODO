@@ -1,0 +1,22 @@
+# Abstract the GL backend.
+
+The two promising approaches are:
+- [Lit](http://erratique.ch/software/lit), however it is not actively developed
+- [Bgfx](https://github.com/bkaradzic/bgfx), a bit overkill and in C++ (which paradoxically, worsen the portability, especially if considering Web GL)
+  
+## OSX target
+
+Proper support for OSX platform is a must.
+
+# Better Font management
+
+The strategy for allocating and collecting font buffers is quite naive... It
+deserves more work.
+
+# Integration with VG and abstraction for reusing buffers.
+
+...
+
+# Document
+
+Wall API could benefit from some doc comments (especially fonts and tasks)
