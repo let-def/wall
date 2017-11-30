@@ -18,3 +18,12 @@ _build/
 # oasis generated files
 setup.data
 setup.log
+
+# Jbuiler generated
+*.install
+
+*.yarn-error.log
+node_modules
+
+*.lock
+yarn-error.log

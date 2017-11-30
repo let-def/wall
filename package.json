@@ -1,0 +1,33 @@
+{
+  "name": "@opam/wall",
+  "version": "0.0.1",
+  "dependencies": {
+    "@esy-ocaml/esy-installer": "^0.0.0",
+    "@esy-ocaml/substs": "^0.0.1",
+    "@opam/gg": "*",
+    "@opam/grenier": "*",
+    "@opam/ocamlfind": "",
+    "@opam/result": "*",
+    "@opam/stb_image": "*",
+    "@opam/stb_truetype": "*",
+    "@opam/tgls": "*",
+    "@opam/tsdl": "*",
+    "@opam/conf-pkg-config": "*",
+    "@opam/jbuilder": "*"
+  },
+  "esy": {
+    "build": [
+      [ "jbuilder", "build"]
+    ],
+    "install": [
+      [ "esy-installer" ]
+    ],
+    "buildsInSource": "_build"
+  },
+  "peerDependencies": {
+    "ocaml": "~4.6.0"
+  },
+  "devDependencies": {
+    "ocaml": "~4.6.0"
+  }
+}

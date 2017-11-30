@@ -8,10 +8,10 @@ bug-reports: "https://github.com/def-lkb/wall"
 license: "BSD3"
 dev-repo: "https://github.com/def-lkb/wall.git"
 build: [
-  [make]
+  [jbuilder build]
 ]
 install: [make "install"]
-remove: ["ocamlfind" "remove" "wall"]
+remove: ["opam-installer"]
 depends: [
   "ocamlfind" {build}
   "gg" "tgls" "tsdl" "result" "stb_image" "stb_truetype" "grenier"
