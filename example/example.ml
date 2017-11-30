@@ -808,6 +808,7 @@ let main () =
       (*Sdl.gl_set_attribute Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core;*)
       (*Sdl.gl_set_attribute Sdl.Gl.context_major_version 2;*)
       (*Sdl.gl_set_attribute Sdl.Gl.context_minor_version 1;*)
+      ignore (Sdl.gl_set_swap_interval (-1));
       let ow, oh = Sdl.gl_get_drawable_size w in
       Sdl.log "window size: %d,%d\topengl drawable size: %d,%d" fw fh ow oh;
       let sw = float ow /. float fw and sh = float oh /. float fh in
@@ -816,7 +817,6 @@ let main () =
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
       | Ok ctx ->
         let context = C.create_gl ~antialias:false in
-        let t = ref 0.0 in
         let quit = ref false in
         let event = Sdl.Event.create () in
         while not !quit do
@@ -825,8 +825,6 @@ let main () =
             | `Quit -> quit := true
             | _ -> ()
           done;
-          Unix.sleepf 0.020;
-          t := !t +. 0.050;
           Gl.viewport 0 0 fw fh;
           Gl.clear_color 0.3 0.3 0.32 1.0;
           Gl.(clear (color_buffer_bit lor depth_buffer_bit lor stencil_buffer_bit));
@@ -834,7 +832,7 @@ let main () =
           Gl.blend_func_separate Gl.one Gl.src_alpha Gl.one Gl.one_minus_src_alpha;
           Gl.enable Gl.cull_face_enum;
           Gl.disable Gl.depth_test;
-          render context sw sh !t;
+          render context sw sh (Int32.to_float (Sdl.get_ticks ()) /. 1000.0);
           Sdl.gl_swap_window w;
         done;
         Sdl.gl_delete_context ctx;
