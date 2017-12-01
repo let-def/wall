@@ -470,22 +470,24 @@ let push_4 b f0 f1 f2 f3 =
   data.{c + 3} <- f3
 
 let prepare_fill vb xform paint frame bounds paths =
-  B.reserve vb (6 * 4);
   let convex = match paths with
     | [path] -> path.V.convex
     | _ -> false
   in
-  let kind = if convex then CONVEXFILL else FILL in
-  let {T. minx; miny; maxx; maxy} = bounds in
-  let triangle_offset = B.offset vb / 4 in
-  push_4 vb minx maxy 0.5 1.0;
-  push_4 vb maxx maxy 0.5 1.0;
-  push_4 vb maxx miny 0.5 1.0;
-  push_4 vb minx maxy 0.5 1.0;
-  push_4 vb maxx miny 0.5 1.0;
-  push_4 vb minx miny 0.5 1.0;
-  { kind; paths; width = 1.0; xform;
-    triangle_offset; triangle_count = 6; paint; frame }
+  if convex then (
+    { kind = CONVEXFILL; paths; width = 1.0; xform;
+      triangle_offset = 0; triangle_count = 0; paint; frame }
+  ) else (
+    let {T. minx; miny; maxx; maxy} = bounds in
+    B.reserve vb (4 * 4);
+    let triangle_offset = B.offset vb / 4 in
+    push_4 vb maxx maxy 0.5 1.0;
+    push_4 vb maxx miny 0.5 1.0;
+    push_4 vb minx maxy 0.5 1.0;
+    push_4 vb minx miny 0.5 1.0;
+    { kind = FILL; paths; width = 1.0; xform;
+      triangle_offset; triangle_count = 4; paint; frame }
+  )
 
 let exec_fill t
     { paint; frame; xform; width; paths; triangle_offset; triangle_count} =
@@ -525,7 +527,7 @@ let exec_fill t
 
   Gl.stencil_func Gl.notequal 0x0 0xff;
   Gl.stencil_op Gl.zero Gl.zero Gl.zero;
-  Gl.draw_arrays Gl.triangles triangle_offset triangle_count;
+  Gl.draw_arrays Gl.triangle_strip triangle_offset triangle_count;
 
   Gl.disable Gl.stencil_test
 
