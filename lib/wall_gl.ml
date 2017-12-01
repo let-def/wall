@@ -142,6 +142,7 @@ void main(void) {
   float scissor = scissorMask(fpos);
 #ifdef EDGE_AA
   float strokeAlpha = strokeMask();
+  if (strokeAlpha < strokeThr) discard;
 #else
   float strokeAlpha = 1.0;
 #endif
@@ -173,9 +174,6 @@ void main(void) {
     color *= scissor;
     result = color * innerCol;
   }
-#ifdef EDGE_AA
-  if (strokeAlpha < strokeThr) discard;
-#endif
   gl_FragColor = result;
 }
 "
