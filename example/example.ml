@@ -815,7 +815,7 @@ let main () =
       match Sdl.gl_create_context w with
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
       | Ok ctx ->
-        let context = C.create_gl ~antialias:false in
+        let context = C.create_gl ~antialias:true () in
         let quit = ref false in
         let event = Sdl.Event.create () in
         while not !quit do

@@ -249,10 +249,10 @@ and task =
   | Leaf
   | Done
 
-let create_gl ~antialias = {
+let create_gl ?(antialias=true) ?(stencil_strokes=true) () = {
   t = T.make ();
   b = B.make ();
-  g = Wall_gl.create ~antialias:true ~stencil_strokes:true ~debug:false;
+  g = Wall_gl.create ~antialias ~stencil_strokes ~debug:false;
   size = Gg.Size2.unit;
   task = Done;
 }
