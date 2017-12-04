@@ -276,7 +276,7 @@ let stroke {Outline. stroke_width; miter_limit; line_join; line_cap} path : shap
     let paths =
       V.stroke t.t t.b
         ~edge_antialias:true
-        ~fringe_width:1.0
+        ~fringe_width:(1.0 /. Transform.average_scale xf)
         ~stroke_width
         ~miter_limit
         ~line_join
@@ -292,7 +292,7 @@ let fill path : shape =
     let paths =
       V.fill t.t t.b
         ~edge_antialias:true
-        ~fringe_width:1.0
+        ~fringe_width:(1.0 /. Transform.average_scale xf)
         paths
     in
     Wall_gl.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
