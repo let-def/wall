@@ -388,13 +388,16 @@ module Shader = struct
     | `SIMPLE   -> 2.
     | `IMG      -> 3.
 
+  let clampf min x max : float =
+    if x < min then x else if x > max then max else x
+
   let set_tool t ?typ paint frame width stroke_thr =
     let sextent = frame.Frame.extent in
     let sxform  = frame.Frame.xform in
     let alpha = frame.Frame.alpha in
     let alpha =
       if width < 1.0 then
-        let da = min 1.0 (max 0.0 width (* /. fringe_width*)) in
+        let da = clampf 0.0 (width (*/. fringe_width*)) 1.0 in
         alpha *. da *. da
       else alpha
     in
