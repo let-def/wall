@@ -275,7 +275,7 @@ let stroke {Outline. stroke_width; miter_limit; line_join; line_cap} path : shap
     let _bounds, paths = T.flush t.t in
     let paths =
       V.stroke t.t t.b
-        ~edge_antialias:true
+        ~edge_antialias:(Wall_gl.antialias t.g)
         ~fringe_width:(1.0 /. Transform.average_scale xf)
         ~stroke_width
         ~miter_limit
@@ -291,7 +291,7 @@ let fill path : shape =
     let bounds, paths = T.flush t.t in
     let paths =
       V.fill t.t t.b
-        ~edge_antialias:true
+        ~edge_antialias:(Wall_gl.antialias t.g)
         ~fringe_width:(1.0 /. Transform.average_scale xf)
         paths
     in

@@ -23,18 +23,18 @@ let render context sw sh t =
   let pw = lw *. f *. sw in
   let ph = lh *. f *. sh in
   let vg = C.new_frame context (Gg.V2.v pw ph) in
-  C.draw' vg
-    Transform.(rescale ~sx:20.0 ~sy:20.0 @@
+  (*C.draw' vg
+    Transform.(rescale ~sx:100.0 ~sy:100.0 @@
                translate ~x:100.0 ~y:100.0 @@
                identity)
     (Paint.rgba 0.0 1.0 0.0 0.5)
     (C.stroke_path {Outline.default with Outline.stroke_width = 1.3} @@
-     fun p -> P.rect p 0.0 0.0 0.5 0.5);
+     fun p -> P.rect p 0.0 0.0 0.5 0.5);*)
   C.draw' vg
     Transform.identity
-    Paint.white
-    (C.stroke_path {Outline.default with Outline.stroke_width = 66.0} @@
-     fun p -> P.rect p 300.0 100.0 20.0 20.0);
+    (Paint.rgba 0.0 1.0 0.0 0.5)
+    (C.stroke_path {Outline.default with Outline.stroke_width = 60.0} @@
+     fun p -> P.rect p 300.0 100.0 50.0 50.0);
   C.flush_frame context
 
 open Tgles2
@@ -61,7 +61,7 @@ let main () =
       match Sdl.gl_create_context w with
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
       | Ok ctx ->
-        let context = C.create_gl ~antialias:false () in
+        let context = C.create_gl ~antialias:false ~stencil_strokes:false () in
         let quit = ref false in
         let event = Sdl.Event.create () in
         while not !quit do

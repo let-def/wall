@@ -27,6 +27,9 @@ type font_buffer = {
   mutable room : unit Maxrects.t;
 }
 
+let reversing_transform {Transform. x00; x10; x01; x11; _} =
+  x00 *. x11 < x01 *. x10
+
 module Glyph = struct
   let quantize x = int_of_float (x *. 10.0)
 
@@ -77,6 +80,8 @@ type t = {
   font_todo: (Glyph.key, unit) Hashtbl.t;
   mutable font_buffer: font_buffer option;
 }
+
+let antialias t = t.antialias
 
 (* OpenGL rendered from
    https://github.com/memononen/nanovg/blob/master/src/nanovg_gl.h *)
@@ -698,7 +703,7 @@ let prepare_obj t vbuffer = function
   | Fill (xform, paint, frame, bounds, paths) ->
     prepare_fill vbuffer xform paint frame bounds paths
   | Stroke (xform, paint, frame, width, paths) ->
-    prepare_stroke xform paint frame width paths
+    prepare_stroke xform paint frame (width *. Transform.average_scale xform) paths
   | Text (xform, paint, frame, x, y, font, text) ->
     begin match t.font_buffer with
       | None -> { kind = TRIANGLES; frame = Frame.default; paint = Paint.black;
@@ -709,7 +714,14 @@ let prepare_obj t vbuffer = function
         prepare_text t vbuffer paint frame x y xform font text
     end
 
+let gl_reversed = ref false
+
 let exec_call t call =
+  let reversing = reversing_transform call.xform in
+  if reversing <> !gl_reversed then (
+    Gl.front_face (if reversing then Gl.cw else Gl.ccw);
+    gl_reversed := reversing
+  );
   match call.kind with
   | FILL -> exec_fill t call
   | CONVEXFILL -> exec_convex_fill t call
@@ -792,6 +804,7 @@ let render t viewsize vbuffer objs =
   Gl.blend_func     Gl.one Gl.one_minus_src_alpha;
   Gl.enable         Gl.cull_face_enum;
   Gl.cull_face      Gl.back;
+  gl_reversed       := false;
   Gl.front_face     Gl.ccw;
   Gl.enable         Gl.blend;
   Gl.disable        Gl.depth_test;

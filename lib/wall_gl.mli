@@ -22,6 +22,7 @@ type t
 
 val create : antialias:bool -> stencil_strokes:bool -> debug:bool -> t
 val delete : t -> unit
+val antialias : t -> bool
 
 type obj =
   | Fill   of transform * Wall_tex.t paint * frame * T.bounds * V.path list

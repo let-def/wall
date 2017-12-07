@@ -38,8 +38,8 @@ module T = struct
   }
 
   let flag_corner      = 0x1
-  let flag_bevel       = 0x2
-  let flag_left        = 0x4
+  let flag_left        = 0x2
+  let flag_bevel       = 0x4
   let flag_innerbevel  = 0x8
 
   module T : sig
@@ -237,6 +237,7 @@ module T = struct
       points_aux.{5 * pt + 2} <- dlen
 
     let aux_set_dm {points_aux} pt dmx dmy =
+      (*Printf.printf "set_dm: %f %f\n" dmx dmy;*)
       points_aux.{5 * pt + 3} <- dmx;
       points_aux.{5 * pt + 4} <- dmy
 
@@ -385,6 +386,7 @@ module T = struct
   (* Calculate which joins needs extra vertices to append, and gather vertex count. *)
   let calculate_joins t w line_join miter_limit p =
     let iw = if w > 0.0 then 1.0 /. w else 0.0 in
+    (*Printf.printf "w: %f, iw: %f\n" w iw;*)
     let nleft = ref 0 in
     let nbevel = ref 0 in
     let first = p.path_first in
@@ -405,8 +407,10 @@ module T = struct
       T.aux_set_dm t p1 (dmx *. scale) (dmy *. scale);
 
       (*Printf.printf "calculate_joins: %f %f\n" (dmx *. scale) (dmy *. scale);*)
+      (*Printf.printf "dmr2: %f\n" dmr2;*)
 
       let flags = T.get_flags t p1 land flag_corner in
+      (*Printf.printf "flags(in): %d\n" flags;*)
 
       let flags =
         let cross = dx1 *. dy0 -. dx0 *. dy1 in
@@ -419,6 +423,7 @@ module T = struct
         let dlen0 = T.aux_dlen t p0 and dlen1 = T.aux_dlen t p1 in
         if maxf dlen0 dlen1 > w then
           let limit = maxf 1.01 (minf dlen0 dlen1 *. iw) in
+          (*Printf.printf "limit: %f, dlen0: %f, dlen1: %f\n" limit dlen0 dlen1;*)
           if dmr2 *. limit *. limit < 1.0 then
             flags lor flag_innerbevel
           else flags
@@ -434,6 +439,8 @@ module T = struct
 
       if flags land (flag_bevel lor flag_innerbevel) <> 0 then
         incr nbevel;
+
+      (*Printf.printf "flags(out): %d\n" flags;*)
 
       T.set_flags t p1 flags;
     done;
@@ -837,6 +844,7 @@ module V = struct
       int_of_float (maxf 2.0 (ceil (arc /. da)))
 
     let count join_ncap cap_ncap {T. path_count; path_nbevel; path_closed} =
+      (*Printf.printf "path_count: %d, path_nbevel: %d\n" path_count path_nbevel;*)
       ((path_count + path_nbevel * (join_ncap + 2) + 1) * 2) +
       (if path_closed then 0 else (cap_ncap * 2 + 2) * 2)
 
