@@ -958,15 +958,9 @@ module V = struct
 
       if path.T.path_closed then begin
         (* Loop it *)
-        let data = B.data vb and c = B.alloc vb 8 in
-        data.{c + 0} <- data.{stroke_first * 4 + 0};
-        data.{c + 1} <- data.{stroke_first * 4 + 1};
-        data.{c + 2} <- 0.0;
-        data.{c + 3} <- 1.0;
-        data.{c + 4} <- data.{stroke_first * 4 + 4};
-        data.{c + 5} <- data.{stroke_first * 4 + 5};
-        data.{c + 6} <- 1.0;
-        data.{c + 7} <- 1.0;
+        let data = B.data vb and index = stroke_first * 4 in
+        vbuffer_put vb ~x:data.{index + 0} ~y:data.{index + 1} ~u:0.0 ~v:1.0;
+        vbuffer_put vb ~x:data.{index + 4} ~y:data.{index + 5} ~u:1.0 ~v:1.0;
       end else begin
         let p0 = last - 1 and p1 = last in
         let dx = T.get_x t p1 -. T.get_x t p0 in
