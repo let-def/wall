@@ -264,7 +264,13 @@ let delete t =
 
 let prepare_path t ~quality xf path =
   T.clear t.t;
-  T.set_tess_tol t.t (0.25 /. (Transform.average_scale xf *. quality));
+  let factor =
+   let {Transform. x00; x10; x01; x11; _} = xf in
+    let sx = x00 *. x00 +. x10 *. x10 in
+    let sy = x01 *. x01 +. x11 *. x11 in
+    sx *. sy
+  in
+  T.set_tess_tol t.t (0.25 /. (factor *. quality));
   path.closure t.t
 
 type shape = frame:frame -> quality:float -> transform -> Wall_tex.t paint -> t -> Wall_gl.obj
