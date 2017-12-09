@@ -824,7 +824,7 @@ let main () =
             | `Quit -> quit := true
             | _ -> ()
           done;
-          Gl.viewport 0 0 fw fh;
+          Gl.viewport 0 0 ow oh;
           Gl.clear_color 0.3 0.3 0.32 1.0;
           Gl.(clear (color_buffer_bit lor depth_buffer_bit lor stencil_buffer_bit));
           Gl.enable Gl.blend;
