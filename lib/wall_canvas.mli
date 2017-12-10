@@ -44,8 +44,12 @@ module Path : sig
   val rect : ctx -> x:float -> y:float ->
     w:float -> h:float -> unit
 
-  val round_rect : ctx -> x:float -> y:float ->
-    w:float -> h:float -> r:float -> unit
+  val round_rect : ctx ->
+    x:float -> y:float -> w:float -> h:float -> r:float -> unit
+
+  val round_rect' : ctx ->
+    x:float -> y:float -> w:float -> h:float ->
+    rtl:float -> rtr:float -> rbl:float -> rbr:float -> unit
 
   val circle : ctx -> cx:float -> cy:float -> r:float -> unit
 

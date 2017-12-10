@@ -72,8 +72,51 @@ module Path = struct
     line_to t ~x:(x +. w) ~y;
     close t
 
+  let round_rect' t ~x ~y ~w ~h ~rtl ~rtr ~rbl ~rbr =
+    if rtl +. rtr +. rbl +. rbr < 0.4 *. level_of_detail t then
+      rect t ~x ~y ~w ~h
+    else
+      let hw = abs_float w *. 0.5 and hh = abs_float h *. 0.5 in
+      begin
+        let rx = copysign (minf rbl hw) w in
+        let ry = copysign (minf rbl hh) h in
+        move_to t ~x ~y:(y +. h -. ry);
+        bezier_to t
+          ~c1x:x ~c1y:(y +. h -. ry *. (1.0 -. kappa90))
+          ~c2x:(x +. rx *. (1.0 -. kappa90)) ~c2y:(y +. h)
+          ~x:(x +. rx) ~y:(y +. h);
+      end;
+      begin
+        let rx = copysign (minf rbr hw) w in
+        let ry = copysign (minf rbr hh) h in
+        line_to t ~x:(x +. w -. rx) ~y:(y +. h);
+        bezier_to t
+          ~c1x:(x +. w -. rx *. (1.0 -. kappa90)) ~c1y:(y +. h)
+          ~c2x:(x +. w) ~c2y:(y +. h -. ry *. (1.0 -. kappa90))
+          ~x:(x +. w) ~y:(y +. h -. ry);
+      end;
+      begin
+        let rx = copysign (minf rtr hw) w in
+        let ry = copysign (minf rtr hh) h in
+        line_to t ~x:(x +. w) ~y:(y +. ry);
+        bezier_to t
+          ~c1x:(x +. w) ~c1y:(y +. ry *. (1.0 -. kappa90))
+          ~c2x:(x +. w -. rx *. (1.0 -. kappa90)) ~c2y:y
+          ~x:(x +. w -. rx) ~y;
+      end;
+      begin
+        let rx = copysign (minf rtl hw) w in
+        let ry = copysign (minf rtl hh) h in
+        line_to t ~x:(x +. rx) ~y;
+        bezier_to t
+          ~c1x:(x +. rx *. (1.0 -. kappa90)) ~c1y:y
+          ~c2x:x ~c2y:(y +. ry *. (1.0 -. kappa90))
+          ~x ~y:(y +. ry);
+      end;
+      close t
+
   let round_rect t ~x ~y ~w ~h ~r =
-    if r < 0.1 then
+    if r < 0.1 *. level_of_detail t then
       rect t ~x ~y ~w ~h
     else begin
       let rx = copysign (minf r (abs_float w *. 0.5)) w in

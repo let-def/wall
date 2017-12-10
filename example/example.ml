@@ -370,7 +370,7 @@ let draw_window vg xf title x y w h =
   (* Window *)
   C.draw' vg xf
     (Paint.color (Color.v 0.110 0.118 0.133 0.75))
-    (C.fill_path @@ fun t -> P.round_rect t x y w h cornerRadius);
+    (C.fill_path @@ fun t -> P.round_rect' t x y w h cornerRadius cornerRadius 0.0 0.0);
 
   (* Drop shadow *)
   C.draw' vg xf
@@ -378,7 +378,7 @@ let draw_window vg xf title x y w h =
        (Color.gray ~a:0.5 0.0) (Color.gray ~a:0.0 0.0))
     (C.fill_path @@ fun t ->
      P.rect t (x -. 10.0) (y -. 10.0) (w +. 20.0) (h +. 30.0);
-     P.round_rect t x y w h cornerRadius;
+     P.round_rect' t x y w h cornerRadius cornerRadius 0.0 0.0;
      P.set_winding t `HOLE);
 
   (* Header *)
@@ -386,7 +386,7 @@ let draw_window vg xf title x y w h =
     (Paint.linear_gradient x y x (y+.15.0)
        (Color.gray ~a:0.04 1.0) (Color.gray ~a:0.08 1.0))
     (C.fill_path @@ fun t ->
-     P.round_rect t (x+.1.0) (y+.1.0) (w-.2.0) 30.0 (cornerRadius -. 1.0));
+     P.round_rect' t (x+.1.0) (y+.1.0) (w-.2.0) 30.0 (cornerRadius -. 1.0) (cornerRadius -. 1.0) 0.0 0.0);
   C.draw' vg xf
     (Paint.color (Color.gray ~a:0.125 0.0))
     (C.stroke_path Outline.default @@ fun t ->
