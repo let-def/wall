@@ -430,6 +430,8 @@ let flush_frame t =
 let draw task ?(frame=Frame.default) ?(quality=1.0) xf paint (shape : shape) =
   task_add (shape ~frame ~quality xf paint) task
 
+let typesetter = Wall_glyph.typesetter ()
+
 let text task ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) xf paint font ~x ~y str =
   let x = match halign with
     | `LEFT   -> x
@@ -445,7 +447,7 @@ let text task ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) xf pain
       (y +. (ascent +. descent) *. 0.5)
   in
   let paint = Paint.transform paint xf in
-  task_add (fun _ -> Wall_gl.Text (xf, paint, frame, x, y, font, str)) task
+  task_add (fun _ -> Wall_gl.String (xf, paint, frame, x, y, typesetter, (font, str))) task
 
 let group ?(order=`Partial) ?(after=false) = function
   | Leaf | Done -> assert false

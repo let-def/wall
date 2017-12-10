@@ -24,9 +24,16 @@ val create : antialias:bool -> stencil_strokes:bool -> debug:bool -> t
 val delete : t -> unit
 val antialias : t -> bool
 
+type 'a typesetter
+val typesetter
+  :  allocate:(transform -> 'a -> unit)
+  -> bake:(transform -> 'a -> unit)
+  -> render:(transform -> x:float -> y:float -> 'a -> (Stb_truetype.char_quad -> unit) -> Wall_tex.t option)
+  -> 'a typesetter
+
 type obj =
   | Fill   of transform * Wall_tex.t paint * frame * T.bounds * V.path list
   | Stroke of transform * Wall_tex.t paint * frame * float * V.path list
-  | Text   of transform * unit paint * frame * float * float * font * string
+  | String :  transform * unit paint * frame * float * float * 'a typesetter * 'a -> obj
 
 val render : t -> Gg.size2 -> B.t -> obj list -> unit
