@@ -101,9 +101,13 @@ let render_glyphes stash xform ~x ~y (font,text) push =
   | None -> None
   | Some buf -> Some buf.texture
 
+let ok = function
+  | Result.Ok x -> x
+  | Result.Error (`Msg msg) -> failwith msg
+
 let new_font_buffer width height =
   let data = Bigarray.(Array1.create int8_unsigned c_layout (width * height)) in
-  let image = {Stb_image. width = width; height = height; channels = 1; data } in
+  let image = ok (Stb_image.image ~width ~height ~channels:1 data) in
   let texture = Wall_tex.from_image ~name:"font atlas" image in
   let room = Maxrects.add_bin () width height Maxrects.empty in
   { image; texture; room }
@@ -148,8 +152,25 @@ let bake_glyphs t =
       Maxrects.box (key, ttf, glyph, scale, box)
         (x1 - x0 + 2 + blur / 10) (y1 - y0 + 2 + blur / 10) :: boxes
   in
-  let boxes = Hashtbl.fold add_box t.font_todo [] in
-  let room, boxes = Maxrects.insert_batch buffer.room boxes in
+  let todo = Hashtbl.fold add_box t.font_todo [] in
+  let room, boxes = Maxrects.insert_batch buffer.room todo in
+  let room, boxes =
+    if List.exists (function None -> true | _ -> false) boxes then (
+      let todo = Hashtbl.fold
+          (fun key cell todo ->
+             if cell.Glyph.frame = !frame_nr then add_box key () todo else todo)
+          t.font_glyphes todo
+      in
+      Hashtbl.reset t.font_glyphes;
+      Bigarray.Array1.fill (Stb_image.data buffer.image) 0;
+      let room = Maxrects.add_bin ()
+          (Stb_image.width buffer.image)
+          (Stb_image.height buffer.image)
+          Maxrects.empty
+      in
+      Maxrects.insert_batch room todo
+    ) else (room, boxes)
+  in
   buffer.room <- room;
   List.iter (function
       | None -> ()
@@ -181,11 +202,13 @@ let bake_glyphs t =
         Hashtbl.add t.font_glyphes key { Glyph. box; uv; frame = !frame_nr; glyph }
     ) boxes;
   Hashtbl.reset t.font_todo;
-  Wall_tex.update buffer.texture buffer.image
+  Wall_tex.update buffer.texture buffer.image;
+  incr frame_nr
 
 let typesetter () =
   let stash = font_stash () in
   Wall_gl.typesetter
     ~allocate:(allocate_glyphes stash)
-    ~bake:(fun _ _ -> bake_glyphs stash)
+    ~bake:(fun _ _ ->
+        if Hashtbl.length stash.font_todo > 0 then bake_glyphs stash)
     ~render:(render_glyphes stash)
