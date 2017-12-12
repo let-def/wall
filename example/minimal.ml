@@ -4,6 +4,18 @@ open Wall
 module C = Wall_canvas
 module P = C.Path
 
+let load_font name =
+  let ic = open_in_bin name in
+  let dim = in_channel_length ic in
+  let fd = Unix.descr_of_in_channel ic in
+  let buffer = Bigarray.Array1.map_file fd Bigarray.int8_unsigned Bigarray.c_layout false dim in
+  let offset = List.hd (Stb_truetype.enum buffer) in
+  match Stb_truetype.init buffer offset with
+  | None -> assert false
+  | Some font -> font
+
+let font_sans = lazy (load_font "Roboto-Regular.ttf")
+
 let normalize (dx, dy) =
   let d = sqrt (dx *. dx +. dy *. dy) in
   if d > 1.0 then
@@ -23,18 +35,24 @@ let render context sw sh t =
   let pw = lw *. f *. sw in
   let ph = lh *. f *. sh in
   let vg = C.new_frame context (Gg.V2.v pw ph) in
-  (*C.draw' vg
-    Transform.(rescale ~sx:100.0 ~sy:100.0 @@
-               translate ~x:100.0 ~y:100.0 @@
-               identity)
-    (Paint.rgba 0.0 1.0 0.0 0.5)
-    (C.stroke_path {Outline.default with Outline.stroke_width = 1.3} @@
-     fun p -> P.rect p 0.0 0.0 0.5 0.5);*)
   C.draw' vg
     Transform.identity
     (Paint.rgba 0.0 1.0 0.0 0.5)
     (C.stroke_path {Outline.default with Outline.stroke_width = 60.0} @@
      fun p -> P.rect p 300.0 100.0 50.0 50.0);
+  let character =
+    Char.chr @@
+    let x = int_of_float (t *. 10.0) mod 62 in
+    if x < 10 then Char.code '0' + x
+    else if x < 36 then Char.code 'a' + x - 10
+    else Char.code 'A' + x - 36
+  in
+  let size = 1.0 +. sin (t /. 10.0) *. 10.0 in
+  let size = size *. size in
+  C.text' vg ~halign:`CENTER ~valign:`MIDDLE ~x:100.0 ~y:100.0
+    Transform.identity Paint.white
+    (Font.make (Lazy.force font_sans) ~size)
+    (String.make 1 character);
   C.flush_frame context
 
 open Tgles2
