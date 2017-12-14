@@ -430,6 +430,39 @@ module Font = struct
         last := glyph
     done;
     (float !width *. Stb_truetype.scale_for_pixel_height t.glyphes t.size)
+
+  type measure = {
+    width : float;
+    height : float;
+    depth : float;
+  }
+
+  let text_measure t text =
+    let len = String.length text in
+    let index = ref 0 in
+    let width = ref 0 in
+    let ascent = ref 0 in
+    let descent = ref 0 in
+    let maxi a b : int = if a >= b then a else b in
+    let mini a b : int = if a <= b then a else b in
+    let last = ref Stb_truetype.invalid_glyph in
+    while !index < len  do
+      match utf8_decode index text with
+      | -1 -> last := Stb_truetype.invalid_glyph
+      | cp ->
+        let glyph = Stb_truetype.get t.glyphes cp in
+        let box = Stb_truetype.glyph_box t.glyphes glyph in
+        ascent := maxi !ascent box.y1;
+        descent := mini !descent box.y0;
+        width := !width
+                 + Stb_truetype.kern_advance t.glyphes !last glyph
+                 + Stb_truetype.glyph_advance t.glyphes glyph;
+        last := glyph
+    done;
+    let scale = Stb_truetype.scale_for_pixel_height t.glyphes t.size in
+    { width  = float !width *. scale;
+      height = float !ascent *. scale;
+      depth  = float (- !descent) *. scale }
 end
 
 type transform = Transform.t

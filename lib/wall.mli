@@ -154,6 +154,14 @@ module Font : sig
   val font_metrics: t -> metrics
 
   val text_width: t -> string -> float
+
+  type measure = {
+    width : float;
+    height : float;
+    depth : float;
+  }
+
+  val text_measure : t -> string -> measure
 end
 
 type transform = Transform.t
