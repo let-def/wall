@@ -281,13 +281,13 @@ type order = [ `Partial | `Total ]
 type t = {
   t : T.t;
   b : B.t;
-  g : Wall_gl.t;
+  g : Wall_render.t;
   mutable size : Gg.size2;
   mutable task : task;
 }
 
 and task =
-  | Node  of {mutable sibling : task; mutable child : task; prepare : t -> Wall_gl.obj}
+  | Node  of {mutable sibling : task; mutable child : task; prepare : t -> Wall_render.obj}
   | Group of {mutable sibling : task; mutable child : task; kind: group_kind}
   | Leaf
   | Done
@@ -295,7 +295,7 @@ and task =
 let create_gl ?(antialias=true) ?(stencil_strokes=true) () = {
   t = T.make ();
   b = B.make ();
-  g = Wall_gl.create ~antialias ~stencil_strokes ~debug:false;
+  g = Wall_render.create ~antialias ~stencil_strokes ~debug:false;
   size = Gg.Size2.unit;
   task = Done;
 }
@@ -303,7 +303,7 @@ let create_gl ?(antialias=true) ?(stencil_strokes=true) () = {
 let delete t =
   T.clear t.t;
   B.clear t.b;
-  Wall_gl.delete t.g
+  Wall_render.delete t.g
 
 let prepare_path t ~quality xf path =
   T.clear t.t;
@@ -316,7 +316,7 @@ let prepare_path t ~quality xf path =
   T.set_tess_tol t.t (0.25 /. (factor *. quality));
   path.closure t.t
 
-type shape = frame:frame -> quality:float -> transform -> Wall_tex.t paint -> t -> Wall_gl.obj
+type shape = frame:frame -> quality:float -> transform -> Wall_tex.t paint -> t -> Wall_render.obj
 
 let stroke {Outline. stroke_width; miter_limit; line_join; line_cap} path : shape =
   fun ~frame ~quality xf paint t ->
@@ -324,7 +324,7 @@ let stroke {Outline. stroke_width; miter_limit; line_join; line_cap} path : shap
     let _bounds, paths = T.flush t.t in
     let paths =
       V.stroke t.t t.b
-        ~edge_antialias:(Wall_gl.antialias t.g)
+        ~edge_antialias:(Wall_render.antialias t.g)
         ~fringe_width:(1.0 /. Transform.average_scale xf)
         ~stroke_width
         ~miter_limit
@@ -332,7 +332,7 @@ let stroke {Outline. stroke_width; miter_limit; line_join; line_cap} path : shap
         ~line_cap
         paths
     in
-    Wall_gl.Stroke (xf, Paint.transform paint xf, frame, stroke_width, paths)
+    Wall_render.Stroke (xf, Paint.transform paint xf, frame, stroke_width, paths)
 
 let fill path : shape =
   fun ~frame ~quality xf paint t ->
@@ -340,11 +340,11 @@ let fill path : shape =
     let bounds, paths = T.flush t.t in
     let paths =
       V.fill t.t t.b
-        ~edge_antialias:(Wall_gl.antialias t.g)
+        ~edge_antialias:(Wall_render.antialias t.g)
         ~fringe_width:(1.0 /. Transform.average_scale xf)
         paths
     in
-    Wall_gl.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
+    Wall_render.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
 
 let task_is_done = function
   | Node {child=Done} | Group {child=Done} | Done -> true
@@ -353,7 +353,7 @@ let task_is_done = function
 let task_add prepare = function
   | Leaf -> assert false
   | Node {sibling=Done} | Group {sibling=Done} | Done ->
-    invalid_arg "Wall_canvas.task: frame already flushed"
+    invalid_arg "Wall_shape.task: frame already flushed"
   | Node n ->
     let node = Node {sibling = n.child; child=Leaf; prepare} in
     n.child <- node; node
@@ -383,25 +383,25 @@ let task_mark_done task =
 
 let task_linearize t task =
   let rec aux t acc after = function
-    | Done -> failwith "Wall_canvas.flush: frame already flushed"
+    | Done -> failwith "Wall_shape.flush: frame already flushed"
     | Leaf -> begin match after with
         | [] -> acc
         | x :: xs -> aux t acc xs x
       end
     | Node n ->
       let child = n.child and next = n.sibling in
-      n.child <- Done;
-      n.sibling <- Done;
+      (*n.child <- Done;*)
+      (*n.sibling <- Done;*)
       aux t (n.prepare t :: aux t acc [] child) after next
     | Group ({kind = Partial | Total} as n) ->
       let child = n.child and next = n.sibling in
-      n.child <- Done;
-      n.sibling <- Done;
+      (*n.child <- Done;*)
+      (*n.sibling <- Done;*)
       aux t (aux t acc [] child) after next
     | Group ({kind = Partial_after | Total_after} as n) ->
       let child = n.child and next = n.sibling in
-      n.child <- Done;
-      n.sibling <- Done;
+      (*n.child <- Done;
+      n.sibling <- Done;*)
       aux t acc (child :: after) next
   in
   aux t [] [] task
@@ -422,10 +422,12 @@ let new_frame ?(order=`Partial) t sz =
   t.task <- node;
   node
 
-let flush_frame t =
-  let task = t.task in
+let prepare_frame t =
+  (task_linearize t t.task)
+
+let flush_frame t wl =
   t.task <- Done;
-  Wall_gl.render t.g t.size t.b (task_linearize t task)
+  Wall_render.render t.g t.size t.b wl
 
 let draw task ?(frame=Frame.default) ?(quality=1.0) xf paint (shape : shape) =
   task_add (shape ~frame ~quality xf paint) task
@@ -447,12 +449,12 @@ let text task ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) xf pain
       (y +. (ascent +. descent) *. 0.5)
   in
   let paint = Paint.transform paint xf in
-  task_add (fun _ -> Wall_gl.String (xf, paint, frame, x, y, typesetter, (font, str))) task
+  task_add (fun _ -> Wall_render.String (xf, paint, frame, x, y, typesetter, (font, str))) task
 
 let group ?(order=`Partial) ?(after=false) = function
   | Leaf | Done -> assert false
   | Node {sibling=Done} | Group {sibling=Done} ->
-    invalid_arg "Wall_canvas.task: frame already flushed"
+    invalid_arg "Wall_shape.task: frame already flushed"
   | Node n ->
     let kind = group_kind order after in
     let node = Group {sibling = n.child; child = Leaf; kind} in

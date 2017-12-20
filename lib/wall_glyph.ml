@@ -207,7 +207,7 @@ let bake_glyphs t =
 
 let typesetter () =
   let stash = font_stash () in
-  Wall_gl.typesetter
+  Wall_render.typesetter
     ~allocate:(allocate_glyphes stash)
     ~bake:(fun _ _ ->
         if Hashtbl.length stash.font_todo > 0 then bake_glyphs stash)

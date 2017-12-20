@@ -201,7 +201,7 @@ static int gl_state_create(int antialias, gl_state *state)
   char buffer[2048];
   GLuint program;
 
-  if (!create_program(&program, NULL, antialias ? "#define EDGE_AA 1" : NULL))
+  if (!create_program(&program, NULL, antialias ? "#define EDGE_AA 1\n" : NULL))
     return 0;
 
   state->program   = program;
@@ -275,7 +275,7 @@ CAMLprim value wall_gl_is_valid(value v)
 CAMLprim value wall_gl_bind_xform(value state, value buf)
 {
   float *data = Caml_ba_data_val(buf);
-  glUniform3fv(Gl_state_val(state)->frag, 3, data);
+  glUniform3fv(Gl_state_val(state)->viewxform, 3, data);
   return Val_unit;
 }
 
@@ -415,7 +415,7 @@ CAMLprim value wall_gl_frame_prepare(value t, value width, value height, value d
   glUniform1i(state->tex, 0);
   glUniform2f(state->viewsize, Double_val(width), Double_val(height));
 
-  return Val_unit;
+  CAMLreturn(Val_unit);
 }
 
 CAMLprim value wall_gl_frame_finish(value unit)

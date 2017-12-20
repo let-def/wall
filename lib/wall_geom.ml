@@ -47,6 +47,7 @@ module T = struct
 
     val make : unit -> t
     val clear : t -> unit
+    val count : t -> int
 
     val set_tol : t -> dist:float -> tess:float -> unit
     val dist_tol : t -> float
@@ -119,6 +120,8 @@ module T = struct
       t.observed_tol <- false;
       t.point <- 0;
       t.paths <- []
+
+    let count t = t.point
 
     let set_tol t ~dist ~tess =
       t.dist_tol <- dist;
@@ -367,21 +370,28 @@ module T = struct
       let d2 = abs_float ((x2 -. x4) *. dy -. (y2 -. y4) *. dx) in
       let d3 = abs_float ((x3 -. x4) *. dy -. (y3 -. y4) *. dx) in
 
-      if (d2 +. d3) *. (d2 +. d3) < T.tess_tol t *. (dx *. dx +. dy *. dy) then
+      (*Printf.printf "((d2:%0.2f + d3:%0.2f)*(d2 + d3) < ctx->tessTol:%0.2f * (dx:%0.2f*dx + dy:%0.2f*dy))\n"
+        d2 d3 (T.tess_tol t) dx dy;*)
+      if (d2 +. d3) *. (d2 +. d3) <= T.tess_tol t *. (dx *. dx +. dy *. dy) then
         T.add_point t x4 y4 flags
       else begin
         let  x234 = ( x23 +.  x34) *. 0.5 in
         let  y234 = ( y23 +.  y34) *. 0.5 in
         let x1234 = (x123 +. x234) *. 0.5 in
         let y1234 = (y123 +. y234) *. 0.5 in
-        let level = level + 1 in
-        bezier_to t    x1    y1  x12  y12 x123 y123 x1234 y1234 level 0;
-        bezier_to t x1234 y1234 x234 y234  x34  y34    x4    y4 level flags
+        bezier_to t    x1    y1  x12  y12 x123 y123 x1234 y1234 (level+1) 0;
+        bezier_to t x1234 y1234 x234 y234  x34  y34    x4    y4 (level+1) flags
       end
-    end
+    end else (
+      Printexc.print_raw_backtrace stderr (Printexc.get_callstack 100);
+      print_endline "skipped"
+    )
 
   let bezier_to t ~x1 ~y1 ~x2 ~y2 ~x3 ~y3 =
+    (*let count = T.count t in*)
     bezier_to t (last_x t) (last_y t) x1 y1 x2 y2 x3 y3 0 flag_corner
+    (*Printf.printf "bezier_count: %d\n" (T.count t - count)*)
+
 
   (* Calculate which joins needs extra vertices to append, and gather vertex count. *)
   let calculate_joins t w line_join miter_limit p =

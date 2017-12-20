@@ -208,7 +208,8 @@ val new_frame : ?order:order -> t -> Gg.size2 -> task
    All tasks that were scheduled to the last [new_frame] calls will be
    rendered.
 *)
-val flush_frame : t -> unit
+val prepare_frame : t -> Wall_render.obj list
+val flush_frame : t -> Wall_render.obj list -> unit
 
 (** {0 Convenient definitions} *)
 
