@@ -98,8 +98,8 @@ let render_glyphes stash xform ~x ~y (font,text) push =
         last := Stb_truetype.invalid_glyph
   done;
   match stash.font_buffer with
-  | None -> None
-  | Some buf -> Some buf.texture
+  | None -> failwith "wall_glyph: not font buffer"
+  | Some buf -> buf.texture
 
 let ok = function
   | Result.Ok x -> x
@@ -207,7 +207,7 @@ let bake_glyphs t =
 
 let typesetter () =
   let stash = font_stash () in
-  Wall_render.typesetter
+  Wall.Typesetter.make
     ~allocate:(allocate_glyphes stash)
     ~bake:(fun _ _ ->
         if Hashtbl.length stash.font_todo > 0 then bake_glyphs stash)

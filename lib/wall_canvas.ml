@@ -17,7 +17,7 @@
 *)
 
 open Wall
-open Wall_geom
+open Wall__geom
 
 (* Length proportional to radius of a cubic bezier handle for 90deg arcs. *)
 let kappa90 = 0.5522847493
@@ -292,7 +292,7 @@ and task =
   | Leaf
   | Done
 
-let create_gl ?(antialias=true) ?(stencil_strokes=true) () = {
+let create ?(antialias=true) ?(stencil_strokes=true) () = {
   t = T.make ();
   b = B.make ();
   g = Wall_render.create ~antialias ~stencil_strokes ~debug:false;

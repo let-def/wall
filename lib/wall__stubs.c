@@ -525,6 +525,14 @@ CAMLprim value wall_gl_texture_upload(value t, value level, value is_float,
   return Val_unit;
 }
 
+CAMLprim value wall_gl_texture_upload_bc(value *argv, int argn)
+{
+  return wall_gl_texture_upload(
+      argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
+      argv[6], argv[7], argv[8]
+      );
+}
+
 CAMLprim value wall_gl_texture_update(value t, value level, value is_float,
     value x, value y, value width, value height, value channels,
     value data, value offset, value stride)
@@ -545,6 +553,14 @@ CAMLprim value wall_gl_texture_update(value t, value level, value is_float,
   gl_tex_param();
   pack_image(NULL, 0, 0, 0);
   return Val_unit;
+}
+
+CAMLprim value wall_gl_texture_update_bc(value *argv, int argn)
+{
+  return wall_gl_texture_update(
+      argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
+      argv[6], argv[7], argv[8], argv[9], argv[10]
+      );
 }
 
 CAMLprim value wall_gl_texture_generate_mipmap(value t)

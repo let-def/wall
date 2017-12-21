@@ -18,41 +18,34 @@
 
 module Backend = Wall__backend_c
 
+let invalid =
+  {Backend.Texture. gl_tex = -1; channels = 0; premultiplied = false}
+
 type t = {
   name: string;
-  mutable tex: int;
+  mutable tex: Backend.Texture.specification;
   mutable width: int;
   mutable height: int;
-  mutable channels: int;
 }
 
 let release t =
-  if t.tex <> -1 then begin
-    Backend.Texture.delete t.tex;
-    t.tex <- -1;
+  if t.tex.gl_tex <> -1 then begin
+    Backend.Texture.delete t.tex.gl_tex;
+    t.tex <- invalid;
   end
 
 let finalize t =
-  if t.tex <> -1 then begin
+  if t.tex.gl_tex <> -1 then begin
     prerr_endline
       ("Wall_tex warning: texture " ^ t.name ^ " has not been released");
     release t
   end
 
+let validate t =
+  if t.tex.gl_tex = -1 then
+    invalid_arg ("Wall_tex: " ^ t.name ^ " has been released")
 
-let make ~name width height =
-  let buf = Bigarray.Array1.create Bigarray.int32 Bigarray.c_layout 1 in
-  Gl.gen_textures 1 buf;
-  let result = {
-    name; width; height; channels = 4;
-    tex = Int32.to_int buf.{0};
-  } in
-  Gc.finalise finalize result;
-  result
-
-let tex t =
-  if t.tex <> -1 then t.tex
-  else invalid_arg ("Wall_tex.tex: " ^ t.name ^ " has been released")
+let tex t = validate t; t.tex
 
 let flip_image
     (type a) (type b)
@@ -87,48 +80,28 @@ let flip_image
     done
   | _ -> invalid_arg "Wall_tex: unsupported image format"
 
-let channels image =
-  match image.Stb_image.channels with
-  | 1 -> Gl.luminance
-  | 3 -> Gl.rgb
-  | 4 -> Gl.rgba
-  | _ -> invalid_arg "Wall_tex: unsupported image format"
-
-let format (type a) (type b)
-    (image : (a, b) Bigarray.kind Stb_image.t) =
-  match Bigarray.Array1.kind image.Stb_image.data with
-  | Bigarray.Int8_unsigned -> Gl.unsigned_byte
-  | Bigarray.Float32 -> Gl.float
-  | _ -> invalid_arg "Wall_tex: unsupported image format"
-
 let update t image =
-  Gl.active_texture Gl.texture0;
-  Gl.bind_texture Gl.texture_2d (tex t);
-  Gl.pixel_storei Gl.unpack_alignment 1;
-  Gl.tex_image2d
-    Gl.texture_2d
-    0
-    (channels image)
-    image.Stb_image.width
-    image.Stb_image.height
-    0
-    (channels image)
-    (format image)
-    (`Data image.Stb_image.data);
-  Gl.pixel_storei Gl.unpack_alignment 4;
-  Gl.tex_parameteri Gl.texture_2d Gl.texture_wrap_s Gl.clamp_to_edge;
-  Gl.tex_parameteri Gl.texture_2d Gl.texture_wrap_t Gl.clamp_to_edge;
-  Gl.tex_parameteri Gl.texture_2d Gl.texture_mag_filter Gl.linear;
-  Gl.tex_parameteri Gl.texture_2d Gl.texture_min_filter Gl.linear_mipmap_linear;
-  (* TODO: setup anisotropic filter *)
-  Gl.generate_mipmap Gl.texture_2d;
-  Gl.bind_texture Gl.texture_2d 0;
+  validate t;
+  Backend.Texture.upload ~level:0 image t.tex.gl_tex;
+  Backend.Texture.generate_mipmap t.tex.gl_tex;
+  t.tex <- {t.tex with Backend.Texture.channels = image.Stb_image.channels};
   t.width <- image.Stb_image.width;
-  t.height <- image.Stb_image.height;
-  t.channels <- image.Stb_image.channels
+  t.height <- image.Stb_image.height
+
+let sub_update t ~x ~y image =
+  validate t;
+  Backend.Texture.update ~level:0 ~x ~y image t.tex.gl_tex;
+  Backend.Texture.generate_mipmap t.tex.gl_tex
 
 let from_image ~name image =
-  let t = make ~name image.Stb_image.width image.Stb_image.height in
+  let tex = {
+    Backend.Texture.
+    gl_tex = Backend.Texture.create ();
+    premultiplied = true;
+    channels = 0
+  } in
+  let t = { name; width = 0; height = 0; tex } in
+  Gc.finalise finalize t;
   update t image;
   t
 
@@ -151,7 +124,6 @@ let load_image ?(float=false) ?(alpha=true) ?(flip=false) ?name s =
   else
     load (Stb_image.load_unmanaged ~channels s)
 
-let channels t = t.channels
-let premultiplied _ = true
+let channels t = t.tex.Backend.Texture.channels
 let width t = t.width
 let height t = t.height

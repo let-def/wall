@@ -194,5 +194,3 @@ val utf8_decode : int ref -> string -> int
     the end is reached.
     If the string was not properly encoded, [-1] is returned and [r] is
     advanced to hopefully resume parsing. *)
-
-module Canvas = Wall_canvas

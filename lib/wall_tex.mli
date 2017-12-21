@@ -18,7 +18,7 @@
 
 type t
 val release : t -> unit
-val tex : t -> int
+val tex : t -> Wall__backend_c.Texture.specification
 
 val flip_image : 'a Stb_image.t -> unit
 val from_image : name:string -> 'a Stb_image.t -> t
@@ -27,7 +27,6 @@ val load_image :
   (t, [`Msg of string]) Result.result
 
 val channels : t -> int
-val premultiplied : t -> bool
 val width : t -> int
 val height : t -> int
 

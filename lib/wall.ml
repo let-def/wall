@@ -465,9 +465,22 @@ module Font = struct
       depth  = float (- !descent) *. scale }
 end
 
+module Typesetter = struct
+  type ('input, 'image) t = {
+    allocate : Transform.t -> 'input -> unit;
+    bake     : Transform.t -> 'input -> unit;
+    render   : Transform.t -> x:float -> y:float -> 'input ->
+               (Stb_truetype.char_quad -> unit) -> 'image;
+  }
+
+  let make ~allocate ~bake ~render =
+    { allocate; bake; render }
+end
+
 type transform = Transform.t
 type outline = Outline.t
 type 'image paint = 'image Paint.t
+type ('input, 'image) typesetter = ('input, 'image) Typesetter.t
 type font = Font.t
 type frame = Frame.t
 type color = Color.t

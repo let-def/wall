@@ -41,19 +41,10 @@ let create
 let delete t =
   Backend.delete t.backend;
 
-type 'a typesetter = {
-  allocate: transform -> 'a -> unit;
-  bake: transform -> 'a -> unit;
-  render: transform -> x:float -> y:float -> 'a -> (Stb_truetype.char_quad -> unit) -> Wall_tex.t option;
-}
-
-let typesetter ~allocate ~bake ~render =
-  { allocate; bake; render }
-
 type obj =
   | Fill   of transform * Wall_tex.t paint * frame * T.bounds * V.path list
   | Stroke of transform * Wall_tex.t paint * frame * float * V.path list
-  | String :  transform * unit paint * frame * float * float * 'a typesetter * 'a -> obj
+  | String :  transform * unit paint * frame * float * float * ('a, Wall_tex.t) typesetter * 'a -> obj
 
 type kind =
   | FILL
@@ -105,7 +96,7 @@ let prepare_stroke xform paint frame width paths =
 
 let prepare_string vbuffer xform paint frame x y typesetter text =
   let offset = B.offset vbuffer in
-  match typesetter.render xform ~x ~y text
+  match typesetter.Typesetter.render xform ~x ~y text
           (fun q ->
              let open Stb_truetype in
              B.reserve vbuffer (6 * 4);
@@ -117,11 +108,11 @@ let prepare_string vbuffer xform paint frame x y typesetter text =
              push_4 vbuffer q.bx1 q.by1 q.s1 q.t1
           )
   with
-  | None ->
+  | exception _ ->
     { kind = TRIANGLES; frame = Frame.default; paint = Paint.black;
       width = 1.0; paths = []; xform = Transform.identity;
       triangle_offset = 0; triangle_count = 0; }
-  | Some texture ->
+  | texture ->
     let paint = {paint with Paint.image = Some texture} in
     { kind = TRIANGLES; frame; paint; width = 1.0; paths = []; xform;
       triangle_offset = offset / 4;
@@ -146,7 +137,7 @@ let exec_call t cmd =
       (fun {V. fill_first; fill_count} ->
          Backend.Fill.draw_stencil fill_first fill_count)
       cmd.paths;
-    Backend.Fill.prepare_cover t.backend cmd.paint cmd.frame cmd.width;
+    Backend.Fill.prepare_cover t.backend Wall_tex.tex cmd.paint cmd.frame cmd.width;
     if t.antialias then (
       (* Draw anti-aliased pixels *)
       Backend.Fill.prepare_aa ();
@@ -158,7 +149,8 @@ let exec_call t cmd =
     (* Cover *)
     Backend.Fill.finish_and_cover cmd.triangle_offset cmd.triangle_count
   | CONVEXFILL ->
-    Backend.Convex_fill.prepare t.backend cmd.xform cmd.paint cmd.frame cmd.width;
+    Backend.Convex_fill.prepare t.backend cmd.xform
+      Wall_tex.tex cmd.paint cmd.frame cmd.width;
     List.iter
       (fun {V. fill_first; fill_count} ->
          Backend.Convex_fill.draw fill_first fill_count)
@@ -172,13 +164,15 @@ let exec_call t cmd =
   | STROKE when t.stencil_strokes ->
     (* Fill the stroke base without overlap *)
     Backend.Stencil_stroke.prepare_stencil
-      t.backend cmd.xform cmd.paint cmd.frame cmd.width;
+      t.backend cmd.xform
+      Wall_tex.tex cmd.paint cmd.frame cmd.width;
     List.iter
       (fun {V. stroke_first; stroke_count} ->
          Backend.Stencil_stroke.draw_stencil stroke_first stroke_count)
       cmd.paths;
     (* Draw anti-aliased pixels. *)
-    Backend.Stencil_stroke.prepare_aa t.backend cmd.paint cmd.frame cmd.width;
+    Backend.Stencil_stroke.prepare_aa t.backend
+      Wall_tex.tex cmd.paint cmd.frame cmd.width;
     List.iter
       (fun {V. stroke_first; stroke_count} ->
          Backend.Stencil_stroke.draw_aa stroke_first stroke_count)
@@ -193,13 +187,15 @@ let exec_call t cmd =
   | STROKE ->
     (*  Draw Strokes *)
     Backend.Direct_stroke.prepare
-      t.backend cmd.xform cmd.paint cmd.frame cmd.width;
+      t.backend cmd.xform
+      Wall_tex.tex cmd.paint cmd.frame cmd.width;
     List.iter
       (fun {V. stroke_first; stroke_count} ->
          Backend.Direct_stroke.draw stroke_first stroke_count)
       cmd.paths
   | TRIANGLES ->
-    Backend.Triangles.prepare t.backend cmd.xform cmd.paint cmd.frame;
+    Backend.Triangles.prepare t.backend cmd.xform
+      Wall_tex.tex cmd.paint cmd.frame;
     Backend.Triangles.draw cmd.triangle_offset cmd.triangle_count
 
 let render t viewsize vbuffer objs =
