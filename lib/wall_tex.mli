@@ -18,7 +18,6 @@
 
 type t
 val release : t -> unit
-val tex : t -> Wall__backend_c.Texture.specification
 
 val flip_image : 'a Stb_image.t -> unit
 val from_image : name:string -> 'a Stb_image.t -> t
@@ -31,3 +30,6 @@ val width : t -> int
 val height : t -> int
 
 val update : t -> 'a Stb_image.t -> unit
+
+(* Internal *)
+val tex : t -> Wall__backend.Texture.specification

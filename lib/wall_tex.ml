@@ -16,7 +16,7 @@
    3. This notice may not be removed or altered from any source distribution.
 *)
 
-module Backend = Wall__backend_c
+module Backend = Wall__backend
 
 let invalid =
   {Backend.Texture. gl_tex = -1; channels = 0; premultiplied = false}

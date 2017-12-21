@@ -516,7 +516,7 @@ CAMLprim value wall_gl_texture_upload(value t, value level, value is_float,
   glBindTexture(GL_TEXTURE_2D, Long_val(t));
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   glTexImage2D(GL_TEXTURE_2D, Long_val(level),
-      gl_format_from_channels(channels), Long_val(width), Long_val(height), 0,
+      Long_val(channels), Long_val(width), Long_val(height), 0,
       gl_format_from_channels(channels), gl_type(is_float), ptr
       );
   glPixelStorei(GL_UNPACK_ALIGNMENT, 4);

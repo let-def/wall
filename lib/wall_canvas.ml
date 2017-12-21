@@ -19,6 +19,8 @@
 open Wall
 open Wall__geom
 
+module R = Wall__renderer
+
 (* Length proportional to radius of a cubic bezier handle for 90deg arcs. *)
 let kappa90 = 0.5522847493
 let pi = 3.14159265358979323846264338327
@@ -281,13 +283,13 @@ type order = [ `Partial | `Total ]
 type t = {
   t : T.t;
   b : B.t;
-  g : Wall_render.t;
+  g : R.t;
   mutable size : Gg.size2;
   mutable task : task;
 }
 
 and task =
-  | Node  of {mutable sibling : task; mutable child : task; prepare : t -> Wall_render.obj}
+  | Node  of {mutable sibling : task; mutable child : task; prepare : t -> R.obj}
   | Group of {mutable sibling : task; mutable child : task; kind: group_kind}
   | Leaf
   | Done
@@ -295,7 +297,7 @@ and task =
 let create ?(antialias=true) ?(stencil_strokes=true) () = {
   t = T.make ();
   b = B.make ();
-  g = Wall_render.create ~antialias ~stencil_strokes ~debug:false;
+  g = R.create ~antialias ~stencil_strokes ~debug:false;
   size = Gg.Size2.unit;
   task = Done;
 }
@@ -303,7 +305,7 @@ let create ?(antialias=true) ?(stencil_strokes=true) () = {
 let delete t =
   T.clear t.t;
   B.clear t.b;
-  Wall_render.delete t.g
+  R.delete t.g
 
 let prepare_path t ~quality xf path =
   T.clear t.t;
@@ -316,7 +318,7 @@ let prepare_path t ~quality xf path =
   T.set_tess_tol t.t (0.25 /. (factor *. quality));
   path.closure t.t
 
-type shape = frame:frame -> quality:float -> transform -> Wall_tex.t paint -> t -> Wall_render.obj
+type shape = frame:frame -> quality:float -> transform -> Wall_tex.t paint -> t -> R.obj
 
 let stroke {Outline. stroke_width; miter_limit; line_join; line_cap} path : shape =
   fun ~frame ~quality xf paint t ->
@@ -324,7 +326,7 @@ let stroke {Outline. stroke_width; miter_limit; line_join; line_cap} path : shap
     let _bounds, paths = T.flush t.t in
     let paths =
       V.stroke t.t t.b
-        ~edge_antialias:(Wall_render.antialias t.g)
+        ~edge_antialias:(R.antialias t.g)
         ~fringe_width:(1.0 /. Transform.average_scale xf)
         ~stroke_width
         ~miter_limit
@@ -332,7 +334,7 @@ let stroke {Outline. stroke_width; miter_limit; line_join; line_cap} path : shap
         ~line_cap
         paths
     in
-    Wall_render.Stroke (xf, Paint.transform paint xf, frame, stroke_width, paths)
+    R.Stroke (xf, Paint.transform paint xf, frame, stroke_width, paths)
 
 let fill path : shape =
   fun ~frame ~quality xf paint t ->
@@ -340,11 +342,11 @@ let fill path : shape =
     let bounds, paths = T.flush t.t in
     let paths =
       V.fill t.t t.b
-        ~edge_antialias:(Wall_render.antialias t.g)
+        ~edge_antialias:(R.antialias t.g)
         ~fringe_width:(1.0 /. Transform.average_scale xf)
         paths
     in
-    Wall_render.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
+    R.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
 
 let task_is_done = function
   | Node {child=Done} | Group {child=Done} | Done -> true
@@ -422,12 +424,10 @@ let new_frame ?(order=`Partial) t sz =
   t.task <- node;
   node
 
-let prepare_frame t =
-  (task_linearize t t.task)
-
-let flush_frame t wl =
+let flush_frame t =
+  let task = t.task in
   t.task <- Done;
-  Wall_render.render t.g t.size t.b wl
+  R.render t.g t.size t.b (task_linearize t task)
 
 let draw task ?(frame=Frame.default) ?(quality=1.0) xf paint (shape : shape) =
   task_add (shape ~frame ~quality xf paint) task
@@ -449,7 +449,7 @@ let text task ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) xf pain
       (y +. (ascent +. descent) *. 0.5)
   in
   let paint = Paint.transform paint xf in
-  task_add (fun _ -> Wall_render.String (xf, paint, frame, x, y, typesetter, (font, str))) task
+  task_add (fun _ -> R.String (xf, paint, frame, x, y, typesetter, (font, str))) task
 
 let group ?(order=`Partial) ?(after=false) = function
   | Leaf | Done -> assert false

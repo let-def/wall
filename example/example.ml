@@ -836,12 +836,8 @@ let main () =
           Gl.disable Gl.depth_test;
           let time0 = (Unix.times ()).tms_utime in
           render context sw sh (Int32.to_float (Sdl.get_ticks ()) /. 1000.0);
-          let data = C.prepare_frame context in
-          (*for i = 1 to 999 do
-            ignore (C.prepare_frame context)
-          done;*)
           let time1 = (Unix.times ()).tms_utime in
-          C.flush_frame context data;
+          C.flush_frame context;
           let time2 = (Unix.times ()).tms_utime in
           time_cpu := !time_cpu +. (time1 -. time0);
           time_gpu := !time_gpu +. (time2 -. time1);

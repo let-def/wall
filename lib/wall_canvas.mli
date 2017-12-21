@@ -206,10 +206,8 @@ val new_frame : ?order:order -> t -> Gg.size2 -> task
 
 (* Flush the content of the frame to the GPU.
    All tasks that were scheduled to the last [new_frame] calls will be
-   rendered.
-*)
-val prepare_frame : t -> Wall_render.obj list
-val flush_frame : t -> Wall_render.obj list -> unit
+   rendered.  *)
+val flush_frame : t -> unit
 
 (** {0 Convenient definitions} *)
 
