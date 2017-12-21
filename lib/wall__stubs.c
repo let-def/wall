@@ -429,3 +429,129 @@ CAMLprim value wall_gl_frame_finish(value unit)
 
   return Val_unit;
 }
+
+/* Texture */
+
+CAMLprim value wall_gl_texture_create(value unit)
+{
+  GLuint result = 0;
+  glGenTextures(1, &result);
+  return Val_long(result);
+}
+
+CAMLprim value wall_gl_texture_delete(value t)
+{
+  GLuint tex = Long_val(t);
+  glDeleteTextures(1, &tex);
+  return Val_unit;
+}
+
+static void *pack_image(unsigned char *data, size_t width, size_t height, size_t stride)
+{
+  static unsigned char *buffer = NULL;
+  if (!data)
+  {
+    if (buffer)
+    {
+      free(buffer);
+      buffer = NULL;
+    }
+    return NULL;
+  }
+
+  if (stride == width)
+    return data;
+
+  if (buffer)
+    buffer = realloc(buffer, width * height);
+  else
+    buffer = malloc(width * height);
+
+  if (!buffer)
+    abort();
+
+  for (size_t y = 0; y < height; ++y)
+    memcpy(buffer + y * width, data + y * stride, width);
+
+  return buffer;
+}
+
+static GLenum gl_format_from_channels(value channels)
+{
+  switch(Long_val(channels))
+  {
+    case 1:
+      return GL_LUMINANCE;
+    case 3:
+      return GL_RGB;
+    case 4:
+      return GL_RGBA;
+    default:
+      abort();
+  }
+}
+
+static GLenum gl_type(value is_float)
+{
+  return Bool_val(is_float) ? GL_FLOAT : GL_UNSIGNED_BYTE;
+}
+
+static void gl_tex_param(void)
+{
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+}
+
+CAMLprim value wall_gl_texture_upload(value t, value level, value is_float,
+    value width, value height, value channels,
+    value data, value offset, value stride)
+{
+  int elem_size = Bool_val(is_float) ? 4 : 1;
+  void *ptr = pack_image(Caml_ba_data_val(data),
+      Long_val(width) * Long_val(channels) * elem_size,
+      Long_val(height), Long_val(stride) * elem_size);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, Long_val(t));
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexImage2D(GL_TEXTURE_2D, Long_val(level),
+      gl_format_from_channels(channels), Long_val(width), Long_val(height), 0,
+      gl_format_from_channels(channels), gl_type(is_float), ptr
+      );
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+  gl_tex_param();
+  pack_image(NULL, 0, 0, 0);
+  return Val_unit;
+}
+
+CAMLprim value wall_gl_texture_update(value t, value level, value is_float,
+    value x, value y, value width, value height, value channels,
+    value data, value offset, value stride)
+{
+  int elem_size = Bool_val(is_float) ? 4 : 1;
+  void *ptr = pack_image(Caml_ba_data_val(data),
+      Long_val(width) * Long_val(channels) * elem_size,
+      Long_val(height), Long_val(stride) * elem_size);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, Long_val(t));
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexSubImage2D(GL_TEXTURE_2D, Long_val(level),
+      Long_val(x), Long_val(y),
+      Long_val(width), Long_val(height),
+      gl_format_from_channels(channels), gl_type(is_float), ptr
+      );
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+  gl_tex_param();
+  pack_image(NULL, 0, 0, 0);
+  return Val_unit;
+}
+
+CAMLprim value wall_gl_texture_generate_mipmap(value t)
+{
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, Long_val(t));
+  glGenerateMipmap(GL_TEXTURE_2D);
+  glBindTexture(GL_TEXTURE_2D, 0);
+  return Val_unit;
+}

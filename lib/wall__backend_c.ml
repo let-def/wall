@@ -1,6 +1,6 @@
-open Tgles2
 open Wall
 open Gg
+open Bigarray
 
 type t
 
@@ -17,11 +17,11 @@ external wall_gl_is_valid
   = "wall_gl_is_valid" [@@noalloc]
 
 external wall_gl_bind_xform
-  : t -> Wall_geom.B.bigarray -> unit
+  : t -> Wall__geom.B.bigarray -> unit
   = "wall_gl_bind_xform" [@@noalloc]
 
 external wall_gl_bind_paint
-  : t -> Wall_geom.B.bigarray -> unit
+  : t -> Wall__geom.B.bigarray -> unit
   = "wall_gl_bind_paint" [@@noalloc]
 
 external wall_gl_bind_texture
@@ -73,12 +73,36 @@ external wall_gl_set_reversed
   = "wall_gl_set_reversed" [@@noalloc]
 
 external wall_gl_frame_prepare
-  : t -> width:float -> height:float -> Wall_geom.B.bigarray -> unit
+  : t -> width:float -> height:float -> Wall__geom.B.bigarray -> unit
   = "wall_gl_frame_prepare"
 
 external wall_gl_frame_finish
   : unit -> unit
   = "wall_gl_frame_finish"
+
+external wall_gl_texture_create
+  : unit -> int
+  = "wall_gl_texture_create"
+
+external wall_gl_texture_delete
+  : int -> unit
+  = "wall_gl_texture_delete"
+
+external wall_gl_texture_upload
+  : t -> level:int -> is_float:bool ->
+    width:int -> height:int -> channels:int ->
+    ('a, 'b, c_layout) Array1.t -> offset:int -> stride:int -> unit
+  = "wall_gl_texture_upload"
+
+external wall_gl_texture_update
+  : t -> level:int -> is_float:bool ->
+    x:int -> y:int -> width:int -> height:int -> channels:int ->
+    ('a, 'b, c_layout) Array1.t -> offset:int -> stride:int -> unit
+  = "wall_gl_texture_update"
+
+external wall_gl_texture_generate_mipmap
+  : t -> unit
+  = "wall_gl_texture_generate_mipmap"
 
 let create = wall_gl_create
 
@@ -178,7 +202,7 @@ module Shader = struct
   let clampf min x max : float =
     if x < min then x else if x > max then max else x
 
-  let set_tool t ?typ paint frame width stroke_thr =
+  let set_tool t ?typ prj paint frame width stroke_thr =
     let sextent = frame.Frame.extent in
     let sxform  = frame.Frame.xform in
     let alpha = frame.Frame.alpha in
@@ -208,7 +232,7 @@ module Shader = struct
       paint.Paint.radius paint.Paint.feather;
     begin match paint.Paint.image with
       | None -> ()
-      | Some tex -> wall_gl_bind_texture (Wall_tex.tex tex);
+      | Some tex -> wall_gl_bind_texture (prj tex);
     end;
     let typ = match typ, paint.Paint.image  with
       | None, Some _ -> `FILLIMG
@@ -233,6 +257,41 @@ module Shader = struct
     buf.{strokemult_strokethr_textype_type + 1} <- stroke_thr;
     buf.{strokemult_strokethr_textype_type + 3} <- shader_type typ;
     wall_gl_bind_paint t buf
+end
+
+module Texture = struct
+  type t = int
+
+  let create = wall_gl_texture_create
+  let delete = wall_gl_texture_delete
+
+  let is_float (type a) (type b) (image : (a, b) Bigarray.kind Stb_image.t) =
+    match Bigarray.Array1.kind image.Stb_image.data with
+    | Bigarray.Int8_unsigned -> false
+    | Bigarray.Float32 -> true
+    | _ -> invalid_arg "Wall_tex: unsupported image format"
+
+  let channels img =
+    match Stb_image.channels img with
+    | 1 | 3 | 4 as c -> c
+    | c ->
+      failwith ("wall: " ^ string_of_int c ^ " channels texture format not supported")
+
+  let upload ?(level=0) img t =
+    wall_gl_texture_upload t ~level ~is_float:(is_float img)
+      ~width:(Stb_image.width img) ~height:(Stb_image.height img)
+      ~channels:(channels img)
+      (Stb_image.data img)
+      ~offset:img.Stb_image.offset ~stride:img.Stb_image.stride
+
+  let update ?(level=0) ~x ~y img t =
+    wall_gl_texture_update t ~level ~is_float:(is_float img)
+      ~x ~y ~width:(Stb_image.width img) ~height:(Stb_image.height img)
+      ~channels:(channels img)
+      (Stb_image.data img)
+      ~offset:img.Stb_image.offset ~stride:img.Stb_image.stride
+
+  let generate_mipmap = wall_gl_texture_generate_mipmap
 end
 
 module Fill = struct
@@ -275,8 +334,8 @@ module Stencil_stroke = struct
 
   let draw_stencil = wall_gl_draw_triangle_strip
 
-  let prepare_aa t paint frame width =
-    Shader.set_tool t paint frame width (-1.0);
+  let prepare_aa t prj paint frame width =
+    Shader.set_tool t prj paint frame width (-1.0);
     wall_gl_prepare_aa ()
 
   let draw_aa = wall_gl_draw_triangle_strip
@@ -297,9 +356,9 @@ module Direct_stroke = struct
 end
 
 module Triangles = struct
-  let prepare t xform paint frame =
+  let prepare t xform prj paint frame =
     Shader.set_xform t xform;
-    Shader.set_tool t ~typ:`IMG paint frame 1.0 (-1.0)
+    Shader.set_tool t ~typ:`IMG prj paint frame 1.0 (-1.0)
 
   let draw = wall_gl_draw_triangles
 end

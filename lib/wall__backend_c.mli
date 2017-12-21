@@ -4,11 +4,23 @@ type t
 val create : antialias:bool -> t
 val delete : t -> unit
 
+module Texture : sig
+  type t = int
+
+  val create : unit -> t
+  val delete : t -> unit
+
+  val upload : ?level:int -> 'a Stb_image.t -> t -> unit
+  val update : ?level:int -> x:int -> y:int -> 'a Stb_image.t -> t -> unit
+
+  val generate_mipmap : t -> unit
+end
+
 module Fill : sig
   val prepare_stencil : t -> Transform.t -> unit
   val draw_stencil : first:int -> count:int -> unit
 
-  val prepare_cover : t -> Wall_tex.t Paint.t -> Frame.t -> float -> unit
+  val prepare_cover : t -> ('tex -> Texture.t) -> 'tex Paint.t -> Frame.t -> float -> unit
 
   val prepare_aa : unit -> unit
   val draw_aa : first:int -> count:int -> unit
@@ -17,17 +29,17 @@ module Fill : sig
 end
 
 module Convex_fill : sig
-  val prepare : t -> Transform.t -> Wall_tex.t Paint.t -> Frame.t -> float -> unit
+  val prepare : t -> Transform.t -> ('tex -> Texture.t) -> 'tex Paint.t -> Frame.t -> float -> unit
 
   val draw : first:int -> count:int -> unit
   val draw_aa : first:int -> count:int -> unit
 end
 
 module Stencil_stroke : sig
-  val prepare_stencil : t -> Transform.t -> Wall_tex.t Paint.t -> Frame.t -> float -> unit
+  val prepare_stencil : t -> Transform.t -> ('tex -> Texture.t) -> 'tex Paint.t -> Frame.t -> float -> unit
   val draw_stencil : first:int -> count:int -> unit
 
-  val prepare_aa : t -> Wall_tex.t Paint.t -> Frame.t -> float -> unit
+  val prepare_aa : t -> ('tex -> Texture.t) -> 'tex Paint.t -> Frame.t -> float -> unit
   val draw_aa : first:int -> count:int -> unit
 
   val prepare_clear : unit -> unit
@@ -37,15 +49,15 @@ module Stencil_stroke : sig
 end
 
 module Direct_stroke : sig
-  val prepare : t -> Transform.t -> Wall_tex.t Paint.t -> Frame.t -> float -> unit
+  val prepare : t -> Transform.t -> ('tex -> Texture.t) -> 'tex Paint.t -> Frame.t -> float -> unit
   val draw : first:int -> count:int -> unit
 end
 
 module Triangles : sig
-  val prepare : t -> Transform.t -> Wall_tex.t Paint.t -> Frame.t -> unit
+  val prepare : t -> Transform.t -> ('tex -> Texture.t) -> 'tex Paint.t -> Frame.t -> unit
   val draw : first:int -> count:int -> unit
 end
 
-val prepare : t -> width:float -> height:float -> Wall_geom.B.bigarray -> unit
+val prepare : t -> width:float -> height:float -> Wall__geom.B.bigarray -> unit
 val set_reversed : Transform.t -> unit
 val finish : unit -> unit

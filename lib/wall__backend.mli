@@ -45,6 +45,6 @@ module Triangles : sig
   val prepare : t -> Transform.t -> Wall_tex.t Paint.t -> Frame.t -> unit val draw : int -> int -> unit
 end
 
-val prepare : t -> float -> float -> Wall_geom.B.bigarray -> unit
+val prepare : t -> float -> float -> Wall__geom.B.bigarray -> unit
 val set_reversed : Transform.t -> unit
 val finish : unit -> unit

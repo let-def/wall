@@ -1,5 +1,5 @@
 open Wall
-open Wall_geom
+open Wall__geom
 
 module Glyph = struct
   let quantize x = int_of_float (x *. 10.0)

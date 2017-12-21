@@ -164,8 +164,25 @@ module Font : sig
   val text_measure : t -> string -> measure
 end
 
+module Typesetter : sig
+  type ('input, 'image) t = {
+    allocate : Transform.t -> 'input -> unit;
+    bake     : Transform.t -> 'input -> unit;
+    render   : Transform.t -> x:float -> y:float -> 'input ->
+               (Stb_truetype.char_quad -> unit) -> 'image;
+  }
+
+  val make
+    :  allocate:(Transform.t -> 'input -> unit)
+    -> bake:(Transform.t -> 'input -> unit)
+    -> render:(Transform.t -> x:float -> y:float -> 'input ->
+               (Stb_truetype.char_quad -> unit) -> 'image)
+    -> ('input, 'image) t
+end
+
 type transform = Transform.t
 type 'image paint = 'image Paint.t
+type ('input, 'image) typesetter = ('input, 'image) Typesetter.t
 type font = Font.t
 type outline = Outline.t
 type frame = Frame.t
@@ -177,3 +194,5 @@ val utf8_decode : int ref -> string -> int
     the end is reached.
     If the string was not properly encoded, [-1] is returned and [r] is
     advanced to hopefully resume parsing. *)
+
+module Canvas = Wall_canvas

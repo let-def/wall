@@ -484,7 +484,7 @@ let set_reversed xform =
   if reversing <> !gl_reversed then
     force_set_reversed reversing
 
-let prepare t width height (data : Wall_geom.B.bigarray) =
+let prepare t width height (data : Wall__geom.B.bigarray) =
   (* Setup gl state *)
   Gl.use_program    t.program;
   Gl.blend_func     Gl.one Gl.one_minus_src_alpha;

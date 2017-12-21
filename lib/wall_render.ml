@@ -18,8 +18,8 @@
 
 open Gg
 open Wall
-open Wall_geom
-module Backend = Wall_backend_c
+open Wall__geom
+module Backend = Wall__backend_c
 
 type t = {
   backend: Backend.t;

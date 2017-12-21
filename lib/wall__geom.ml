@@ -206,7 +206,7 @@ module T = struct
     let has_path t = t.paths <> []
 
     let current_path t = match t.paths with
-      | [] -> invalid_arg "Wall_geom.current_path"
+      | [] -> invalid_arg "Wall__geom.current_path"
       | p :: _ -> p
 
     let flush_paths t =

@@ -185,11 +185,11 @@ val group : ?order:order -> ?after:bool -> task -> task
 
 type t
 
-(* [create_gl ~antialias] initializes a renderer.
+(* [create ~antialias] initializes a renderer.
    [antialias] determines whether antialiasing is on or off, though it is
    strongly recommended to turn it on.
 *)
-val create_gl : ?antialias:bool -> ?stencil_strokes:bool -> unit -> t
+val create : ?antialias:bool -> ?stencil_strokes:bool -> unit -> t
 
 (* [delete t] release all the resources associated to the drawing context [t].
    It is incorrect to use this context after the call.

@@ -16,7 +16,7 @@
    3. This notice may not be removed or altered from any source distribution.
 *)
 
-open Tgles2
+module Backend = Wall__backend_c
 
 type t = {
   name: string;
@@ -28,10 +28,8 @@ type t = {
 
 let release t =
   if t.tex <> -1 then begin
-    let buf = Bigarray.Array1.create Bigarray.int32 Bigarray.c_layout 1 in
-    buf.{0} <- Int32.of_int t.tex;
+    Backend.Texture.delete t.tex;
     t.tex <- -1;
-    Gl.delete_textures 1 buf
   end
 
 let finalize t =

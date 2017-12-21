@@ -17,19 +17,12 @@
 *)
 
 open Wall
-open Wall_geom
+open Wall__geom
 type t
 
 val create : antialias:bool -> stencil_strokes:bool -> debug:bool -> t
 val delete : t -> unit
 val antialias : t -> bool
-
-type 'a typesetter
-val typesetter
-  :  allocate:(transform -> 'a -> unit)
-  -> bake:(transform -> 'a -> unit)
-  -> render:(transform -> x:float -> y:float -> 'a -> (Stb_truetype.char_quad -> unit) -> Wall_tex.t option)
-  -> 'a typesetter
 
 type obj =
   | Fill   of transform * Wall_tex.t paint * frame * T.bounds * V.path list
