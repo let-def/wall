@@ -1,1 +1,3 @@
-val typesetter : unit -> (Wall.Font.t * string, Wall_tex.t) Wall.typesetter
+open Wall
+
+val typesetter : unit -> ( Font.t * Gg.p2 * string, Wall_tex.t) typesetter

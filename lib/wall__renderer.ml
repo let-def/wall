@@ -44,7 +44,7 @@ let delete t =
 type obj =
   | Fill   of transform * Wall_tex.t paint * frame * T.bounds * V.path list
   | Stroke of transform * Wall_tex.t paint * frame * float * V.path list
-  | String :  transform * unit paint * frame * float * float * ('a, Wall_tex.t) typesetter * 'a -> obj
+  | String :  transform * unit paint * frame * ('a, Wall_tex.t) typesetter * 'a -> obj
 
 type kind =
   | FILL
@@ -94,9 +94,9 @@ let prepare_stroke xform paint frame width paths =
   { kind = STROKE; xform; paint; frame; width; paths;
     triangle_offset = 0; triangle_count = 6 }
 
-let prepare_string vbuffer xform paint frame x y typesetter text =
+let prepare_string vbuffer xform paint frame typesetter text =
   let offset = B.offset vbuffer in
-  match typesetter.Typesetter.render xform ~x ~y text
+  match typesetter.Typesetter.render xform text
           (fun q ->
              let open Stb_truetype in
              B.reserve vbuffer (6 * 4);
@@ -124,8 +124,8 @@ let prepare_obj t vbuffer = function
     prepare_fill vbuffer xform paint frame bounds paths
   | Stroke (xform, paint, frame, width, paths) ->
     prepare_stroke xform paint frame (width *. Transform.average_scale xform) paths
-  | String (xform, paint, frame, x, y, typesetter, text) ->
-    prepare_string vbuffer xform paint frame x y typesetter text
+  | String (xform, paint, frame, typesetter, text) ->
+    prepare_string vbuffer xform paint frame typesetter text
 
 let exec_call t cmd =
   Backend.set_reversed cmd.xform;
@@ -200,12 +200,12 @@ let exec_call t cmd =
 
 let render t viewsize vbuffer objs =
   List.iter (function
-      | String (xf, _, _, _, _, typesetter, text) ->
+      | String (xf, _, _, typesetter, text) ->
         typesetter.allocate xf text
       | _ -> ()
     ) objs;
   List.iter (function
-      | String (xf, _, _, _, _, typesetter, text) ->
+      | String (xf, _, _, typesetter, text) ->
         typesetter.bake xf text
       | _ -> ()
     ) objs;

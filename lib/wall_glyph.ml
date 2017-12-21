@@ -60,7 +60,8 @@ let place factor = function
   | `Exact -> (fun x -> x)
   | `Align -> align_place factor
 
-let render_glyphes stash xform ~x ~y (font,text) push =
+let render_glyphes stash xform (font,pos,text) (push : _ -> unit) =
+  let x = Gg.P2.x pos and y = Gg.P2.y pos in
   let glyphes = font.Font.glyphes in
   let scale = Stb_truetype.scale_for_pixel_height glyphes font.Font.size in
   let factor, key = Glyph.key xform font in
@@ -117,7 +118,7 @@ let box_offset {Stb_truetype. x0; x1; y0; y1 } p =
 
 let frame_nr = ref 0
 
-let allocate_glyphes stash xf (font,text) =
+let allocate_glyphes stash xf (font,_pos,text) =
   let _, key = Glyph.key xf font in
   let r = ref 0 in
   let len = String.length text in

@@ -348,6 +348,22 @@ let fill path : shape =
     in
     R.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
 
+let fill path : shape =
+  fun ~frame ~quality xf paint t ->
+    prepare_path t ~quality xf path;
+    let bounds, paths = T.flush t.t in
+    let paths =
+      V.fill t.t t.b
+        ~edge_antialias:(R.antialias t.g)
+        ~fringe_width:(1.0 /. Transform.average_scale xf)
+        paths
+    in
+    R.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
+
+let typeset typesetter contents : shape =
+  fun ~frame ~quality xf paint t ->
+    R.String (xf, Paint.transform {paint with Paint.image = None} xf, frame, typesetter, contents)
+
 let task_is_done = function
   | Node {child=Done} | Group {child=Done} | Done -> true
   | _ -> false
@@ -432,25 +448,6 @@ let flush_frame t =
 let draw task ?(frame=Frame.default) ?(quality=1.0) xf paint (shape : shape) =
   task_add (shape ~frame ~quality xf paint) task
 
-let typesetter = Wall_glyph.typesetter ()
-
-let text task ?(frame=Frame.default) ?(halign=`LEFT) ?(valign=`BASELINE) xf paint font ~x ~y str =
-  let x = match halign with
-    | `LEFT   -> x
-    | `CENTER -> (x -. Font.text_width font str *. 0.5)
-    | `RIGHT  -> (x -. Font.text_width font str)
-  in
-  let y = match valign with
-    | `TOP    -> y +. (Font.font_metrics font).Font.ascent
-    | `BASELINE -> y
-    | `BOTTOM -> y +. (Font.font_metrics font).Font.descent
-    | `MIDDLE ->
-      let {Font. ascent; descent} = Font.font_metrics font in
-      (y +. (ascent +. descent) *. 0.5)
-  in
-  let paint = Paint.transform paint xf in
-  task_add (fun _ -> R.String (xf, paint, frame, x, y, typesetter, (font, str))) task
-
 let group ?(order=`Partial) ?(after=false) = function
   | Leaf | Done -> assert false
   | Node {sibling=Done} | Group {sibling=Done} ->
@@ -472,8 +469,23 @@ let stroke_path outline f = stroke outline (path f)
 
 let fill_path f = fill (path f)
 
+let typesetter = Wall_glyph.typesetter ()
+
+let simple_text ?(halign=`LEFT) ?(valign=`BASELINE) font ~x ~y str =
+  let x = match halign with
+    | `LEFT   -> x
+    | `CENTER -> (x -. Font.text_width font str *. 0.5)
+    | `RIGHT  -> (x -. Font.text_width font str)
+  in
+  let y = match valign with
+    | `TOP    -> y +. (Font.font_metrics font).Font.ascent
+    | `BASELINE -> y
+    | `BOTTOM -> y +. (Font.font_metrics font).Font.descent
+    | `MIDDLE ->
+      let {Font. ascent; descent} = Font.font_metrics font in
+      (y +. (ascent +. descent) *. 0.5)
+  in
+  typeset typesetter (font, Gg.P2.v x y, str)
+
 let draw' task ?frame ?quality xf paint shape =
   ignore (draw task ?frame ?quality xf paint shape : task)
-
-let text' task ?frame ?halign ?valign xf paint font ~x ~y str =
-  ignore (text task ?frame ?halign ?valign xf paint font str ~x ~y)

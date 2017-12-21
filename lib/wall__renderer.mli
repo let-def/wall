@@ -27,6 +27,6 @@ val antialias : t -> bool
 type obj =
   | Fill   of transform * Wall_tex.t paint * frame * T.bounds * V.path list
   | Stroke of transform * Wall_tex.t paint * frame * float * V.path list
-  | String :  transform * unit paint * frame * float * float * ('a, Wall_tex.t) typesetter * 'a -> obj
+  | String :  transform * unit paint * frame * ('a, Wall_tex.t) typesetter * 'a -> obj
 
 val render : t -> Gg.size2 -> B.t -> obj list -> unit

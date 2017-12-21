@@ -78,11 +78,12 @@ end
 type path
 val path : (Path.ctx -> unit) -> path
 
-(** A shape is made by stroking or filling a path.
+(** A shape is made by stroking or filling a path, or by typesetting content.
     Stroke takes one more argument to describe the style of lines. *)
 type shape
 val stroke : outline -> path -> shape
 val fill : path -> shape
+val typeset : ('a, Wall_tex.t) typesetter -> 'a -> shape
 
 (** {0 Drawing tasks}
 
@@ -90,7 +91,7 @@ val fill : path -> shape
     Scheduling is done by creating tasks.
 
     The initial task is obtained by starting a new frame.  Then new tasks can
-    be scheduled by either [draw], [text] and [group] primitives.
+    be scheduled by either [draw] and [group] primitives.
     These primitives take the task to start from as argument: when this task is
     done, the renderer will pick one of the task that was scheduled after.
 
@@ -117,37 +118,6 @@ val draw : task -> ?frame:frame -> ?quality:float
   -> transform -> Wall_tex.t paint -> shape
   -> task
 
-(** [text task ?frame ?halign ?valign transform paint font ~x ~y text]
-    schedule a text rendering task.
-
-    After [task] is done, [text] will drawn using font [font] and style [paint]
-    at position [x,y] and under the transformation described by [transform].
-
-    The optionals [halign] and [valign] arguments describe how the text should
-    be positioned w.r.t point [x,y].
-
-    halign values:
-    - [`LEFT], text will start at coordinate [x] ([x] is the leftmost point)
-    - [`CENTER], text will be centered around [x]
-    - [`RIGHT], text will end at coordinate [x] ([x] is the rightmost point)
-
-    valign values:
-    - [`TOP], top of the text will be at coordinate [y], drawing will go below
-    - [`MIDDLE], text will be vertically centered at coordinate [y]
-    - [`BOTTOM], bottom of the text will be at coordinate [y], drawing will be
-      above
-    - [`BASELINE], the baseline of the text will be at coordinate [y], most
-      letters will be above but descender (as in letters such as y, p, j, q)
-      will go below.
-
-    The optional [frame] argument allows to clip the rendering.
-*)
-val text : task -> ?frame:frame
-  -> ?halign:[`LEFT | `CENTER | `RIGHT]
-  -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
-  -> transform -> unit paint -> font -> x:float -> y:float -> string
-  -> task
-
 (** [group ?order ?after task] create a new group of tasks to be scheduled
     after [task].
 
@@ -159,8 +129,6 @@ val text : task -> ?frame:frame
     If [after] is [true], the group will be drawn after any tasks (including
     other groups) that were added to [task].
 *)
-
-
 val group : ?order:order -> ?after:bool -> task -> task
 
 (** {0 Drawing context}
@@ -219,7 +187,31 @@ val fill_path : (Path.ctx -> unit) -> shape
 
 val draw' : task -> ?frame:frame -> ?quality:float -> transform -> Wall_tex.t paint -> shape -> unit
 
-val text' : task -> ?frame:frame
-            -> ?halign:[`LEFT | `CENTER | `RIGHT]
-            -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
-            -> transform -> unit paint -> font -> x:float -> y:float -> string -> unit
+(** [simple_text ?frame ?halign ?valign font ~x ~y text]
+
+    Creates a shape that represents [text] drawn using [font] at position
+    [x,y].
+
+    The optionals [halign] and [valign] arguments describe how the text should
+    be positioned w.r.t point [x,y].
+
+    halign values:
+    - [`LEFT], text will start at coordinate [x] ([x] is the leftmost point)
+    - [`CENTER], text will be centered around [x]
+    - [`RIGHT], text will end at coordinate [x] ([x] is the rightmost point)
+
+    valign values:
+    - [`TOP], top of the text will be at coordinate [y], drawing will go below
+    - [`MIDDLE], text will be vertically centered at coordinate [y]
+    - [`BOTTOM], bottom of the text will be at coordinate [y], drawing will be
+      above
+    - [`BASELINE], the baseline of the text will be at coordinate [y], most
+      letters will be above but descender (as in letters such as y, p, j, q)
+      will go below.
+
+    The optional [frame] argument allows to clip the rendering.
+*)
+val simple_text
+  :  ?halign:[`LEFT | `CENTER | `RIGHT]
+  -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
+  -> font -> x:float -> y:float -> string -> shape

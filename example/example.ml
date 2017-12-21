@@ -395,15 +395,17 @@ let draw_window vg xf title x y w h =
 
   let font = Lazy.force font_sans_bold in
 
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.6 0.9))
-    (Font.make ~blur:2.0 ~size:18.0 font)
-    ~valign:`MIDDLE ~halign:`CENTER
-    ~x:(x+.w/.2.) ~y:(y+.16.+.1.0) title;
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.6 0.9))
+    (C.simple_text
+       (Font.make ~blur:2.0 ~size:18.0 font)
+       ~valign:`MIDDLE ~halign:`CENTER
+       ~x:(x+.w/.2.) ~y:(y+.16.+.1.0) title);
 
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.6 0.9))
-    (Font.make ~size:18.0 font)
-    ~valign:`MIDDLE ~halign:`CENTER
-    ~x:(x+.w/.2.) ~y:(y+.16.) title
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.6 0.9))
+    (C.simple_text
+       (Font.make ~size:18.0 font)
+       ~valign:`MIDDLE ~halign:`CENTER
+       ~x:(x+.w/.2.) ~y:(y+.16.) title)
 
 let draw_searchbox vg xf text x y w h =
   let cornerRadius = h /. 2.0 -. 1.0 in
@@ -418,20 +420,23 @@ let draw_searchbox vg xf text x y w h =
     (C.stroke_path Outline.default @@ fun t ->
      P.round_rect t (x+.0.5) (y+.0.5) (w-.1.0) (h-.1.0) (cornerRadius-.0.5));
 
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.25 1.0))
-    (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
-    ~valign:`MIDDLE ~halign:`CENTER
-    ~x:(x+.h*.0.55) ~y:(y+.h*.0.55) "🔍";
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.25 1.0))
+    (C.simple_text
+       (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
+       ~valign:`MIDDLE ~halign:`CENTER
+       ~x:(x+.h*.0.55) ~y:(y+.h*.0.55) "🔍");
 
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.125 1.0))
-    (Font.make ~size:20.0 (Lazy.force font_sans))
-    ~valign:`MIDDLE ~halign:`LEFT
-    ~x:(x+.h*.1.05) ~y:(y+.h*.0.5) text;
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.125 1.0))
+    (C.simple_text
+       (Font.make ~size:20.0 (Lazy.force font_sans))
+       ~valign:`MIDDLE ~halign:`LEFT
+       ~x:(x+.h*.1.05) ~y:(y+.h*.0.5) text);
 
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.125 1.0))
-    (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
-    ~valign:`MIDDLE ~halign:`CENTER
-    ~x:(x+.w-.h*.0.55) ~y:(y+.h*.0.55) "✖"
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.125 1.0))
+    (C.simple_text
+       (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
+       ~valign:`MIDDLE ~halign:`CENTER
+       ~x:(x+.w-.h*.0.55) ~y:(y+.h*.0.55) "✖")
 
 let draw_dropdown vg xf text x y w h =
   let cornerRadius = 4.0 in
@@ -447,21 +452,24 @@ let draw_dropdown vg xf text x y w h =
     (C.stroke_path Outline.default @@ fun t ->
      P.round_rect t (x+.0.5) (y+.0.5) (w-.1.0) (h-.1.0) (cornerRadius-.0.5));
 
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.8 1.0))
-    (Font.make ~size:20.0 (Lazy.force font_sans))
-    ~valign:`MIDDLE ~halign:`LEFT
-    ~x:(x+.h*.0.3) ~y:(y+.h*.0.5) text;
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.8 1.0))
+    (C.simple_text
+       (Font.make ~size:20.0 (Lazy.force font_sans))
+       ~valign:`MIDDLE ~halign:`LEFT
+       ~x:(x+.h*.0.3) ~y:(y+.h*.0.5) text);
 
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.8 1.0))
-    (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
-    ~valign:`MIDDLE ~halign:`CENTER
-    ~x:(x+.w-.h*.0.5) ~y:(y+.h*.0.5) " "
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.8 1.0))
+    (C.simple_text
+       (Font.make ~size:(h*.1.3) (Lazy.force font_icons))
+       ~valign:`MIDDLE ~halign:`CENTER
+       ~x:(x+.w-.h*.0.5) ~y:(y+.h*.0.5) " ")
 
 let draw_label vg xf text x y w h =
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.5 1.0))
-    (Font.make ~size:18.0 (Lazy.force font_sans))
-    ~valign:`MIDDLE ~halign:`LEFT
-    ~x ~y:(y+.h*.0.5) text
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.5 1.0))
+    (C.simple_text
+       (Font.make ~size:18.0 (Lazy.force font_sans))
+       ~valign:`MIDDLE ~halign:`LEFT
+       ~x ~y:(y+.h*.0.5) text)
 
 let draw_editboxbase vg xf x y w h =
   C.draw' vg xf
@@ -476,40 +484,45 @@ let draw_editboxbase vg xf x y w h =
 
 let draw_editbox vg xf text x y w h =
   draw_editboxbase vg xf x y w h;
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.25 1.0))
-    (Font.make ~size:20.0 (Lazy.force font_sans))
-    ~valign:`MIDDLE ~halign:`LEFT
-    ~x:(x+.h*.0.3) ~y:(y+.h*.0.5) text
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.25 1.0))
+    (C.simple_text
+       (Font.make ~size:20.0 (Lazy.force font_sans))
+       ~valign:`MIDDLE ~halign:`LEFT
+       ~x:(x+.h*.0.3) ~y:(y+.h*.0.5) text)
 
 let draw_editboxnum vg xf text units x y w h =
   draw_editboxbase vg xf x y w h;
 
   let ufont = Font.make ~size:18.0 (Lazy.force font_sans) in
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.25 1.0))
-    ~valign:`MIDDLE ufont ~halign:`RIGHT
-    ~x:(x+.w-.h*.0.3) ~y:(y+.h*.0.5) units;
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.25 1.0))
+    (C.simple_text
+       ~valign:`MIDDLE ufont ~halign:`RIGHT
+       ~x:(x+.w-.h*.0.3) ~y:(y+.h*.0.5) units);
 
   let uw = Font.text_width ufont units in
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.5 1.0))
-    (Font.make ~size:20.0 (Lazy.force font_sans))
-    ~valign:`MIDDLE ~halign:`RIGHT
-    ~x:(x+.w-.uw-.h*.0.5) ~y:(y+.h*.0.5) text
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.5 1.0))
+    (C.simple_text
+       (Font.make ~size:20.0 (Lazy.force font_sans))
+       ~valign:`MIDDLE ~halign:`RIGHT
+       ~x:(x+.w-.uw-.h*.0.5) ~y:(y+.h*.0.5) text)
 
 let draw_checkbox vg xf text x y w h =
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.66 1.0))
-    (Font.make ~size:18.0 (Lazy.force font_sans))
-    ~valign:`MIDDLE
-    ~x:(x+.28.) ~y:(y+.h*.0.5) text;
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.66 1.0))
+    (C.simple_text
+       (Font.make ~size:18.0 (Lazy.force font_sans))
+       ~valign:`MIDDLE
+       ~x:(x+.28.) ~y:(y+.h*.0.5) text);
   C.draw' vg xf
     (Paint.box_gradient (x+.1.0) (y+.floor(h/.2.0)-.9.0+.1.0)
        18.0 18.0 3.0 3.0
        (Color.gray ~a:0.125 0.0) (Color.gray ~a:0.375 0.0))
     (C.fill_path @@ fun t ->
      P.round_rect t (x+.1.0) (y+.floor(h/.2.0)-.9.0) 18.0 18.0 3.0);
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.5 1.0))
-    (Font.make ~size:40.0 (Lazy.force font_icons))
-    ~valign:`MIDDLE ~halign:`CENTER
-    ~x:(x+.11.) ~y:(y+.h*.0.5) "✓"
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.5 1.0))
+    (C.simple_text
+       (Font.make ~size:40.0 (Lazy.force font_icons))
+       ~valign:`MIDDLE ~halign:`CENTER
+       ~x:(x+.11.) ~y:(y+.h*.0.5) "✓")
 
 let cp_to_utf8 cp =
   let n =
@@ -566,18 +579,20 @@ let draw_button vg xf preicon text x y w h col =
       let font = Font.make ~size:(h*.1.3) (Lazy.force font_icons) in
       let icon = cp_to_utf8 preicon in
       let iw = Font.text_width font icon in
-      C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.40 1.0)) font
-        ~halign:`LEFT ~valign:`MIDDLE
-        ~x:(x+.w*.0.5-.tw*.0.5-.iw*.0.75) ~y:(y+.h*.0.5)
-        icon;
+      C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.40 1.0))
+        (C.simple_text font icon
+           ~halign:`LEFT ~valign:`MIDDLE
+           ~x:(x+.w*.0.5-.tw*.0.5-.iw*.0.75) ~y:(y+.h*.0.5));
       iw
   in
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.66 0.0)) font
-    ~valign:`MIDDLE ~halign:`LEFT
-    ~x:(x+.w*.0.5-.tw*.0.5+.iw*.0.25) ~y:(y+.h*.0.5-.0.5) text;
-  C.text' vg xf (Paint.color (Gg.Color.gray ~a:0.66 1.0)) font
-    ~valign:`MIDDLE ~halign:`LEFT
-    ~x:(x+.w*.0.5-.tw*.0.5+.iw*.0.25) ~y:(y+.h*.0.5) text
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.66 0.0))
+    (C.simple_text font text
+       ~valign:`MIDDLE ~halign:`LEFT
+       ~x:(x+.w*.0.5-.tw*.0.5+.iw*.0.25) ~y:(y+.h*.0.5-.0.5));
+  C.draw' vg xf (Paint.color (Gg.Color.gray ~a:0.66 1.0))
+    (C.simple_text font text
+       ~valign:`MIDDLE ~halign:`LEFT
+       ~x:(x+.w*.0.5-.tw*.0.5+.iw*.0.25) ~y:(y+.h*.0.5))
 
 let draw_slider vg xf pos x y w h =
   let cy = y +. floor (h*.0.5) in
