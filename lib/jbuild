@@ -9,4 +9,4 @@
   (c_names (wall__stubs))
   ;(c_flags (-I/blah/include))
   ;(c_library_flags (-lGL))
-  (libraries (gg tgls.tgles2 tsdl result stb_image stb_truetype grenier.binpacking))))
+  (libraries (gg result stb_image stb_truetype grenier.binpacking))))

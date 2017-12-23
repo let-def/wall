@@ -2,4 +2,4 @@
 
 (executables
  ((names (example minimal))
-  (libraries (wall))))
+  (libraries (tsdl wall))))

@@ -10,5 +10,5 @@ build: [
 ]
 depends: [
   "ocamlfind" {build}
-  "gg" "tgls" "tsdl" "result" "stb_image" "stb_truetype" "grenier"
+  "gg" "result" "stb_image" "stb_truetype" "grenier"
 ]
