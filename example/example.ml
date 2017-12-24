@@ -4,6 +4,8 @@ open Wall
 module C = Wall_canvas
 module P = C.Path
 
+let b2 x y w h = Gg.Box2.v (Gg.P2.v x y) (Gg.Size2.v w h)
+
 let normalize (dx, dy) =
   let d = sqrt (dx *. dx +. dy *. dy) in
   if d > 1.0 then
@@ -358,7 +360,6 @@ let draw_caps x y w =
   ]
 
 let draw_scissor x y t =
-  let frame = Frame.default in
   let xf = Transform.(rotate (5.0 /. 180.0 *. C.pi) (translation ~x ~y)) in
   let shape = C.fill_path @@ fun t -> P.rect t (-20.0) (-10.0) 60.0 30.0 in
   C.transform xf (
@@ -368,17 +369,16 @@ let draw_scissor x y t =
          (Paint.color (Color.v 1.0 0.0 0.0 1.0))
          (C.fill_path @@ fun t -> P.rect t (-20.0) (-20.0) (60.0) (40.0)))
       (* Draw second rectangle with offset and rotation. *)
-      (let frame = Frame.set_scissor (-20.0) (-20.0) 60.0 40.0 xf frame in
+      ((*let frame = Frame.set_scissor (-20.0) (-20.0) 60.0 40.0 Transform.identity frame in*)
        let xf = Transform.(rotate t (translation 40.0 0.0)) in
-       C.transform xf (
-         C.impose
-           (* Draw the intended second rectangle without any scissoring. *)
-           (C.paint (Paint.color (Color.v 1.0 0.5 0.0 0.25)) shape)
-           (* Draw second rectangle with combined scissoring. *)
-           (let frame = Frame.intersect_scissor (-20.0) (-10.0) 60.0 30.0 xf frame in
-            C.frame frame
-              (C.paint (Paint.color (Color.v 1.0 0.5 0.0 1.0)) shape))
-       )
+       C.impose
+         (* Draw the intended second rectangle without any scissoring. *)
+         (C.transform xf (C.paint (Paint.color (Color.v 1.0 0.5 0.0 0.25)) shape))
+         (* Draw second rectangle with combined scissoring. *)
+         (C.scissor (b2 (-20.0) (-20.0) 60.0 40.0)
+            (C.transform xf
+               (C.intersect_scissor (b2 (-20.0) (-10.0) 60.0 30.0)
+                  (C.paint (Paint.color (Color.v 1.0 0.5 0.0 1.0)) shape))))
       )
   )
 
@@ -698,7 +698,6 @@ let draw_thumbnails x y w h images t =
        P.line_to t (x +. 1.0) (y +. arry +. 11.0));
 
     begin
-      let frame = Frame.set_scissor x y w h Transform.identity Frame.default in
       let xf' = Transform.translation 0.0 (-. (stackh -. h) *. u) in
       let dv = 1.0 /. float (Array.length images - 1) in
       let acc = ref C.none in
@@ -745,7 +744,7 @@ let draw_thumbnails x y w h images t =
                  P.round_rect t (tx+.0.5) (ty+.0.5) (thumb-.1.0) (thumb-.1.0) (4.0-.0.5))
             ]
         ) images;
-      C.transform xf' ((*C.frame frame*) !acc)
+      C.scissor (b2 x y w h) (C.transform xf' !acc)
     end;
 
     (* Hide fades *)
