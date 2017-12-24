@@ -55,6 +55,7 @@ module T = struct
     val tess_tol : t -> float
 
     val add_point : t -> float -> float -> int -> unit
+    val set_last_flags : t -> int -> unit
 
     val reverse_points : t -> path -> unit
     val points_area : t -> path -> float
@@ -158,6 +159,9 @@ module T = struct
       (*Printf.printf "add_point: %d = (%f, %f)\n" point x y;*)
       points_flags.{point}   <- flags;
       t.point <- point + 1
+
+    let set_last_flags t flags =
+      t.points_flags.{t.point - 1} <- flags
 
     let reverse_points {points; points_flags} {path_first; path_count} =
       let last = path_first + path_count - 1 in
@@ -354,6 +358,71 @@ module T = struct
   let line_to t x y =
     T.add_point t x y flag_corner
 
+  let bezier_buf = Bigarray.Array1.create Bigarray.Float32 Bigarray.c_layout 80
+
+  let bezier_loop t =
+    let level = ref 0 in
+    while !level >= 0 do
+      let   x1 = bezier_buf.{!level * 8 + 0} in
+      let   y1 = bezier_buf.{!level * 8 + 1} in
+      let   x2 = bezier_buf.{!level * 8 + 2} in
+      let   y2 = bezier_buf.{!level * 8 + 3} in
+      let   x3 = bezier_buf.{!level * 8 + 4} in
+      let   y3 = bezier_buf.{!level * 8 + 5} in
+      let   x4 = bezier_buf.{!level * 8 + 6} in
+      let   y4 = bezier_buf.{!level * 8 + 7} in
+      let  x12 = ( x1 +.  x2) *. 0.5 in
+      let  y12 = ( y1 +.  y2) *. 0.5 in
+      let  x23 = ( x2 +.  x3) *. 0.5 in
+      let  y23 = ( y2 +.  y3) *. 0.5 in
+      let  x34 = ( x3 +.  x4) *. 0.5 in
+      let  y34 = ( y3 +.  y4) *. 0.5 in
+      let x123 = (x12 +. x23) *. 0.5 in
+      let y123 = (y12 +. y23) *. 0.5 in
+      let dx = x4 -. x1 in
+      let dy = y4 -. y1 in
+      let d2 = abs_float ((x2 -. x4) *. dy -. (y2 -. y4) *. dx) in
+      let d3 = abs_float ((x3 -. x4) *. dy -. (y3 -. y4) *. dx) in
+      if (d2 +. d3) *. (d2 +. d3) <= T.tess_tol t *. (dx *. dx +. dy *. dy) || !level = 8 then
+        (T.add_point t x4 y4 0; decr level)
+      else begin
+        let  x234 = ( x23 +.  x34) *. 0.5 in
+        let  y234 = ( y23 +.  y34) *. 0.5 in
+        let x1234 = (x123 +. x234) *. 0.5 in
+        let y1234 = (y123 +. y234) *. 0.5 in
+        bezier_buf.{!level * 8 + 0} <- x1234;
+        bezier_buf.{!level * 8 + 1} <- y1234;
+        bezier_buf.{!level * 8 + 2} <- x234;
+        bezier_buf.{!level * 8 + 3} <- y234;
+        bezier_buf.{!level * 8 + 4} <- x34;
+        bezier_buf.{!level * 8 + 5} <- y34;
+        bezier_buf.{!level * 8 + 6} <- x4;
+        bezier_buf.{!level * 8 + 7} <- y4;
+        incr level;
+        bezier_buf.{!level * 8 + 0} <- x1;
+        bezier_buf.{!level * 8 + 1} <- y1;
+        bezier_buf.{!level * 8 + 2} <- x12;
+        bezier_buf.{!level * 8 + 3} <- y12;
+        bezier_buf.{!level * 8 + 4} <- x123;
+        bezier_buf.{!level * 8 + 5} <- y123;
+        bezier_buf.{!level * 8 + 6} <- x1234;
+        bezier_buf.{!level * 8 + 7} <- y1234;
+      end
+    done
+
+  let bezier_to1 t ~x1 ~y1 ~x2 ~y2 ~x3 ~y3 =
+    bezier_buf.{0} <- (last_x t);
+    bezier_buf.{1} <- (last_y t);
+    bezier_buf.{2} <- x1;
+    bezier_buf.{3} <- y1;
+    bezier_buf.{4} <- x2;
+    bezier_buf.{5} <- y2;
+    bezier_buf.{6} <- x3;
+    bezier_buf.{7} <- y3;
+    bezier_loop t;
+    T.set_last_flags t flag_corner
+
+
   let rec bezier_to t x1 y1 x2 y2 x3 y3 x4 y4 level flags =
     if level <= 10 then begin
       let  x12 = ( x1 +.  x2) *. 0.5 in
@@ -387,10 +456,20 @@ module T = struct
       print_endline "skipped"
     )
 
-  let bezier_to t ~x1 ~y1 ~x2 ~y2 ~x3 ~y3 =
+  let bezier_to2 t ~x1 ~y1 ~x2 ~y2 ~x3 ~y3 =
     (*let count = T.count t in*)
     bezier_to t (last_x t) (last_y t) x1 y1 x2 y2 x3 y3 0 flag_corner
     (*Printf.printf "bezier_count: %d\n" (T.count t - count)*)
+
+  let bezier_to =
+    match Sys.getenv "ALTBEZIER" with
+    | "2" ->
+      prerr_endline "BEZIER_TO2";
+      bezier_to2
+    | "1" ->
+      prerr_endline "BEZIER_TO1";
+      bezier_to1
+    | _ -> exit 1
 
 
   (* Calculate which joins needs extra vertices to append, and gather vertex count. *)
