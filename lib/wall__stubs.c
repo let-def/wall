@@ -571,3 +571,33 @@ CAMLprim value wall_gl_texture_generate_mipmap(value t)
   glBindTexture(GL_TEXTURE_2D, 0);
   return Val_unit;
 }
+
+/* Only used to measure deltas, so overflow is not a problem */
+
+#include <time.h>
+CAMLprim value wall_time_spent(value unit)
+{
+  struct timespec tp;
+  if (clock_gettime(CLOCK_MONOTONIC, &tp) == 0)
+    return Val_long(tp.tv_sec * 1000000000 + tp.tv_nsec);
+  else
+    return Val_long(0);
+}
+
+extern uintnat caml_allocated_words;
+extern value *caml_young_alloc_end, *caml_young_ptr;
+
+extern double
+  caml_stat_minor_words,
+  caml_stat_promoted_words,
+  caml_stat_major_words;
+
+CAMLprim value wall_memory_spent(value unit)
+{
+  long base =
+    caml_stat_minor_words + caml_stat_major_words - caml_stat_promoted_words;
+  long minwords = (caml_young_alloc_end - caml_young_ptr);
+  long majwords = caml_allocated_words;
+
+  return Val_long(base + minwords + majwords);
+}

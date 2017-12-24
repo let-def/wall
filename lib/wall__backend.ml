@@ -389,3 +389,6 @@ let prepare t ~width ~height data =
   wall_gl_frame_prepare t ~width ~height data
 
 let finish = wall_gl_frame_finish
+
+external memory_spent : unit -> int = "wall_memory_spent" [@@noalloc]
+external time_spent : unit -> int = "wall_time_spent" [@@noalloc]

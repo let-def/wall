@@ -365,14 +365,14 @@ module T = struct
       let x123 = (x12 +. x23) *. 0.5 in
       let y123 = (y12 +. y23) *. 0.5 in
 
-      let dx = x4 -. x1 in
-      let dy = y4 -. y1 in
-      let d2 = abs_float ((x2 -. x4) *. dy -. (y2 -. y4) *. dx) in
-      let d3 = abs_float ((x3 -. x4) *. dy -. (y3 -. y4) *. dx) in
-
       (*Printf.printf "((d2:%0.2f + d3:%0.2f)*(d2 + d3) < ctx->tessTol:%0.2f * (dx:%0.2f*dx + dy:%0.2f*dy))\n"
         d2 d3 (T.tess_tol t) dx dy;*)
-      if (d2 +. d3) *. (d2 +. d3) <= T.tess_tol t *. (dx *. dx +. dy *. dy) then
+      if level > 2 &&
+        let dx = x4 -. x1 in
+        let dy = y4 -. y1 in
+        let d2 = abs_float ((x2 -. x4) *. dy -. (y2 -. y4) *. dx) in
+        let d3 = abs_float ((x3 -. x4) *. dy -. (y3 -. y4) *. dx) in
+        (d2 +. d3) *. (d2 +. d3) <= T.tess_tol t *. (dx *. dx +. dy *. dy) then
         T.add_point t x4 y4 flags
       else begin
         let  x234 = ( x23 +.  x34) *. 0.5 in

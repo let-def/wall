@@ -171,14 +171,12 @@ end
 
 module Typesetter : sig
   type ('input, 'image) t = {
-    allocate : sx:float -> sy:float -> 'input -> unit;
-    bake     : sx:float -> sy:float -> 'input -> unit;
+    allocate : sx:float -> sy:float -> 'input -> (unit -> unit) option;
     render   : Transform.t -> 'input -> (Stb_truetype.char_quad -> unit) -> 'image;
   }
 
   val make
-    :  allocate:(sx:float -> sy:float -> 'input -> unit)
-    -> bake:(sx:float -> sy:float -> 'input -> unit)
+    :  allocate:(sx:float -> sy:float -> 'input -> (unit -> unit) option)
     -> render:(Transform.t -> 'input -> (Stb_truetype.char_quad -> unit) -> 'image)
     -> ('input, 'image) t
 end
