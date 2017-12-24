@@ -107,7 +107,10 @@ module Outline : sig
   }
 
   val default : t
+
+  val make : ?miter_limit:float -> ?join:line_join -> ?cap:line_cap -> ?width:float -> unit -> t
 end
+
 
 module Frame : sig
   type t = {

@@ -1,5 +1,5 @@
 (jbuild_version 1)
 
 (executables
- ((names (example minimal))
-  (libraries (tsdl wall))))
+ ((names (example minimal blemish))
+  (libraries (tsdl tgls.tgles2 wall))))

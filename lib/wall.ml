@@ -192,6 +192,9 @@ module Outline = struct
     line_join    = `MITER;
     line_cap     = `BUTT;
   }
+
+  let make ?(miter_limit=10.0) ?(join=`MITER) ?(cap=`BUTT) ?(width=1.0) () =
+    { miter_limit; line_join = join; line_cap = cap; stroke_width = width }
 end
 
 module Paint = struct
