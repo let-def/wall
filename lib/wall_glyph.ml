@@ -4,8 +4,8 @@ open Wall__geom
 module Glyph = struct
   let quantize x = int_of_float (x *. 10.0)
 
-  let estimate_scale xf {Font. size} =
-    let factor = Transform.average_scale xf in
+  let estimate_scale sx sy {Font. size} =
+    let factor = (sx +. sy) *. 0.5 in
     let scale = factor *. size in
     (*Printf.eprintf "sx = %f, sy = %f, size = %f, scale = %f\n%!"
       sx sy size scale;*)
@@ -21,10 +21,10 @@ module Glyph = struct
     blur  : int;
   }
 
-  let key xf font =
+  let key ~sx ~sy font =
     let ttf = font.Font.glyphes in
     let blur = quantize font.Font.blur in
-    let factor, scale = estimate_scale xf font in
+    let factor, scale = estimate_scale sx sy font in
     (factor, (fun cp -> { cp; scale; ttf; blur }))
 
   type cell = {
@@ -64,7 +64,11 @@ let render_glyphes stash xform (font,pos,text) (push : _ -> unit) =
   let x = Gg.P2.x pos and y = Gg.P2.y pos in
   let glyphes = font.Font.glyphes in
   let scale = Stb_truetype.scale_for_pixel_height glyphes font.Font.size in
-  let factor, key = Glyph.key xform font in
+  let factor, key = Glyph.key
+      ~sx:(Transform.scale_x xform)
+      ~sy:(Transform.scale_y xform)
+      font
+  in
   let xoff = ref 0 in
   let last = ref Stb_truetype.invalid_glyph in
   let place = place factor font.Font.placement in
@@ -118,8 +122,8 @@ let box_offset {Stb_truetype. x0; x1; y0; y1 } p =
 
 let frame_nr = ref 0
 
-let allocate_glyphes stash xf (font,_pos,text) =
-  let _, key = Glyph.key xf font in
+let allocate_glyphes stash ~sx ~sy (font,_pos,text) =
+  let _, key = Glyph.key sx sy font in
   let r = ref 0 in
   let len = String.length text in
   let frame_nr = !frame_nr in
@@ -210,6 +214,6 @@ let typesetter () =
   let stash = font_stash () in
   Wall.Typesetter.make
     ~allocate:(allocate_glyphes stash)
-    ~bake:(fun _ _ ->
+    ~bake:(fun ~sx:_ ~sy:_ _ ->
         if Hashtbl.length stash.font_todo > 0 then bake_glyphs stash)
     ~render:(render_glyphes stash)

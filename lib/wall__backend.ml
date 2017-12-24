@@ -311,9 +311,9 @@ module Fill = struct
 
   let draw_stencil = wall_gl_draw_triangle_fan
 
-  let prepare_cover t prj paint frame width =
+  let prepare_cover t prj paint frame =
     wall_gl_fill_prepare_cover ();
-    Shader.set_tool t prj paint frame width (-1.0)
+    Shader.set_tool t prj paint frame 1.0 (-1.0)
 
   let prepare_aa = wall_gl_prepare_aa
 
@@ -323,9 +323,9 @@ module Fill = struct
 end
 
 module Convex_fill = struct
-  let prepare t xform prj paint frame width =
+  let prepare t xform prj paint frame =
     Shader.set_xform t xform;
-    Shader.set_tool t prj paint frame width (-1.0)
+    Shader.set_tool t prj paint frame 1.0 (-1.0)
 
   let draw = wall_gl_draw_triangle_fan
 

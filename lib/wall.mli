@@ -39,6 +39,8 @@ module Transform : sig
 
   val identity : t
   val average_scale : t -> float
+  val scale_x : t -> float
+  val scale_y : t -> float
 
   val translation : x:float -> y:float -> t
   val rotation    : a:float -> t
@@ -169,14 +171,14 @@ end
 
 module Typesetter : sig
   type ('input, 'image) t = {
-    allocate : Transform.t -> 'input -> unit;
-    bake     : Transform.t -> 'input -> unit;
+    allocate : sx:float -> sy:float -> 'input -> unit;
+    bake     : sx:float -> sy:float -> 'input -> unit;
     render   : Transform.t -> 'input -> (Stb_truetype.char_quad -> unit) -> 'image;
   }
 
   val make
-    :  allocate:(Transform.t -> 'input -> unit)
-    -> bake:(Transform.t -> 'input -> unit)
+    :  allocate:(sx:float -> sy:float -> 'input -> unit)
+    -> bake:(sx:float -> sy:float -> 'input -> unit)
     -> render:(Transform.t -> 'input -> (Stb_truetype.char_quad -> unit) -> 'image)
     -> ('input, 'image) t
 end

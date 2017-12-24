@@ -19,7 +19,7 @@
 open Wall
 open Wall__geom
 
-module R = Wall__renderer
+module Backend = Wall__backend
 
 (* Length proportional to radius of a cubic bezier handle for 90deg arcs. *)
 let kappa90 = 0.5522847493
@@ -276,36 +276,26 @@ type path = {
 
 let path closure = { closure; cache_key = () }
 
-type group_kind = Partial | Total | Partial_after | Total_after
-
-type order = [ `Partial | `Total ]
-
 type t = {
   t : T.t;
   b : B.t;
-  g : R.t;
-  mutable size : Gg.size2;
-  mutable task : task;
+  g : Wall__backend.t;
+  antialias : bool;
+  stencil_strokes : bool;
 }
-
-and task =
-  | Node  of {mutable sibling : task; mutable child : task; prepare : t -> R.obj}
-  | Group of {mutable sibling : task; mutable child : task; kind: group_kind}
-  | Leaf
-  | Done
 
 let create ?(antialias=true) ?(stencil_strokes=true) () = {
   t = T.make ();
   b = B.make ();
-  g = R.create ~antialias ~stencil_strokes ~debug:false;
-  size = Gg.Size2.unit;
-  task = Done;
+  g = Wall__backend.create ~antialias;
+  antialias;
+  stencil_strokes;
 }
 
 let delete t =
   T.clear t.t;
   B.clear t.b;
-  R.delete t.g
+  Backend.delete t.g
 
 let prepare_path t ~quality xf path =
   T.clear t.t;
@@ -318,150 +308,230 @@ let prepare_path t ~quality xf path =
   T.set_tess_tol t.t (0.25 /. (factor *. quality));
   path.closure t.t
 
-type shape = frame:frame -> quality:float -> transform -> Wall_tex.t paint -> t -> R.obj
+module Render = struct
 
-let stroke {Outline. stroke_width; miter_limit; line_join; line_cap} path : shape =
-  fun ~frame ~quality xf paint t ->
-    prepare_path t ~quality xf path;
-    let _bounds, paths = T.flush t.t in
-    let paths =
-      V.stroke t.t t.b
-        ~edge_antialias:(R.antialias t.g)
-        ~fringe_width:(1.0 /. Transform.average_scale xf)
-        ~stroke_width
-        ~miter_limit
-        ~line_join
-        ~line_cap
-        paths
-    in
-    R.Stroke (xf, Paint.transform paint xf, frame, stroke_width, paths)
+  type node =
+    (* Base cases *)
+    | None
+    | Fill   of path
+    | Stroke of path * outline
+    | String :  'a * ('a, Wall_tex.t) typesetter -> node
+    (* Recursive cases *)
+    | Xform  of node * transform
+    | Paint  of node * Wall_tex.t paint
+    | Frame  of node * frame
+    | Seq    of node * node
 
-let fill path : shape =
-  fun ~frame ~quality xf paint t ->
-    prepare_path t ~quality xf path;
-    let bounds, paths = T.flush t.t in
-    let paths =
-      V.fill t.t t.b
-        ~edge_antialias:(R.antialias t.g)
-        ~fringe_width:(1.0 /. Transform.average_scale xf)
-        paths
-    in
-    R.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
+  let rec typesetter_prepare bake xx xy yx yy = function
+    | None -> ()
+    | Paint (n, _) | Frame (n, _) ->
+      typesetter_prepare bake xx xy yx yy n
+    | Seq (n1, n2) ->
+      typesetter_prepare bake xx xy yx yy n1;
+      typesetter_prepare bake xx xy yx yy n2
+    | Fill _ | Stroke _ -> ()
+    | Xform (n, xf) ->
+      typesetter_prepare bake
+        (Transform.px xf xx xy) (Transform.py xf xx xy)
+        (Transform.px xf yx yy) (Transform.py xf yx yy)
+        n
+    | String (x, cls) ->
+      let sx = sqrt (xx *. xx +. xy *. xy) in
+      let sy = sqrt (yx *. yx +. yy *. yy) in
+      if bake then
+        cls.bake ~sx ~sy x
+      else
+        cls.allocate ~sx ~sy x
 
-let fill path : shape =
-  fun ~frame ~quality xf paint t ->
-    prepare_path t ~quality xf path;
-    let bounds, paths = T.flush t.t in
-    let paths =
-      V.fill t.t t.b
-        ~edge_antialias:(R.antialias t.g)
-        ~fringe_width:(1.0 /. Transform.average_scale xf)
-        paths
-    in
-    R.Fill (xf, Paint.transform paint xf, frame, bounds, paths)
+  type buffer_item = {
+    paths : V.path list;
+    triangle_offset : int;
+    triangle_count  : int;
+  }
 
-let typeset typesetter contents : shape =
-  fun ~frame ~quality xf paint t ->
-    R.String (xf, Paint.transform {paint with Paint.image = None} xf, frame, typesetter, contents)
+  type prepared_node =
+    (* Base cases *)
+    | PFill   of buffer_item
+    | PStroke of buffer_item * float
+    | PString of buffer_item * Wall_tex.t
+    | PNone
+    (* Recursive cases *)
+    | PXform  of prepared_node * transform
+    | PPaint  of prepared_node * Wall_tex.t paint
+    | PFrame  of prepared_node * frame
+    | PSeq    of prepared_node * prepared_node
 
-let task_is_done = function
-  | Node {child=Done} | Group {child=Done} | Done -> true
-  | _ -> false
+  let is_convex = function
+    | [path] -> path.V.convex
+    | _ -> false
 
-let task_add prepare = function
-  | Leaf -> assert false
-  | Node {sibling=Done} | Group {sibling=Done} | Done ->
-    invalid_arg "Wall_shape.task: frame already flushed"
-  | Node n ->
-    let node = Node {sibling = n.child; child=Leaf; prepare} in
-    n.child <- node; node
-  | Group n ->
-    let node = Node {sibling = n.child; child=Leaf; prepare} in
-    n.child <- node; node
+  let push_4 b f0 f1 f2 f3 =
+    let data = B.data b and c = B.alloc b 4 in
+    data.{c + 0} <- f0;
+    data.{c + 1} <- f1;
+    data.{c + 2} <- f2;
+    data.{c + 3} <- f3
 
-let task_mark_done task =
-  let rec loop = function
-    | Done | Leaf -> ()
-    | Node n ->
-      let child = n.child in
-      n.child <- Done;
-      loop child;
-      let next = n.sibling in
-      n.sibling <- Done;
-      loop next
-    | Group n ->
-      let child = n.child in
-      n.child <- Done;
-      loop child;
-      let next = n.sibling in
-      n.sibling <- Done;
-      loop next
-  in
-  loop task
-
-let task_linearize t task =
-  let rec aux t acc after = function
-    | Done -> failwith "Wall_shape.flush: frame already flushed"
-    | Leaf -> begin match after with
-        | [] -> acc
-        | x :: xs -> aux t acc xs x
+  let rec prepare t xf = function
+    (* Base cases *)
+    | None -> PNone
+    | Fill path ->
+      prepare_path t ~quality:1.0 xf path;
+      let bounds, paths = T.flush t.t in
+      let paths =
+        V.fill t.t t.b
+          ~edge_antialias:t.antialias
+          ~fringe_width:(1.0 /. Transform.average_scale xf)
+          paths
+      in
+      if is_convex paths then (
+        PFill { paths; triangle_offset = 0; triangle_count = 0 }
+      ) else (
+        let {T. minx; miny; maxx; maxy} = bounds in
+        B.reserve t.b (4 * 4);
+        let triangle_offset = B.offset t.b / 4 in
+        push_4 t.b maxx maxy 0.5 1.0;
+        push_4 t.b maxx miny 0.5 1.0;
+        push_4 t.b minx maxy 0.5 1.0;
+        push_4 t.b minx miny 0.5 1.0;
+        PFill { paths; triangle_offset; triangle_count = 4 }
+      )
+    | Stroke (path, {Outline. stroke_width; miter_limit; line_join; line_cap}) ->
+      prepare_path t ~quality:1.0 xf path;
+      let _bounds, paths = T.flush t.t in
+      let paths =
+        V.stroke t.t t.b
+          ~edge_antialias:t.antialias
+          ~fringe_width:(1.0 /. Transform.average_scale xf)
+          ~stroke_width
+          ~miter_limit
+          ~line_join
+          ~line_cap
+          paths
+      in
+      PStroke ({ paths; triangle_offset = 0; triangle_count = 6 }, stroke_width)
+    | String (x, cls) ->
+      let vbuffer = t.b in
+      let offset = B.offset vbuffer in
+      begin match cls.Typesetter.render xf x
+                    (fun q ->
+                       let open Stb_truetype in
+                       B.reserve vbuffer (6 * 4);
+                       push_4 vbuffer q.bx0 q.by0 q.s0 q.t0;
+                       push_4 vbuffer q.bx1 q.by1 q.s1 q.t1;
+                       push_4 vbuffer q.bx1 q.by0 q.s1 q.t0;
+                       push_4 vbuffer q.bx0 q.by0 q.s0 q.t0;
+                       push_4 vbuffer q.bx0 q.by1 q.s0 q.t1;
+                       push_4 vbuffer q.bx1 q.by1 q.s1 q.t1
+                    )
+        with
+        | exception _ -> PNone
+        | texture ->
+          let triangle_offset = offset / 4 in
+          let triangle_count  = (B.offset vbuffer - offset) / 4 in
+          PString ({ paths = []; triangle_offset; triangle_count; }, texture)
       end
-    | Node n ->
-      let child = n.child and next = n.sibling in
-      (*n.child <- Done;*)
-      (*n.sibling <- Done;*)
-      aux t (n.prepare t :: aux t acc [] child) after next
-    | Group ({kind = Partial | Total} as n) ->
-      let child = n.child and next = n.sibling in
-      (*n.child <- Done;*)
-      (*n.sibling <- Done;*)
-      aux t (aux t acc [] child) after next
-    | Group ({kind = Partial_after | Total_after} as n) ->
-      let child = n.child and next = n.sibling in
-      (*n.child <- Done;
-      n.sibling <- Done;*)
-      aux t acc (child :: after) next
-  in
-  aux t [] [] task
+    (* Recursive cases *)
+    | Xform  (n, xf') ->
+      let xf =
+        if xf == Transform.identity then xf'
+        else Transform.compose xf' xf
+      in
+      PXform (prepare t xf n, xf)
+    | Paint  (n, p) ->
+      PPaint (prepare t xf n, Paint.transform p xf)
+    | Frame  (n, frame) ->
+      PFrame (prepare t xf n, frame)
+    | Seq (n1, n2) ->
+      PSeq (prepare t xf n1, prepare t xf n2)
 
-let group_kind order after =
-  match order, after with
-  | `Partial, true -> Partial_after
-  | `Partial, false -> Partial
-  | `Total, true -> Total_after
-  | `Total, false -> Total
+  let rec exec t xf paint frame = function
+    | PFill { paths = [path]; triangle_offset = 0; triangle_count = 0 } ->
+      Backend.Convex_fill.prepare t.g xf Wall_tex.tex paint frame;
+      Backend.Convex_fill.draw path.V.fill_first path.V.fill_count;
+      if t.antialias then
+        Backend.Convex_fill.draw_aa path.V.stroke_first path.V.stroke_count
+    | PFill b ->
+      (* Render stencil *)
+      Backend.Fill.prepare_stencil t.g xf;
+      List.iter
+        (fun {V. fill_first; fill_count} ->
+           Backend.Fill.draw_stencil fill_first fill_count)
+        b.paths;
+      Backend.Fill.prepare_cover t.g Wall_tex.tex paint frame;
+      if t.antialias then (
+        (* Draw anti-aliased pixels *)
+        Backend.Fill.prepare_aa ();
+        List.iter
+          (fun {V. stroke_first; stroke_count} ->
+             Backend.Fill.draw_aa stroke_first stroke_count)
+          b.paths;
+      );
+      (* Cover *)
+      Backend.Fill.finish_and_cover b.triangle_offset b.triangle_count
+    | PStroke (b, width) when t.stencil_strokes ->
+      (* Fill the stroke base without overlap *)
+      Backend.Stencil_stroke.prepare_stencil
+        t.g xf Wall_tex.tex paint frame width;
+      List.iter
+        (fun {V. stroke_first; stroke_count} ->
+           Backend.Stencil_stroke.draw_stencil stroke_first stroke_count)
+        b.paths;
+      (* Draw anti-aliased pixels. *)
+      Backend.Stencil_stroke.prepare_aa
+        t.g Wall_tex.tex paint frame width;
+      List.iter
+        (fun {V. stroke_first; stroke_count} ->
+           Backend.Stencil_stroke.draw_aa stroke_first stroke_count)
+        b.paths;
+      (*  Clear stencil buffer. *)
+      Backend.Stencil_stroke.prepare_clear ();
+      List.iter
+        (fun {V. stroke_first; stroke_count} ->
+           Backend.Stencil_stroke.draw_clear stroke_first stroke_count)
+        b.paths;
+      Backend.Stencil_stroke.finish ()
+    | PStroke (b, width) ->
+      (*  Draw Strokes *)
+      Backend.Direct_stroke.prepare
+        t.g xf Wall_tex.tex paint frame width;
+      List.iter
+        (fun {V. stroke_first; stroke_count} ->
+           Backend.Direct_stroke.draw stroke_first stroke_count)
+        b.paths
+    | PString (b, tex) ->
+      Backend.Triangles.prepare t.g xf Wall_tex.tex
+        {paint with Paint.image = Some tex} frame;
+      Backend.Triangles.draw b.triangle_offset b.triangle_count
+    | PNone -> ()
+    (* Recursive cases *)
+    | PXform  (n, xf)    ->
+      Backend.set_reversed xf;
+      exec t xf paint frame n
+    | PPaint  (n, paint) -> exec t xf paint frame n
+    | PFrame  (n, frame) -> exec t xf paint frame n
+    | PSeq    (n1, n2) ->
+      exec t xf paint frame n1;
+      exec t xf paint frame n2
 
-let new_frame ?(order=`Partial) t sz =
-  T.clear t.t;
-  B.clear t.b;
-  task_mark_done t.task;
-  let node = Group {kind = group_kind order false; sibling = Leaf; child = Leaf} in
-  t.size <- sz;
-  t.task <- node;
-  node
+  let render t ~width ~height node =
+    typesetter_prepare false 1.0 0.0 0.0 1.0 node;
+    typesetter_prepare true 1.0 0.0 0.0 1.0 node;
+    let pnode = prepare t Transform.identity node in
+    Backend.prepare t.g width height (B.sub t.b);
+    exec t Transform.identity Paint.black Frame.default pnode;
+    Backend.finish ()
+end
 
-let flush_frame t =
-  let task = t.task in
-  t.task <- Done;
-  R.render t.g t.size t.b (task_linearize t task)
+(* Nodes *)
 
-let draw task ?(frame=Frame.default) ?(quality=1.0) xf paint (shape : shape) =
-  task_add (shape ~frame ~quality xf paint) task
+type node = Render.node
 
-let group ?(order=`Partial) ?(after=false) = function
-  | Leaf | Done -> assert false
-  | Node {sibling=Done} | Group {sibling=Done} ->
-    invalid_arg "Wall_shape.task: frame already flushed"
-  | Node n ->
-    let kind = group_kind order after in
-    let node = Group {sibling = n.child; child = Leaf; kind} in
-    n.child <- node;
-    node
-  | Group n ->
-    let kind = group_kind order after in
-    let node = Group {sibling = n.child; child = Leaf; kind} in
-    n.child <- node;
-    node
+let stroke outline path : node = Render.Stroke (path, outline)
+
+let fill path = Render.Fill path
+
+let typeset typesetter contents = Render.String (contents, typesetter)
 
 (* Convenient definitions *)
 
@@ -487,5 +557,17 @@ let simple_text ?(halign=`LEFT) ?(valign=`BASELINE) font ~x ~y str =
   in
   typeset typesetter (font, Gg.P2.v x y, str)
 
-let draw' task ?frame ?quality xf paint shape =
-  ignore (draw task ?frame ?quality xf paint shape : task)
+let render t ~width ~height node =
+  T.clear t.t;
+  B.clear t.b;
+  Render.render t ~width ~height node
+
+let paint paint node = Render.Paint (node, paint)
+let transform xf node = Render.Xform (node, xf)
+let frame fr node = Render.Frame (node, fr)
+let impose n1 n2 = Render.Seq (n1, n2)
+let rec seq = function
+  | [] -> Render.None
+  | [x] -> x
+  | x :: xs -> impose x (seq xs)
+let none = Render.None
