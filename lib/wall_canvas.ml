@@ -319,12 +319,13 @@ module Render = struct
     (* Recursive cases *)
     | Xform  of node * transform
     | Paint  of node * Wall_tex.t paint
-    | Frame  of node * frame
+    | Scissor of node * Gg.box2 * [`Set | `Reset | `Intersect]
+    | Alpha  of node * float
     | Seq    of node * node
 
   let rec typesetter_prepare bake xx xy yx yy = function
     | None -> ()
-    | Paint (n, _) | Frame (n, _) ->
+    | Paint (n, _) | Alpha (n, _) | Scissor (n, _, _) ->
       typesetter_prepare bake xx xy yx yy n
     | Seq (n1, n2) ->
       typesetter_prepare bake xx xy yx yy n1;
@@ -358,7 +359,8 @@ module Render = struct
     (* Recursive cases *)
     | PXform  of prepared_node * transform
     | PPaint  of prepared_node * Wall_tex.t paint
-    | PFrame  of prepared_node * frame
+    | PScissor of prepared_node * Gg.box2 * [`Set | `Reset | `Intersect]
+    | PAlpha  of prepared_node * float
     | PSeq    of prepared_node * prepared_node
 
   let is_convex = function
@@ -440,8 +442,10 @@ module Render = struct
       PXform (prepare t xf n, xf)
     | Paint  (n, p) ->
       PPaint (prepare t xf n, Paint.transform p xf)
-    | Frame  (n, frame) ->
-      PFrame (prepare t xf n, frame)
+    | Scissor (n, box, action) ->
+      PScissor (prepare t xf n, box, action)
+    | Alpha (n, a) ->
+      PAlpha (prepare t xf n, a)
     | Seq (n1, n2) ->
       PSeq (prepare t xf n1, prepare t xf n2)
 
@@ -505,14 +509,29 @@ module Render = struct
       Backend.Triangles.draw b.triangle_offset b.triangle_count
     | PNone -> ()
     (* Recursive cases *)
-    | PXform  (n, xf)    ->
+    | PXform (n, xf)    ->
       Backend.set_reversed xf;
       exec t xf paint frame n
-    | PPaint  (n, paint) -> exec t xf paint frame n
-    | PFrame  (n, frame) -> exec t xf paint frame n
-    | PSeq    (n1, n2) ->
+    | PPaint (n, paint) -> exec t xf paint frame n
+    | PScissor (n, box, `Set) ->
+      let x = Gg.Box2.minx box in
+      let y = Gg.Box2.miny box in
+      let w = Gg.Box2.w box in
+      let h = Gg.Box2.h box in
+      exec t xf paint (Wall.Frame.set_scissor ~x ~y ~w ~h xf frame) n
+    | PScissor (n, box, `Intersect) ->
+      let x = Gg.Box2.minx box in
+      let y = Gg.Box2.miny box in
+      let w = Gg.Box2.w box in
+      let h = Gg.Box2.h box in
+      exec t xf paint (Wall.Frame.intersect_scissor ~x ~y ~w ~h xf frame) n
+    | PScissor  (n, _, `Reset) ->
+      exec t xf paint (Wall.Frame.reset_scissor frame) n
+    | PSeq (n1, n2) ->
       exec t xf paint frame n1;
       exec t xf paint frame n2
+    | PAlpha (n, alpha) ->
+      exec t xf paint {frame with Frame.alpha} n
 
   let render t ~width ~height node =
     typesetter_prepare false 1.0 0.0 0.0 1.0 node;
@@ -564,10 +583,13 @@ let render t ~width ~height node =
 
 let paint paint node = Render.Paint (node, paint)
 let transform xf node = Render.Xform (node, xf)
-let frame fr node = Render.Frame (node, fr)
 let impose n1 n2 = Render.Seq (n1, n2)
 let rec seq = function
   | [] -> Render.None
   | [x] -> x
   | x :: xs -> impose x (seq xs)
 let none = Render.None
+let scissor box node = Render.Scissor (node, box, `Set)
+let reset_scissor node = Render.Scissor (node, Gg.Box2.empty, `Reset)
+let intersect_scissor box node = Render.Scissor (node, box, `Intersect)
+let alpha a node = Render.Alpha (node, a)

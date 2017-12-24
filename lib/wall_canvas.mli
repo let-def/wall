@@ -85,7 +85,10 @@ val typeset : ('a, Wall_tex.t) typesetter -> 'a -> node
 
 val paint : Wall_tex.t Paint.t -> node -> node
 val transform : Transform.t -> node -> node
-val frame : frame -> node -> node
+val scissor : Gg.box2 -> node -> node
+val reset_scissor : node -> node
+val intersect_scissor : Gg.box2 -> node -> node
+val alpha : float -> node -> node
 val none : node
 val impose : node -> node -> node
 val seq : node list -> node
