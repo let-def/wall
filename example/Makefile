@@ -1,3 +1,3 @@
-all:
-	$(MAKE) -C ../ blemish.exe
-	../_build/default/example/blemish.exe 2
+blemish.exe example.exe:
+	$(MAKE) -C ../ $@
+	../_build/default/example/$@ 2

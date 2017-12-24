@@ -26,7 +26,7 @@ module Fill : sig
   val prepare_stencil : t -> Transform.t -> unit
   val draw_stencil : first:int -> count:int -> unit
 
-  val prepare_cover : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> float -> unit
+  val prepare_cover : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> unit
 
   val prepare_aa : unit -> unit
   val draw_aa : first:int -> count:int -> unit
@@ -35,7 +35,7 @@ module Fill : sig
 end
 
 module Convex_fill : sig
-  val prepare : t -> Transform.t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> float -> unit
+  val prepare : t -> Transform.t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> unit
 
   val draw : first:int -> count:int -> unit
   val draw_aa : first:int -> count:int -> unit

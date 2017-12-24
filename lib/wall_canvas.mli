@@ -78,82 +78,26 @@ end
 type path
 val path : (Path.ctx -> unit) -> path
 
-(** A shape is made by stroking or filling a path, or by typesetting content.
-    Stroke takes one more argument to describe the style of lines. *)
-type shape
-val stroke : outline -> path -> shape
-val fill : path -> shape
-val typeset : ('a, Wall_tex.t) typesetter -> 'a -> shape
+type node
+val stroke : outline -> path -> node
+val fill : path -> node
+val typeset : ('a, Wall_tex.t) typesetter -> 'a -> node
 
-(** {0 Drawing tasks}
-
-    To get something to the screen, a shape has to be scheduled from drawing.
-    Scheduling is done by creating tasks.
-
-    The initial task is obtained by starting a new frame.  Then new tasks can
-    be scheduled by either [draw] and [group] primitives.
-    These primitives take the task to start from as argument: when this task is
-    done, the renderer will pick one of the task that was scheduled after.
-
-    Thus, the tasks can describe a partial order of things to render.
-    A group of tasks can be defined either as "total" or "partial":
-    - in total mode, drawing happen in the same order the functions are called,
-    - in partial mode, the renderer will chose an ordering that is more
-      efficient for the GPU while respecting the partial order that was given.
-*)
-
-type task
-type order = [ `Partial | `Total ]
-
-(** [draw task ?frame ?quality transform paint shape] schedule a drawing task.
-
-    After [task] is done, [shape] will drawn with style [paint] and under the
-    transformation described by [transform].
-
-    The optional [frame] argument allows to clip the rendering.
-    The [quality] argument is used together with the scale factor of
-    [transform] to compute a [Path.level_of_detail].
-*)
-val draw : task -> ?frame:frame -> ?quality:float
-  -> transform -> Wall_tex.t paint -> shape
-  -> task
-
-(** [group ?order ?after task] create a new group of tasks to be scheduled
-    after [task].
-
-    If [order] is [`PARTIAL], the tasks of this group won't have a particular
-    order between each other.
-    If [order] is [`TOTAL], the tasks of this group will be drawn in the order
-    of the calls.
-
-    If [after] is [true], the group will be drawn after any tasks (including
-    other groups) that were added to [task].
-*)
-val group : ?order:order -> ?after:bool -> task -> task
+val paint : Wall_tex.t Paint.t -> node -> node
+val transform : Transform.t -> node -> node
+val frame : frame -> node -> node
+val none : node
+val impose : node -> node -> node
+val seq : node list -> node
 
 (** {0 Drawing context}
 
     A drawing context allocates the OpenGL resources that are necessary to
-    render contents.  All tasks are drawn to a drawing context.  It should
-    created once and reused for each frame.
-
-    At the beginning of a frame, a new task is created.  Operations that should
-    be rendered on this frame should be scheduled after this task.
-
-    When you are done with the frame, call [flush_frame] to send all the data
-    to the GPU.
-    Note: this might change in the future, the renderer might just wait for a
-      big enough batch to be available before sending it to the GPU in a
-      streaming fashion.
-
-    Tasks are valid for a single frame only, they are short-lived.  Reusing the
-    tasks from a frame after it is rendered will raise an Invalid_argument
-    exception.
+    render contents.
 *)
-
 type t
 
-(* [create ~antialias] initializes a renderer.
+(* [create ~antialias] creates a new drawing context.
    [antialias] determines whether antialiasing is on or off, though it is
    strongly recommended to turn it on.
 *)
@@ -162,35 +106,23 @@ val create : ?antialias:bool -> ?stencil_strokes:bool -> unit -> t
 (* [delete t] release all the resources associated to the drawing context [t].
    It is incorrect to use this context after the call.
 
-   A context can be retain a lot of memory, so it is good practice to release
-   it if you are no longer going to use it.
+   A context can retain a lot of memory, so it is good practice to release it
+   if you are no longer going to use it.
 *)
 val delete : t -> unit
 
-(* Schedule a new task on the drawing context.
-
-   Tasks from a previous frame are invalidated. *)
-val new_frame : ?order:order -> t -> Gg.size2 -> task
-
-(* Flush the content of the frame to the GPU.
-   All tasks that were scheduled to the last [new_frame] calls will be
-   rendered.  *)
-val flush_frame : t -> unit
+val render : t -> width:float -> height:float -> node -> unit
 
 (** {0 Convenient definitions} *)
 
 val pi : float
 
-val stroke_path : outline -> (Path.ctx -> unit) -> shape
+val stroke_path : outline -> (Path.ctx -> unit) -> node
 
-val fill_path : (Path.ctx -> unit) -> shape
+val fill_path : (Path.ctx -> unit) -> node
 
-val draw' : task -> ?frame:frame -> ?quality:float -> transform -> Wall_tex.t paint -> shape -> unit
-
-(** [simple_text ?frame ?halign ?valign font ~x ~y text]
-
-    Creates a shape that represents [text] drawn using [font] at position
-    [x,y].
+(** [simple_text ?frame ?halign ?valign font ~x ~y text] is a shape that
+    represents [text] drawn using [font] at position [x,y].
 
     The optionals [halign] and [valign] arguments describe how the text should
     be positioned w.r.t point [x,y].
@@ -208,10 +140,8 @@ val draw' : task -> ?frame:frame -> ?quality:float -> transform -> Wall_tex.t pa
     - [`BASELINE], the baseline of the text will be at coordinate [y], most
       letters will be above but descender (as in letters such as y, p, j, q)
       will go below.
-
-    The optional [frame] argument allows to clip the rendering.
 *)
 val simple_text
   :  ?halign:[`LEFT | `CENTER | `RIGHT]
   -> ?valign:[`TOP | `MIDDLE | `BOTTOM | `BASELINE]
-  -> font -> x:float -> y:float -> string -> shape
+  -> font -> x:float -> y:float -> string -> node

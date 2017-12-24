@@ -99,10 +99,10 @@ module Transform = struct
                    x20 = 0.0; x21 = 0.0;
                  }
 
-  let average_scale {x00; x10; x01; x11; _} =
-    let sx = sqrt (x00 *. x00 +. x10 *. x10) in
-    let sy = sqrt (x01 *. x01 +. x11 *. x11) in
-    (sx +. sy) *. 0.5
+  let scale_x t = sqrt (t.x00 *. t.x00 +. t.x10 *. t.x10)
+  let scale_y t = sqrt (t.x01 *. t.x01 +. t.x11 *. t.x11)
+
+  let average_scale t = (scale_x t +. scale_y t) *. 0.5
 
   let translation ~x ~y = {identity with x20 = x; x21 = y}
 
@@ -470,8 +470,8 @@ end
 
 module Typesetter = struct
   type ('input, 'image) t = {
-    allocate : Transform.t -> 'input -> unit;
-    bake     : Transform.t -> 'input -> unit;
+    allocate : sx:float -> sy:float -> 'input -> unit;
+    bake     : sx:float -> sy:float -> 'input -> unit;
     render   : Transform.t -> 'input -> (Stb_truetype.char_quad -> unit) -> 'image;
   }
 
