@@ -470,13 +470,12 @@ end
 
 module Typesetter = struct
   type ('input, 'image) t = {
-    allocate : sx:float -> sy:float -> 'input -> unit;
-    bake     : sx:float -> sy:float -> 'input -> unit;
+    allocate : sx:float -> sy:float -> 'input -> (unit -> unit) option;
     render   : Transform.t -> 'input -> (Stb_truetype.char_quad -> unit) -> 'image;
   }
 
-  let make ~allocate ~bake ~render =
-    { allocate; bake; render }
+  let make ~allocate ~render =
+    { allocate; render }
 end
 
 type transform = Transform.t

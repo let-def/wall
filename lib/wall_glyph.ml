@@ -41,6 +41,11 @@ type font_buffer = {
   mutable room : unit Maxrects.t;
 }
 
+let null_cell =
+  let null_box = {Stb_truetype. x0 = 0; y0 = 0; x1 = 0; y1 = 0} in
+  {Glyph. box = null_box; uv = null_box;
+   glyph = Stb_truetype.invalid_glyph; frame = -1 }
+
 type font_stash = {
   font_glyphes: (Glyph.key, Glyph.cell) Hashtbl.t;
   font_todo: (Glyph.key, unit) Hashtbl.t;
@@ -81,6 +86,8 @@ let render_glyphes stash xform (font,pos,text) (push : _ -> unit) =
     | cp ->
       let key = key cp in
       match Hashtbl.find stash.font_glyphes key with
+      | cell when cell == null_cell ->
+        last := Stb_truetype.invalid_glyph
       | { Glyph. box; uv; glyph; _ } ->
         let open Stb_truetype in
         xoff := !xoff + Stb_truetype.kern_advance glyphes !last glyph;
@@ -122,23 +129,6 @@ let box_offset {Stb_truetype. x0; x1; y0; y1 } p =
 
 let frame_nr = ref 0
 
-let allocate_glyphes stash ~sx ~sy (font,_pos,text) =
-  let _, key = Glyph.key sx sy font in
-  let r = ref 0 in
-  let len = String.length text in
-  let frame_nr = !frame_nr in
-  while !r < len do
-    match utf8_decode r text with
-    | -1 -> ()
-    | cp ->
-      let key = key cp in
-      match Hashtbl.find stash.font_glyphes key with
-      | cache -> cache.Glyph.frame <- frame_nr
-      | exception Not_found ->
-        if not (Hashtbl.mem stash.font_todo key) then
-          Hashtbl.add stash.font_todo key ()
-  done
-
 let bake_glyphs t =
   let buffer = match t.font_buffer with
     | Some buffer -> buffer
@@ -149,7 +139,9 @@ let bake_glyphs t =
   in
   let add_box ({ Glyph. scale; cp; ttf; blur } as key) () boxes =
     match Stb_truetype.find ttf cp with
-    | None -> boxes
+    | None ->
+      Hashtbl.add t.font_glyphes key null_cell;
+      boxes
     | Some glyph ->
       let scale = Stb_truetype.scale_for_pixel_height ttf (float scale /. 10.0) in
       let box = Stb_truetype.get_glyph_bitmap_box ttf glyph ~scale_x:scale ~scale_y:scale in
@@ -210,10 +202,33 @@ let bake_glyphs t =
   Wall_tex.update buffer.texture buffer.image;
   incr frame_nr
 
+let has_todo stash = Hashtbl.length stash.font_todo > 0
+
+let allocate_glyphes stash ~sx ~sy (font,_pos,text) =
+  let _, key = Glyph.key sx sy font in
+  let r = ref 0 in
+  let len = String.length text in
+  let frame_nr = !frame_nr in
+  let has_todo0 = has_todo stash in
+  while !r < len do
+    match utf8_decode r text with
+    | -1 -> ()
+    | cp ->
+      let key = key cp in
+      match Hashtbl.find stash.font_glyphes key with
+      | cache -> cache.Glyph.frame <- frame_nr
+      | exception Not_found ->
+        if not (Hashtbl.mem stash.font_todo key) then
+          (prerr_endline ("new glyph: " ^ string_of_int cp);
+           Hashtbl.add stash.font_todo key ())
+  done;
+  if not has_todo0 && (has_todo stash) then
+    Some (fun () -> bake_glyphs stash)
+  else
+    None
+
 let typesetter () =
   let stash = font_stash () in
   Wall.Typesetter.make
     ~allocate:(allocate_glyphes stash)
-    ~bake:(fun ~sx:_ ~sy:_ _ ->
-        if Hashtbl.length stash.font_todo > 0 then bake_glyphs stash)
     ~render:(render_glyphes stash)

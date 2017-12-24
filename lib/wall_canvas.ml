@@ -323,26 +323,24 @@ module Render = struct
     | Alpha  of node * float
     | Seq    of node * node
 
-  let rec typesetter_prepare bake xx xy yx yy = function
-    | None -> ()
+  let rec typesetter_prepare acc xx xy yx yy = function
+    | None | Fill _ | Stroke _ -> acc
     | Paint (n, _) | Alpha (n, _) | Scissor (n, _, _) ->
-      typesetter_prepare bake xx xy yx yy n
+      typesetter_prepare acc xx xy yx yy n
     | Seq (n1, n2) ->
-      typesetter_prepare bake xx xy yx yy n1;
-      typesetter_prepare bake xx xy yx yy n2
-    | Fill _ | Stroke _ -> ()
+      let acc = typesetter_prepare acc xx xy yx yy n1 in
+      typesetter_prepare acc xx xy yx yy n2
     | Xform (n, xf) ->
-      typesetter_prepare bake
+      typesetter_prepare acc
         (Transform.px xf xx xy) (Transform.py xf xx xy)
         (Transform.px xf yx yy) (Transform.py xf yx yy)
         n
     | String (x, cls) ->
       let sx = sqrt (xx *. xx +. xy *. xy) in
       let sy = sqrt (yx *. yx +. yy *. yy) in
-      if bake then
-        cls.bake ~sx ~sy x
-      else
-        cls.allocate ~sx ~sy x
+      match cls.allocate ~sx ~sy x with
+      | None -> acc
+      | Some f -> (f :: acc)
 
   type buffer_item = {
     paths : V.path list;
@@ -538,13 +536,28 @@ module Render = struct
       exec t xf paint {frame with Frame.alpha} n
 
   let render t ~width ~height node =
-    typesetter_prepare false 1.0 0.0 0.0 1.0 node;
-    typesetter_prepare true 1.0 0.0 0.0 1.0 node;
+    let time0 = Backend.time_spent () and mem0 = Backend.memory_spent () in
+    let todo = typesetter_prepare [] 1.0 0.0 0.0 1.0 node in
+    let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in
+    List.iter (fun f -> f ()) todo;
+    let time2 = Backend.time_spent () and mem2 = Backend.memory_spent () in
+    (*for i = 0 to 99 do ignore (prepare t Transform.identity node) done;*)
     let pnode = prepare t Transform.identity node in
+    let time3 = Backend.time_spent () and mem3 = Backend.memory_spent () in
     Backend.prepare t.g width height (B.sub t.b);
     xform_outofdate := true;
     exec t Transform.identity Paint.black Frame.default pnode;
-    Backend.finish ()
+    Backend.finish ();
+    let time4 = Backend.time_spent () and mem4 = Backend.memory_spent () in
+    let row name t0 t1 m0 m1 =
+      Printf.printf "% 9.03f us % 9d words     %s\n" (float (t1 - t0) /. 1000.0) (m1 - m0) name
+    in
+    Printf.printf "--- new frame\n";
+    row "typeset preparation" time0 time1 mem0 mem1;
+    row (Printf.sprintf "typeset baking (%d jobs)" (List.length todo)) time1 time2 mem1 mem2;
+    row "command list preparation" time2 time3 mem2 mem3;
+    row "command list submission (GL driver)" time3 time4 mem3 mem4;
+    Printf.printf "%!"
 end
 
 (* Nodes *)

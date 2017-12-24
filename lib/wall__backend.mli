@@ -67,3 +67,6 @@ end
 val prepare : t -> width:float -> height:float -> Wall__geom.B.bigarray -> unit
 val set_xform : t -> transform -> unit
 val finish : unit -> unit
+
+val memory_spent: unit -> int
+val time_spent: unit -> int
