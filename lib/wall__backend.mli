@@ -23,7 +23,7 @@ module Texture : sig
 end
 
 module Fill : sig
-  val prepare_stencil : t -> Transform.t -> unit
+  val prepare_stencil : t -> unit
   val draw_stencil : first:int -> count:int -> unit
 
   val prepare_cover : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> unit
@@ -35,14 +35,14 @@ module Fill : sig
 end
 
 module Convex_fill : sig
-  val prepare : t -> Transform.t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> unit
+  val prepare : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> unit
 
   val draw : first:int -> count:int -> unit
   val draw_aa : first:int -> count:int -> unit
 end
 
 module Stencil_stroke : sig
-  val prepare_stencil : t -> Transform.t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> float -> unit
+  val prepare_stencil : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> float -> unit
   val draw_stencil : first:int -> count:int -> unit
 
   val prepare_aa : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> float -> unit
@@ -55,15 +55,15 @@ module Stencil_stroke : sig
 end
 
 module Direct_stroke : sig
-  val prepare : t -> Transform.t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> float -> unit
+  val prepare : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> float -> unit
   val draw : first:int -> count:int -> unit
 end
 
 module Triangles : sig
-  val prepare : t -> Transform.t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> unit
+  val prepare : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> unit
   val draw : first:int -> count:int -> unit
 end
 
 val prepare : t -> width:float -> height:float -> Wall__geom.B.bigarray -> unit
-val set_reversed : Transform.t -> unit
+val set_xform : t -> transform -> unit
 val finish : unit -> unit

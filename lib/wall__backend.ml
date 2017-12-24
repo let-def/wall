@@ -302,9 +302,8 @@ module Shader = struct
 end
 
 module Fill = struct
-  let prepare_stencil t xform =
+  let prepare_stencil t =
     (* Draw shapes *)
-    Shader.set_xform t xform;
     wall_gl_fill_prepare_stencil ();
     (* set bindpoint for solid loc *)
     Shader.set_simple t (-1.0) `SIMPLE
@@ -323,8 +322,7 @@ module Fill = struct
 end
 
 module Convex_fill = struct
-  let prepare t xform prj paint frame =
-    Shader.set_xform t xform;
+  let prepare t prj paint frame =
     Shader.set_tool t prj paint frame 1.0 (-1.0)
 
   let draw = wall_gl_draw_triangle_fan
@@ -333,10 +331,9 @@ module Convex_fill = struct
 end
 
 module Stencil_stroke = struct
-  let prepare_stencil t xform prj paint frame width =
+  let prepare_stencil t prj paint frame width =
     (*  Fill the stroke base without overlap *)
     wall_gl_stencil_stroke_prepare_stencil ();
-    Shader.set_xform t xform;
     Shader.set_tool t prj paint frame width (1.0 -. 0.5 /. 255.0)
 
   let draw_stencil = wall_gl_draw_triangle_strip
@@ -355,16 +352,14 @@ module Stencil_stroke = struct
 end
 
 module Direct_stroke = struct
-  let prepare t xform prj paint frame width =
-    Shader.set_xform t xform;
+  let prepare t prj paint frame width =
     Shader.set_tool t prj paint frame width (-1.0)
 
   let draw = wall_gl_draw_triangle_strip
 end
 
 module Triangles = struct
-  let prepare t xform prj paint frame =
-    Shader.set_xform t xform;
+  let prepare t prj paint frame =
     Shader.set_tool t ~typ:`IMG prj paint frame 1.0 (-1.0)
 
   let draw = wall_gl_draw_triangles
@@ -383,6 +378,10 @@ let set_reversed xform =
   let reversing = reversing_transform xform in
   if reversing <> !gl_reversed then
     force_set_reversed reversing
+
+let set_xform t xf =
+  Shader.set_xform t xf;
+  set_reversed xf
 
 let prepare t ~width ~height data =
   gl_reversed       := false;

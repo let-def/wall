@@ -449,15 +449,20 @@ module Render = struct
     | Seq (n1, n2) ->
       PSeq (prepare t xf n1, prepare t xf n2)
 
+  let xform_outofdate = ref true
+
   let rec exec t xf paint frame = function
+    | PFill _ | PStroke _ | PString _ when
+        !xform_outofdate &&
+        (Backend.set_xform t.g xf; xform_outofdate := false; false) -> assert false
     | PFill { paths = [path]; triangle_offset = 0; triangle_count = 0 } ->
-      Backend.Convex_fill.prepare t.g xf Wall_tex.tex paint frame;
+      Backend.Convex_fill.prepare t.g Wall_tex.tex paint frame;
       Backend.Convex_fill.draw path.V.fill_first path.V.fill_count;
       if t.antialias then
         Backend.Convex_fill.draw_aa path.V.stroke_first path.V.stroke_count
     | PFill b ->
       (* Render stencil *)
-      Backend.Fill.prepare_stencil t.g xf;
+      Backend.Fill.prepare_stencil t.g;
       List.iter
         (fun {V. fill_first; fill_count} ->
            Backend.Fill.draw_stencil fill_first fill_count)
@@ -475,8 +480,7 @@ module Render = struct
       Backend.Fill.finish_and_cover b.triangle_offset b.triangle_count
     | PStroke (b, width) when t.stencil_strokes ->
       (* Fill the stroke base without overlap *)
-      Backend.Stencil_stroke.prepare_stencil
-        t.g xf Wall_tex.tex paint frame width;
+      Backend.Stencil_stroke.prepare_stencil t.g Wall_tex.tex paint frame width;
       List.iter
         (fun {V. stroke_first; stroke_count} ->
            Backend.Stencil_stroke.draw_stencil stroke_first stroke_count)
@@ -497,21 +501,21 @@ module Render = struct
       Backend.Stencil_stroke.finish ()
     | PStroke (b, width) ->
       (*  Draw Strokes *)
-      Backend.Direct_stroke.prepare
-        t.g xf Wall_tex.tex paint frame width;
+      Backend.Direct_stroke.prepare t.g Wall_tex.tex paint frame width;
       List.iter
         (fun {V. stroke_first; stroke_count} ->
            Backend.Direct_stroke.draw stroke_first stroke_count)
         b.paths
     | PString (b, tex) ->
-      Backend.Triangles.prepare t.g xf Wall_tex.tex
+      Backend.Triangles.prepare t.g Wall_tex.tex
         {paint with Paint.image = Some tex} frame;
       Backend.Triangles.draw b.triangle_offset b.triangle_count
     | PNone -> ()
     (* Recursive cases *)
     | PXform (n, xf)    ->
-      Backend.set_reversed xf;
-      exec t xf paint frame n
+      xform_outofdate := true;
+      exec t xf paint frame n;
+      xform_outofdate := true
     | PPaint (n, paint) -> exec t xf paint frame n
     | PScissor (n, box, `Set) ->
       let x = Gg.Box2.minx box in
@@ -538,6 +542,7 @@ module Render = struct
     typesetter_prepare true 1.0 0.0 0.0 1.0 node;
     let pnode = prepare t Transform.identity node in
     Backend.prepare t.g width height (B.sub t.b);
+    xform_outofdate := true;
     exec t Transform.identity Paint.black Frame.default pnode;
     Backend.finish ()
 end
