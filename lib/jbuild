@@ -3,7 +3,7 @@
 (library
  ((name wall)
   (flags (-w -40 -w +26))
-  (ocamlopt_flags (-inline 10))
+  (ocamlopt_flags (-unsafe -inline 10))
   (public_name wall)
   (wrapped false)
   (c_names (wall__stubs))
