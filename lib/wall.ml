@@ -469,9 +469,20 @@ module Font = struct
 end
 
 module Typesetter = struct
+  type quadbuf = {
+    mutable x0: float;
+    mutable y0: float;
+    mutable x1: float;
+    mutable y1: float;
+    mutable u0: float;
+    mutable v0: float;
+    mutable u1: float;
+    mutable v1: float;
+  }
+
   type ('input, 'image) t = {
     allocate : sx:float -> sy:float -> 'input -> (unit -> unit) option;
-    render   : Transform.t -> 'input -> (Stb_truetype.char_quad -> unit) -> 'image;
+    render   : Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> 'image;
   }
 
   let make ~allocate ~render =

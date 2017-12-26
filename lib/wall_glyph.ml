@@ -65,7 +65,7 @@ let place factor = function
   | `Exact -> (fun x -> x)
   | `Align -> align_place factor
 
-let render_glyphes stash xform (font,pos,text) (push : _ -> unit) =
+let render_glyphes stash xform (font,pos,text) quad ~(push : unit -> unit) =
   let x = Gg.P2.x pos and y = Gg.P2.y pos in
   let glyphes = font.Font.glyphes in
   let scale = Stb_truetype.scale_for_pixel_height glyphes font.Font.size in
@@ -96,15 +96,16 @@ let render_glyphes stash xform (font,pos,text) (push : _ -> unit) =
           "character { x0 = %d; y0 = %d; x1 = %d; y1 = %d }, factor %.02fx\n%!"
           box.x0 box.y0 box.x1 box.y1 factor;*)
         let x = place (x +. float !xoff *. scale) in
-        let bx0 = x +. float box.x0 *. factor in
-        let by0 = y +. float box.y0 *. factor in
-        let bx1 = x +. float box.x1 *. factor in
-        let by1 = y +. float box.y1 *. factor in
-        let s0 = float uv.x0 /. 1024.0 in
-        let t0 = float uv.y0 /. 1024.0 in
-        let s1 = float uv.x1 /. 1024.0 in
-        let t1 = float uv.y1 /. 1024.0 in
-        push {Stb_truetype. bx0; by0; bx1; by1; s0; t0; s1; t1 };
+        let open Typesetter in
+        quad.x0 <- x +. float box.x0 *. factor;
+        quad.y0 <- y +. float box.y0 *. factor;
+        quad.x1 <- x +. float box.x1 *. factor;
+        quad.y1 <- y +. float box.y1 *. factor;
+        quad.u0 <- float uv.x0 /. 1024.0;
+        quad.v0 <- float uv.y0 /. 1024.0;
+        quad.u1 <- float uv.x1 /. 1024.0;
+        quad.v1 <- float uv.y1 /. 1024.0;
+        push ();
         xoff := !xoff + Stb_truetype.glyph_advance glyphes glyph;
       | exception Not_found ->
         last := Stb_truetype.invalid_glyph
