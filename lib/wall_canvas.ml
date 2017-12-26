@@ -449,16 +449,24 @@ module Render = struct
 
   let xform_outofdate = ref true
 
+  let counter_fill = ref 0
+  let counter_convex_fill = ref 0
+  let counter_stroke = ref 0
+  let counter_opaque = ref 0
+  let counter_transparent = ref 0
+
   let rec exec t xf paint frame = function
     | PFill _ | PStroke _ | PString _ when
         !xform_outofdate &&
         (Backend.set_xform t.g xf; xform_outofdate := false; false) -> assert false
     | PFill { paths = [path]; triangle_offset = 0; triangle_count = 0 } ->
+      incr counter_convex_fill;
       Backend.Convex_fill.prepare t.g Wall_tex.tex paint frame;
       Backend.Convex_fill.draw path.V.fill_first path.V.fill_count;
       if t.antialias then
         Backend.Convex_fill.draw_aa path.V.stroke_first path.V.stroke_count
     | PFill b ->
+      incr counter_fill;
       (* Render stencil *)
       Backend.Fill.prepare_stencil t.g;
       List.iter
@@ -478,6 +486,7 @@ module Render = struct
       Backend.Fill.finish_and_cover b.triangle_offset b.triangle_count
     | PStroke (b, width) when t.stencil_strokes ->
       (* Fill the stroke base without overlap *)
+      incr counter_stroke;
       Backend.Stencil_stroke.prepare_stencil t.g Wall_tex.tex paint frame width;
       List.iter
         (fun {V. stroke_first; stroke_count} ->
@@ -498,6 +507,7 @@ module Render = struct
         b.paths;
       Backend.Stencil_stroke.finish ()
     | PStroke (b, width) ->
+      incr counter_stroke;
       (*  Draw Strokes *)
       Backend.Direct_stroke.prepare t.g Wall_tex.tex paint frame width;
       List.iter
@@ -514,7 +524,12 @@ module Render = struct
       xform_outofdate := true;
       exec t xf paint frame n;
       xform_outofdate := true
-    | PPaint (n, paint) -> exec t xf paint frame n
+    | PPaint (n, paint) ->
+      if Color.a paint.Paint.inner < 1.0 || Color.a paint.Paint.outer < 1.0 then
+        incr counter_transparent
+      else
+        incr counter_opaque;
+      exec t xf paint frame n
     | PScissor (n, box, `Set) ->
       let x = Gg.Box2.minx box in
       let y = Gg.Box2.miny box in
@@ -546,13 +561,18 @@ module Render = struct
     let time3 = Backend.time_spent () and mem3 = Backend.memory_spent () in
     Backend.prepare t.g width height (B.sub t.b);
     xform_outofdate := true;
+    counter_fill := 0;
+    counter_convex_fill := 0;
+    counter_stroke := 0;
+    counter_transparent := 0;
+    counter_opaque := 0;
     exec t Transform.identity Paint.black Frame.default pnode;
     Backend.finish ();
     let time4 = Backend.time_spent () and mem4 = Backend.memory_spent () in
     let row name t0 t1 m0 m1 =
       Printf.printf "% 9.03f us % 9d words     %s\n" (float (t1 - t0) /. 1000.0) (m1 - m0) name
     in
-    Printf.printf "--- new frame\n";
+    Printf.printf "--- new frame: %d convex fill, %d complex fill, %d stroke, %d transparent styles, %d opaque styles\n" !counter_convex_fill !counter_fill !counter_stroke !counter_transparent !counter_opaque;
     row "typeset preparation" time0 time1 mem0 mem1;
     row (Printf.sprintf "typeset baking (%d jobs)" (List.length todo)) time1 time2 mem1 mem2;
     row "command list preparation" time2 time3 mem2 mem3;
