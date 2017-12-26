@@ -365,12 +365,28 @@ module Render = struct
     | [path] -> path.V.convex
     | _ -> false
 
-  let push_4 b f0 f1 f2 f3 =
-    let data = B.data b and c = B.alloc b 4 in
-    data.{c + 0} <- f0;
-    data.{c + 1} <- f1;
-    data.{c + 2} <- f2;
-    data.{c + 3} <- f3
+  let quadbuf =
+    {Typesetter.
+      x0 = 0.0; y0 = 0.0; x1 = 0.0; y1 = 0.0;
+      u0 = 0.0; v0 = 0.0; u1 = 0.0; v1 = 0.0}
+
+  let push_quad b =
+    let d = B.data b and c = B.alloc b (6 * 4) in
+    let q = quadbuf in
+    d.{c+ 0+0}<-q.x0; d.{c+ 0+1}<-q.y0; d.{c+ 0+2}<-q.u0; d.{c+ 0+3}<-q.v0;
+    d.{c+ 4+0}<-q.x1; d.{c+ 4+1}<-q.y1; d.{c+ 4+2}<-q.u1; d.{c+ 4+3}<-q.v1;
+    d.{c+ 8+0}<-q.x1; d.{c+ 8+1}<-q.y0; d.{c+ 8+2}<-q.u1; d.{c+ 8+3}<-q.v0;
+    d.{c+12+0}<-q.x0; d.{c+12+1}<-q.y0; d.{c+12+2}<-q.u0; d.{c+12+3}<-q.v0;
+    d.{c+16+0}<-q.x0; d.{c+16+1}<-q.y1; d.{c+16+2}<-q.u0; d.{c+16+3}<-q.v1;
+    d.{c+20+0}<-q.x1; d.{c+20+1}<-q.y1; d.{c+20+2}<-q.u1; d.{c+20+3}<-q.v1
+
+  let push_quad_strip b =
+    let d = B.data b and c = B.alloc b (4 * 4) in
+    let q = quadbuf in
+    d.{c+ 0+0}<-q.x1; d.{c+ 0+1}<-q.y1; d.{c+ 0+2}<-q.u1; d.{c+ 0+3}<-q.v1;
+    d.{c+ 4+0}<-q.x1; d.{c+ 4+1}<-q.y0; d.{c+ 4+2}<-q.u1; d.{c+ 4+3}<-q.v0;
+    d.{c+ 8+0}<-q.x0; d.{c+ 8+1}<-q.y1; d.{c+ 8+2}<-q.u0; d.{c+ 8+3}<-q.v1;
+    d.{c+12+0}<-q.x0; d.{c+12+1}<-q.y0; d.{c+12+2}<-q.u0; d.{c+12+3}<-q.v0
 
   let rec prepare t xf = function
     (* Base cases *)
@@ -390,10 +406,12 @@ module Render = struct
         let {T. minx; miny; maxx; maxy} = bounds in
         B.reserve t.b (4 * 4);
         let triangle_offset = B.offset t.b / 4 in
-        push_4 t.b maxx maxy 0.5 1.0;
-        push_4 t.b maxx miny 0.5 1.0;
-        push_4 t.b minx maxy 0.5 1.0;
-        push_4 t.b minx miny 0.5 1.0;
+        let q = quadbuf in
+        q.x0 <- minx; q.y0 <- miny;
+        q.x1 <- maxx; q.y1 <- maxy;
+        q.u0 <-  0.5; q.v0 <-  1.0;
+        q.u1 <-  0.5; q.v1 <-  1.0;
+        push_quad_strip t.b;
         PFill { paths; triangle_offset; triangle_count = 4 }
       )
     | Stroke (path, {Outline. stroke_width; miter_limit; line_join; line_cap}) ->
@@ -413,17 +431,10 @@ module Render = struct
     | String (x, cls) ->
       let vbuffer = t.b in
       let offset = B.offset vbuffer in
-      begin match cls.Typesetter.render xf x
-                    (fun q ->
-                       let open Stb_truetype in
+      begin match cls.Typesetter.render xf x quadbuf
+                    (fun () ->
                        B.reserve vbuffer (6 * 4);
-                       push_4 vbuffer q.bx0 q.by0 q.s0 q.t0;
-                       push_4 vbuffer q.bx1 q.by1 q.s1 q.t1;
-                       push_4 vbuffer q.bx1 q.by0 q.s1 q.t0;
-                       push_4 vbuffer q.bx0 q.by0 q.s0 q.t0;
-                       push_4 vbuffer q.bx0 q.by1 q.s0 q.t1;
-                       push_4 vbuffer q.bx1 q.by1 q.s1 q.t1
-                    )
+                       push_quad vbuffer)
         with
         | exception _ -> PNone
         | texture ->
