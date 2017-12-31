@@ -29,31 +29,33 @@ let f = (try float_of_string Sys.argv.(1) with _ -> 1.0)
 let fw = int_of_float (f *. float w)
 let fh = int_of_float (f *. float h)
 
+let b2 x y w h = Gg.Box2.v (Gg.P2.v x y) (Gg.Size2.v w h)
+
 let render context sw sh t =
   let lw = float w in
   let lh = float h in
   let pw = lw *. f *. sw in
   let ph = lh *. f *. sh in
-  let vg = C.new_frame context (Gg.V2.v pw ph) in
-  C.draw' vg
-    Transform.identity
-    (Paint.rgba 0.0 1.0 0.0 0.5)
-    (C.stroke_path {Outline.default with Outline.stroke_width = 60.0} @@
-     fun p -> P.rect p 300.0 100.0 50.0 50.0);
-  let character =
-    Char.chr @@
-    let x = int_of_float (t *. 10.0) mod 62 in
-    if x < 10 then Char.code '0' + x
-    else if x < 36 then Char.code 'a' + x - 10
-    else Char.code 'A' + x - 36
-  in
-  let size = 1.0 +. sin (t /. 10.0) *. 10.0 in
-  let size = size *. size in
-  C.text' vg ~halign:`CENTER ~valign:`MIDDLE ~x:100.0 ~y:100.0
-    Transform.identity Paint.white
-    (Font.make (Lazy.force font_sans) ~size)
-    (String.make 1 character);
-  C.flush_frame context
+  C.render context ~width:pw ~height:ph
+    (C.seq [
+        (*C.simple_text ~x:10.0 ~y:0.0
+          (Font.make (Lazy.force font_sans) ~size:60.0)
+          "Settings";*)
+        C.transform (Transform.translation 40.0 80.0) (
+          C.transform (Transform.rotation (-. C.pi /. 4.0)) (
+            C.impose
+              (C.stroke_path (Outline.make ~width:10.0 ()) @@ fun p ->
+               P.move_to p 00.0 50.0;
+               P.line_to p 0.0 0.0;
+               P.line_to p 50.0 0.0)
+              (C.scissor (b2 0.0 0.0 1000.0 1000.0) (
+                 (C.transform (Transform.rotation (C.pi /. 4.0))) (
+                    (C.simple_text ~x:(-. 60.0 +. 100.0 *. sin (2.0 *. t +. C.pi /. 2.0)) ~y:0.0 ~valign:`MIDDLE
+                       (Font.make (Lazy.force font_sans) ~size:60.0 ~placement:`Exact)
+                       "Settings"))))
+          )
+        )
+      ])
 
 open Tgles2
 
@@ -79,7 +81,7 @@ let main () =
       match Sdl.gl_create_context w with
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
       | Ok ctx ->
-        let context = C.create_gl ~antialias:false ~stencil_strokes:false () in
+        let context = C.create ~antialias:false ~stencil_strokes:false () in
         let quit = ref false in
         let event = Sdl.Event.create () in
         while not !quit do

@@ -1,4 +1,4 @@
-TARGETS=blemish.exe example.exe
+TARGETS=blemish.exe example.exe minimal.exe
 
 $(TARGETS):
 	$(MAKE) -C ../ $@

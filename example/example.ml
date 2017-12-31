@@ -837,8 +837,16 @@ let render context sw sh t =
   let height = lh *. f *. sh in
   let _, (x, y) = Sdl.get_mouse_state () in
   let x = float x /. f and y = float y /. f in
+  let demo = draw_demo x y lw lh t in
   C.render context ~width ~height
-    (C.transform (Transform.scale (sw *. f) (sh *. f)) (draw_demo x y lw lh t))
+    (C.seq [
+        C.transform (Transform.scale (sw *. f /. 2.0) (sh *. f)) demo;
+        C.transform (Transform.scale (sw *. f /. 1.8) (sh *. f)) demo;
+        C.transform (Transform.scale (sw *. f /. 1.6) (sh *. f)) demo;
+        C.transform (Transform.scale (sw *. f /. 1.4) (sh *. f)) demo;
+        C.transform (Transform.scale (sw *. f /. 1.2) (sh *. f)) demo;
+        C.transform (Transform.scale (sw *. f) (sh *. f)) demo;
+      ])
 
 open Tgles2
 

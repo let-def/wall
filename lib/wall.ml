@@ -141,6 +141,9 @@ module Transform = struct
   let px t x y = (x *. t.x00 +. y *. t.x10 +. t.x20)
   let py t x y = (x *. t.x01 +. y *. t.x11 +. t.x21)
 
+  let linear_px t x y = (x *. t.x00 +. y *. t.x10)
+  let linear_py t x y = (x *. t.x01 +. y *. t.x11)
+
   let point t p =
     let x = P2.x p and y = P2.y p in
     P2.v (px t x y) (py t x y)

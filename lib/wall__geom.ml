@@ -42,8 +42,23 @@ module T = struct
   let flag_bevel       = 0x4
   let flag_innerbevel  = 0x8
 
+  type fbuffer =
+    (float, Bigarray.float32_elt, Bigarray.c_layout) BA.t
+
+  type u8buffer =
+    (int, Bigarray.int8_unsigned_elt, Bigarray.c_layout) BA.t
+
   module T : sig
-    type t
+    type t = {
+      mutable dist_tol : float;
+      mutable tess_tol : float;
+      mutable observed_tol : bool;
+      mutable paths: path list;
+      mutable point: int;
+      mutable points: fbuffer;
+      mutable points_flags: u8buffer;
+      mutable points_aux: fbuffer;
+    }
 
     val make : unit -> t
     val clear : t -> unit
@@ -87,12 +102,6 @@ module T = struct
     val aux_dmx : t -> int -> float
     val aux_dmy : t -> int -> float
   end = struct
-
-    type fbuffer =
-      (float, Bigarray.float32_elt, Bigarray.c_layout) BA.t
-
-    type u8buffer =
-      (int, Bigarray.int8_unsigned_elt, Bigarray.c_layout) BA.t
 
     type t = {
       mutable dist_tol : float;
@@ -410,7 +419,7 @@ module T = struct
       end
     done
 
-  let bezier_to1 t ~x1 ~y1 ~x2 ~y2 ~x3 ~y3 =
+  let bezier_to t ~x1 ~y1 ~x2 ~y2 ~x3 ~y3 =
     bezier_buf.{0} <- (last_x t);
     bezier_buf.{1} <- (last_y t);
     bezier_buf.{2} <- x1;
@@ -422,56 +431,6 @@ module T = struct
     bezier_loop t;
     T.set_last_flags t flag_corner
 
-
-  let rec bezier_to t x1 y1 x2 y2 x3 y3 x4 y4 level flags =
-    if level <= 10 then begin
-      let  x12 = ( x1 +.  x2) *. 0.5 in
-      let  y12 = ( y1 +.  y2) *. 0.5 in
-      let  x23 = ( x2 +.  x3) *. 0.5 in
-      let  y23 = ( y2 +.  y3) *. 0.5 in
-      let  x34 = ( x3 +.  x4) *. 0.5 in
-      let  y34 = ( y3 +.  y4) *. 0.5 in
-      let x123 = (x12 +. x23) *. 0.5 in
-      let y123 = (y12 +. y23) *. 0.5 in
-
-      (*Printf.printf "((d2:%0.2f + d3:%0.2f)*(d2 + d3) < ctx->tessTol:%0.2f * (dx:%0.2f*dx + dy:%0.2f*dy))\n"
-        d2 d3 (T.tess_tol t) dx dy;*)
-      if level > 2 &&
-        let dx = x4 -. x1 in
-        let dy = y4 -. y1 in
-        let d2 = abs_float ((x2 -. x4) *. dy -. (y2 -. y4) *. dx) in
-        let d3 = abs_float ((x3 -. x4) *. dy -. (y3 -. y4) *. dx) in
-        (d2 +. d3) *. (d2 +. d3) <= T.tess_tol t *. (dx *. dx +. dy *. dy) then
-        T.add_point t x4 y4 flags
-      else begin
-        let  x234 = ( x23 +.  x34) *. 0.5 in
-        let  y234 = ( y23 +.  y34) *. 0.5 in
-        let x1234 = (x123 +. x234) *. 0.5 in
-        let y1234 = (y123 +. y234) *. 0.5 in
-        bezier_to t    x1    y1  x12  y12 x123 y123 x1234 y1234 (level+1) 0;
-        bezier_to t x1234 y1234 x234 y234  x34  y34    x4    y4 (level+1) flags
-      end
-    end else (
-      Printexc.print_raw_backtrace stderr (Printexc.get_callstack 100);
-      print_endline "skipped"
-    )
-
-  let bezier_to2 t ~x1 ~y1 ~x2 ~y2 ~x3 ~y3 =
-    (*let count = T.count t in*)
-    bezier_to t (last_x t) (last_y t) x1 y1 x2 y2 x3 y3 0 flag_corner
-    (*Printf.printf "bezier_count: %d\n" (T.count t - count)*)
-
-  let bezier_to =
-    match Sys.getenv "ALTBEZIER" with
-    | "2" ->
-      prerr_endline "BEZIER_TO2";
-      bezier_to2
-    | "1" ->
-      prerr_endline "BEZIER_TO1";
-      bezier_to1
-    | _ -> exit 1
-
-
   (* Calculate which joins needs extra vertices to append, and gather vertex count. *)
   let calculate_joins t w line_join miter_limit p =
     let iw = if w > 0.0 then 1.0 /. w else 0.0 in
@@ -482,8 +441,8 @@ module T = struct
     let last = first + p.path_count - 1 in
     for p1 = first to last do
       let p0 = if p1 = first then last else p1 - 1 in
-      let dx0 = T.aux_dx t p0 and dy0 = T.aux_dy t p0 in
-      let dx1 = T.aux_dx t p1 and dy1 = T.aux_dy t p1 in
+      let dx0 = t.T.points_aux.{5 * p0 + 0} and dy0 = t.T.points_aux.{5 * p0 + 1} in
+      let dx1 = t.T.points_aux.{5 * p1 + 0} and dy1 = t.T.points_aux.{5 * p1 + 1} in
 
       let dmx = (dy0 +. dy1) *. 0.5 in
       let dmy = -. (dx0 +. dx1) *. 0.5 in
@@ -493,7 +452,8 @@ module T = struct
         if dmr2 <= 1e-6 then 1.0 else
           minf (1.0 /. dmr2) 600.0
       in
-      T.aux_set_dm t p1 (dmx *. scale) (dmy *. scale);
+      t.T.points_aux.{5 * p1 + 3} <- (dmx *. scale);
+      t.T.points_aux.{5 * p1 + 4} <- (dmy *. scale);
 
       (*Printf.printf "calculate_joins: %f %f\n" (dmx *. scale) (dmy *. scale);*)
       (*Printf.printf "dmr2: %f\n" dmr2;*)
@@ -509,7 +469,8 @@ module T = struct
       in
 
       let flags =
-        let dlen0 = T.aux_dlen t p0 and dlen1 = T.aux_dlen t p1 in
+        let dlen0 = t.points_aux.{5 * p0 + 2}
+        and dlen1 = t.points_aux.{5 * p1 + 2} in
         if maxf dlen0 dlen1 > w then
           let limit = maxf 1.01 (minf dlen0 dlen1 *. iw) in
           (*Printf.printf "limit: %f, dlen0: %f, dlen1: %f\n" limit dlen0 dlen1;*)

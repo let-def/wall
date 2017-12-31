@@ -55,6 +55,8 @@ module Transform : sig
 
   val px : t -> float -> float -> float
   val py : t -> float -> float -> float
+  val linear_px : t -> float -> float -> float
+  val linear_py : t -> float -> float -> float
 
   val point     : t -> p2 -> p2
 end
