@@ -17,6 +17,7 @@
 *)
 
 open Gg
+open Wall_types
 
 module Color : sig
   include module type of struct include Color end
@@ -28,7 +29,7 @@ module Color : sig
 end
 
 module Transform : sig
-  type t = {
+  type t = transform = {
     x00 : float;
     x01 : float;
     x10 : float;
@@ -62,14 +63,14 @@ module Transform : sig
 end
 
 module Paint : sig
-  type 'image t = {
+  type 'texture t = 'texture paint = {
     xform   : Transform.t;
     extent  : size2;
     radius  : float;
     feather : float;
     inner   : color;
     outer   : color;
-    image   : 'image option;
+    texture : 'texture option;
   }
   val linear_gradient :
     sx:float -> sy:float ->
@@ -99,11 +100,10 @@ module Paint : sig
 end
 
 module Outline : sig
-  type solidity = [ `HOLE | `SOLID ]
   type line_cap = [ `BUTT | `ROUND | `SQUARE ]
   type line_join = [ `BEVEL | `MITER | `ROUND ]
 
-  type t = {
+  type t = outline = {
     stroke_width   : float;
     miter_limit    : float;
     line_join      : line_join;
@@ -115,9 +115,8 @@ module Outline : sig
   val make : ?miter_limit:float -> ?join:line_join -> ?cap:line_cap -> ?width:float -> unit -> t
 end
 
-
 module Frame : sig
-  type t = {
+  type t = frame = {
     xform  : Transform.t;
     extent : size2;
     alpha  : float;
@@ -136,40 +135,7 @@ module Frame : sig
   val scale     : sx:float -> sy:float -> t -> t
 end
 
-module Font : sig
-  type glyph_placement = [ `Align | `Exact ]
-
-  type t = {
-    glyphes     : Stb_truetype.t;
-    size        : float;
-    blur        : float;
-    spacing     : float;
-    line_height : float;
-    placement   : glyph_placement;
-  }
-
-  val make:
-    ?size:float -> ?blur:float -> ?spacing:float -> ?line_height:float ->
-    ?placement:glyph_placement -> Stb_truetype.t -> t
-
-  type metrics = {
-    ascent   : float;
-    descent  : float;
-    line_gap : float;
-  }
-
-  val font_metrics: t -> metrics
-
-  val text_width: t -> string -> float
-
-  type measure = {
-    width : float;
-    height : float;
-    depth : float;
-  }
-
-  val text_measure : t -> string -> measure
-end
+module Texture = Wall_texture
 
 module Typesetter : sig
   type quadbuf = {
@@ -183,28 +149,115 @@ module Typesetter : sig
     mutable v1: float;
   }
 
-  type ('input, 'image) t = {
+  type 'input t = {
     allocate : sx:float -> sy:float -> 'input -> (unit -> unit) option;
-    render   : Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> 'image;
+    render   : Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t;
   }
 
   val make
     :  allocate:(sx:float -> sy:float -> 'input -> (unit -> unit) option)
-    -> render:(Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> 'image)
-    -> ('input, 'image) t
+    -> render:(Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t)
+    -> 'input t
 end
 
-type transform = Transform.t
-type 'image paint = 'image Paint.t
-type ('input, 'image) typesetter = ('input, 'image) Typesetter.t
-type font = Font.t
-type outline = Outline.t
-type frame = Frame.t
-type color = Color.t
+module Path : sig
+  type ctx
 
-val utf8_decode : int ref -> string -> int
-(** [utf8_decode r s] returns the unicode codepoint starting at offset [!r],
-    advancing [r] to the beginning of next codepoint ot [String.length s] when
-    the end is reached.
-    If the string was not properly encoded, [-1] is returned and [r] is
-    advanced to hopefully resume parsing. *)
+  val level_of_detail : ctx -> float
+
+  val set_winding : ctx -> [< `HOLE | `SOLID | `CW | `CCW ] -> unit
+
+  val move_to : ctx -> x:float -> y:float -> unit
+
+  val line_to : ctx -> x:float -> y:float -> unit
+
+  val bezier_to : ctx -> c1x:float -> c1y:float ->
+    c2x:float -> c2y:float ->
+      x:float   -> y:float   -> unit
+
+  val quad_to : ctx -> cx:float -> cy:float ->
+    x:float  -> y:float  -> unit
+
+  val rect : ctx -> x:float -> y:float ->
+    w:float -> h:float -> unit
+
+  val round_rect : ctx ->
+    x:float -> y:float -> w:float -> h:float -> r:float -> unit
+
+  val round_rect' : ctx ->
+    x:float -> y:float -> w:float -> h:float ->
+    rtl:float -> rtr:float -> rbl:float -> rbr:float -> unit
+
+  val circle : ctx -> cx:float -> cy:float -> r:float -> unit
+
+  val ellipse : ctx -> cx:float -> cy:float ->
+    rx:float -> ry:float -> unit
+
+  val arc : ctx -> cx:float -> cy:float -> r:float ->
+    a0:float -> a1:float -> [< `CW | `CCW ] -> unit
+
+  val arc_to : ctx -> x1:float -> y1:float ->
+    x2:float -> y2:float -> r:float -> unit
+
+  val close : ctx -> unit
+
+  type t
+  val make : (ctx -> unit) -> t
+end
+
+module Image : sig
+  type t
+
+  (* Primitive images *)
+  val empty : t
+  val stroke : Outline.t -> Path.t -> t
+  val fill : Path.t -> t
+  val typeset : 'input Typesetter.t -> 'input -> t
+
+  (* Composite images *)
+  val paint : Texture.t Paint.t -> t -> t
+  val transform : Transform.t -> t -> t
+  val scissor : ?transform:Transform.t -> Gg.box2 -> t -> t
+  val reset_scissor : t -> t
+  val intersect_scissor : ?transform:Transform.t -> Gg.box2 -> t -> t
+  val alpha : float -> t -> t
+  val impose : t -> t -> t
+  val seq : t list -> t
+
+  (* Convenience functions *)
+  val stroke_path : Outline.t -> (Path.ctx -> unit) -> t
+  val fill_path : (Path.ctx -> unit) -> t
+end
+
+module Renderer : sig
+  (** A renderer allocates the OpenGL resources that are necessary to
+      render contents.  *)
+  type t
+
+  (** [create ~antialias] creates a new drawing context.
+      [antialias] determines whether antialiasing is on or off, though it is
+      strongly recommended to turn it on.  *)
+  val create : ?antialias:bool -> ?stencil_strokes:bool -> unit -> t
+
+  (** Calling [delete t] releases all the resources associated to the drawing
+      context [t].  It is incorrect to use this context after the call.
+
+      A context can retain a lot of memory, so it is good practice to release
+      it if you are no longer going to use it.  *)
+  val delete : t -> unit
+
+  val render : t -> width:float -> height:float -> Image.t -> unit
+end
+
+type color     = Color.t
+type transform = Transform.t
+type outline   = Outline.t
+type frame     = Frame.t
+type path      = Path.t
+type texture   = Texture.t
+type image     = Image.t
+type renderer  = Renderer.t
+type 'texture paint = 'texture Paint.t
+type 'input typesetter = 'input Typesetter.t
+
+val pi : float

@@ -1,4 +1,4 @@
-open Wall
+open Wall_types
 type t
 
 val create : antialias:bool -> t
@@ -26,7 +26,7 @@ module Fill : sig
   val prepare_stencil : t -> unit
   val draw_stencil : first:int -> count:int -> unit
 
-  val prepare_cover : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> unit
+  val prepare_cover : t -> ('tex -> Texture.specification) -> 'tex paint -> frame -> unit
 
   val prepare_aa : unit -> unit
   val draw_aa : first:int -> count:int -> unit
@@ -35,17 +35,17 @@ module Fill : sig
 end
 
 module Convex_fill : sig
-  val prepare : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> unit
+  val prepare : t -> ('tex -> Texture.specification) -> 'tex paint -> frame -> unit
 
   val draw : first:int -> count:int -> unit
   val draw_aa : first:int -> count:int -> unit
 end
 
 module Stencil_stroke : sig
-  val prepare_stencil : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> float -> unit
+  val prepare_stencil : t -> ('tex -> Texture.specification) -> 'tex paint -> frame -> float -> unit
   val draw_stencil : first:int -> count:int -> unit
 
-  val prepare_aa : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> float -> unit
+  val prepare_aa : t -> ('tex -> Texture.specification) -> 'tex paint -> frame -> float -> unit
   val draw_aa : first:int -> count:int -> unit
 
   val prepare_clear : unit -> unit
@@ -55,12 +55,12 @@ module Stencil_stroke : sig
 end
 
 module Direct_stroke : sig
-  val prepare : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> float -> unit
+  val prepare : t -> ('tex -> Texture.specification) -> 'tex paint -> frame -> float -> unit
   val draw : first:int -> count:int -> unit
 end
 
 module Triangles : sig
-  val prepare : t -> ('tex -> Texture.specification) -> 'tex Paint.t -> Frame.t -> unit
+  val prepare : t -> ('tex -> Texture.specification) -> 'tex paint -> frame -> unit
   val draw : first:int -> count:int -> unit
 end
 

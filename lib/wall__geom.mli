@@ -123,8 +123,8 @@ module V : sig
     edge_antialias:bool ->
     fringe_width:float ->
     stroke_width:float ->
-    line_join:Wall.Outline.line_join ->
-    line_cap:Wall.Outline.line_cap ->
+    line_join:[ `BEVEL | `MITER | `ROUND ] ->
+    line_cap:[ `BUTT | `ROUND | `SQUARE ] ->
     miter_limit:float ->
     T.path list -> path list
 end

@@ -17,8 +17,17 @@
 *)
 
 open Gg
+open Wall_types
+
+let pi = 3.14159265358979323846264338327
+let kappa90 = 0.5522847493
 
 module Utils = struct
+  let maxf x y : float = if x >= y then x else y
+  let minf x y : float = if x <= y then x else y
+  let maxi x y : int   = if x >= y then x else y
+  let mini x y : int   = if x <= y then x else y
+
   let clampi ~min ~max x : int =
     if x < min then min else if x > max then max else x
 
@@ -85,7 +94,7 @@ module Color = struct
 end
 
 module Transform = struct
-  type t = {
+  type t = transform = {
     x00 : float;
     x01 : float;
     x10 : float;
@@ -99,8 +108,8 @@ module Transform = struct
                    x20 = 0.0; x21 = 0.0;
                  }
 
-  let scale_x t = sqrt (t.x00 *. t.x00 +. t.x10 *. t.x10)
-  let scale_y t = sqrt (t.x01 *. t.x01 +. t.x11 *. t.x11)
+  let scale_x t = Utils.norm t.x00 t.x10
+  let scale_y t = Utils.norm t.x01 t.x11
 
   let average_scale t = (scale_x t +. scale_y t) *. 0.5
 
@@ -128,6 +137,9 @@ module Transform = struct
     }
 
   let compose a b =
+    if a == identity then b
+    else if b == identity then a
+    else
     {
       x00 = a.x00 *. b.x00 +. a.x01 *. b.x10;
       x10 = a.x10 *. b.x00 +. a.x11 *. b.x10;
@@ -153,19 +165,21 @@ module Transform = struct
     t.x00 t.x01 t.x10 t.x11 t.x20 t.x21
 
   let inverse t =
-    let det = t.x00 *. t.x11 -. t.x10 *. t.x01 in
-    if det > -1e-6 && det < 1e-6 then
-      identity
+    if t == identity then identity
     else
-      let invdet = 1.0 /. det in
-      {
-        x00 =    t.x11 *. invdet;
-        x10 = -. t.x10 *. invdet;
-        x20 =    (t.x10 *. t.x21 -. t.x11 *. t.x20) *. invdet;
-        x01 = -. t.x01 *. invdet;
-        x11 =    t.x00 *. invdet;
-        x21 =    (t.x01 *. t.x20 -. t.x00 *. t.x21) *. invdet;
-      }
+      let det = t.x00 *. t.x11 -. t.x10 *. t.x01 in
+      if det > -1e-6 && det < 1e-6 then
+        identity
+      else
+        let invdet = 1.0 /. det in
+        {
+          x00 =    t.x11 *. invdet;
+          x10 = -. t.x10 *. invdet;
+          x20 =    (t.x10 *. t.x21 -. t.x11 *. t.x20) *. invdet;
+          x01 = -. t.x01 *. invdet;
+          x11 =    t.x00 *. invdet;
+          x21 =    (t.x01 *. t.x20 -. t.x00 *. t.x21) *. invdet;
+        }
 
   let translate ~x ~y xform =
     compose (translation ~x ~y) xform
@@ -178,11 +192,10 @@ module Transform = struct
 end
 
 module Outline = struct
-  type solidity = [ `HOLE | `SOLID ]
   type line_join = [ `BEVEL | `MITER | `ROUND ]
   type line_cap = [ `BUTT | `ROUND | `SQUARE ]
 
-  type t = {
+  type t = outline = {
     stroke_width   : float;
     miter_limit    : float;
     line_join      : line_join;
@@ -201,14 +214,14 @@ module Outline = struct
 end
 
 module Paint = struct
-  type 'image t = {
+  type 'texture t = 'texture paint = {
     xform   : Transform.t;
     extent  : size2;
     radius  : float;
     feather : float;
     inner   : color;
     outer   : color;
-    image   : 'image option;
+    texture   : 'texture option;
   }
 
   let dump oc t =
@@ -238,7 +251,7 @@ module Paint = struct
       feather = max 1.0 d;
       inner;
       outer;
-      image = None;
+      texture = None;
     }
 
   let radial_gradient ~cx ~cy ~inr ~outr ~inner ~outer =
@@ -251,7 +264,7 @@ module Paint = struct
       feather = max 1.0 f;
       inner;
       outer;
-      image = None;
+      texture = None;
     }
 
   let box_gradient ~x ~y ~w ~h ~r ~f ~inner ~outer =
@@ -263,7 +276,7 @@ module Paint = struct
       feather = max 1.0 f;
       inner;
       outer;
-      image = None;
+      texture = None;
     }
 
   let image_pattern p s ~angle ~alpha image =
@@ -274,14 +287,14 @@ module Paint = struct
       extent = s;
       radius = 0.0;
       feather = 0.0;
-      image = Some image;
+      texture = Some image;
       inner = c;
       outer = c;
     }
 
   let color color =
     { xform = Transform.identity; radius = 0.0; feather = 1.0;
-      extent = Size2.zero; image = None;
+      extent = Size2.zero; texture = None;
       inner = color; outer = color }
 
   let rgba r g b a = color (Gg.V4.v r g b a)
@@ -299,7 +312,7 @@ module Paint = struct
 end
 
 module Frame = struct
-  type t = {
+  type t = frame = {
     xform  : Transform.t;
     extent : size2;
     alpha  : float;
@@ -354,122 +367,7 @@ module Frame = struct
     }
 end
 
-(* utf-8 decoding dfa, from http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ *)
-
-let utf8d =
-  "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
-   \000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
-   \000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
-   \000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
-   \001\001\001\001\001\001\001\001\001\001\001\001\001\001\001\001\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\
-   \007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\
-   \b\b\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\
-   \n\003\003\003\003\003\003\003\003\003\003\003\003\004\003\003\
-   \011\006\006\006\005\b\b\b\b\b\b\b\b\b\b\b\
-   \000\001\002\003\005\b\007\001\001\001\004\006\001\001\001\001\
-   \001\001\001\001\001\001\001\001\001\001\001\001\001\001\001\001\001\000\001\001\001\001\001\000\001\000\001\001\001\001\001\001\
-   \001\002\001\001\001\001\001\002\001\002\001\001\001\001\001\001\001\001\001\001\001\001\001\002\001\001\001\001\001\001\001\001\
-   \001\002\001\001\001\001\001\001\001\002\001\001\001\001\001\001\001\001\001\001\001\001\001\003\001\003\001\001\001\001\001\001\
-   \001\003\001\001\001\001\001\003\001\003\001\001\001\001\001\001\001\003\001\001\001\001\001\001\001\001\001\001\001\001\001\001"
-
-let utf8_decode index str =
-  let codep = ref 0 in
-  let state = ref 0 in
-  let len = String.length str in
-  let index' = ref !index in
-  while (
-    !index' < len &&
-    let c = Char.code (String.get str !index') in
-    let t = Char.code (String.unsafe_get utf8d c) in
-    codep := (if !state <> 0 then (c land 0x3f) lor (!codep lsl 6) else (0xff lsr t) land c);
-    state := Char.code (String.unsafe_get utf8d (256 + !state * 16 + t) );
-    incr index';
-    !state > 1
-  ) do ()
-  done;
-  index := !index';
-  if !state = 0 then !codep else (-1)
-
-module Font = struct
-  type glyph_placement = [ `Align | `Exact ]
-
-  type t = {
-    glyphes: Stb_truetype.t;
-    size: float;
-    blur: float;
-    spacing: float;
-    line_height: float;
-    placement   : glyph_placement;
-  }
-
-  let make ?(size=16.0) ?(blur=0.0) ?(spacing=0.0) ?(line_height=1.0) ?(placement=`Align) glyphes =
-    { glyphes; blur; size; spacing; line_height; placement }
-
-  type metrics = {
-    ascent   : float;
-    descent  : float;
-    line_gap : float;
-  }
-
-  let font_metrics t =
-    let scale = Stb_truetype.scale_for_pixel_height t.glyphes t.size in
-    let {Stb_truetype. ascent; descent; line_gap} =
-      Stb_truetype.vmetrics t.glyphes in
-    { ascent = float ascent *. scale;
-      descent = float descent *. scale;
-      line_gap = float line_gap *. scale;
-    }
-
-  let text_width t text =
-    let len = String.length text in
-    let index = ref 0 in
-    let width = ref 0 in
-    let last = ref Stb_truetype.invalid_glyph in
-    while !index < len  do
-      match utf8_decode index text with
-      | -1 -> last := Stb_truetype.invalid_glyph
-      | cp ->
-        let glyph = Stb_truetype.get t.glyphes cp in
-        width := !width
-                 + Stb_truetype.kern_advance t.glyphes !last glyph
-                 + Stb_truetype.glyph_advance t.glyphes glyph;
-        last := glyph
-    done;
-    (float !width *. Stb_truetype.scale_for_pixel_height t.glyphes t.size)
-
-  type measure = {
-    width : float;
-    height : float;
-    depth : float;
-  }
-
-  let text_measure t text =
-    let len = String.length text in
-    let index = ref 0 in
-    let width = ref 0 in
-    let ascent = ref 0 in
-    let descent = ref 0 in
-    let maxi a b : int = if a >= b then a else b in
-    let mini a b : int = if a <= b then a else b in
-    let last = ref Stb_truetype.invalid_glyph in
-    while !index < len  do
-      match utf8_decode index text with
-      | -1 -> last := Stb_truetype.invalid_glyph
-      | cp ->
-        let glyph = Stb_truetype.get t.glyphes cp in
-        let box = Stb_truetype.glyph_box t.glyphes glyph in
-        ascent := maxi !ascent box.y1;
-        descent := mini !descent box.y0;
-        width := !width
-                 + Stb_truetype.kern_advance t.glyphes !last glyph
-                 + Stb_truetype.glyph_advance t.glyphes glyph;
-        last := glyph
-    done;
-    let scale = Stb_truetype.scale_for_pixel_height t.glyphes t.size in
-    { width  = float !width *. scale;
-      height = float !ascent *. scale;
-      depth  = float (- !descent) *. scale }
-end
+module Texture = Wall_texture
 
 module Typesetter = struct
   type quadbuf = {
@@ -483,19 +381,625 @@ module Typesetter = struct
     mutable v1: float;
   }
 
-  type ('input, 'image) t = {
+  type 'input t = {
     allocate : sx:float -> sy:float -> 'input -> (unit -> unit) option;
-    render   : Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> 'image;
+    render   : Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t;
   }
 
   let make ~allocate ~render =
     { allocate; render }
 end
 
+module Path = struct
+  open Wall__geom
+
+
+  type ctx = T.t
+
+  let level_of_detail t =
+    T.tess_tol t *. 4.0
+
+  let set_winding t w =
+    T.set_winding t (match w with `CW | `HOLE -> T.CW | `SOLID | `CCW -> T.CCW)
+
+  let close t =
+    T.close_path t
+
+  let move_to t ~x ~y =
+    T.move_to t x y
+
+  let line_to t ~x ~y =
+    T.line_to t x y
+
+  let bezier_to t ~c1x ~c1y ~c2x ~c2y ~x ~y =
+    T.bezier_to t
+    ~x1:(c1x)
+    ~y1:(c1y)
+    ~x2:(c2x)
+    ~y2:(c2y)
+    ~x3:(x)
+    ~y3:(y)
+
+  let quad_to t ~cx ~cy ~x ~y =
+    let x0 = T.last_x t in
+    let y0 = T.last_y t in
+    T.bezier_to t
+    ~x1:(x0 +. 2.0 /. 3.0 *. (cx -. x0))
+    ~y1:(y0 +. 2.0 /. 3.0 *. (cy -. y0))
+    ~x2:(x +. 2.0 /. 3.0 *. (cx -. x))
+    ~y2:(y +. 2.0 /. 3.0 *. (cy -. y))
+    ~x3:x ~y3:y
+
+  let rect t ~x ~y ~w ~h =
+    move_to t ~x ~y;
+    line_to t ~x ~y:(y +. h);
+    line_to t ~x:(x +. w) ~y:(y +. h);
+    line_to t ~x:(x +. w) ~y;
+    close t
+
+  let round_rect' t ~x ~y ~w ~h ~rtl ~rtr ~rbl ~rbr =
+    if rtl +. rtr +. rbl +. rbr < 0.4 *. level_of_detail t then
+      rect t ~x ~y ~w ~h
+    else
+      let hw = abs_float w *. 0.5 and hh = abs_float h *. 0.5 in
+      begin
+        let rx = copysign (Utils.minf rbl hw) w in
+        let ry = copysign (Utils.minf rbl hh) h in
+        move_to t ~x ~y:(y +. h -. ry);
+        bezier_to t
+          ~c1x:x ~c1y:(y +. h -. ry *. (1.0 -. kappa90))
+          ~c2x:(x +. rx *. (1.0 -. kappa90)) ~c2y:(y +. h)
+          ~x:(x +. rx) ~y:(y +. h);
+      end;
+      begin
+        let rx = copysign (Utils.minf rbr hw) w in
+        let ry = copysign (Utils.minf rbr hh) h in
+        line_to t ~x:(x +. w -. rx) ~y:(y +. h);
+        bezier_to t
+          ~c1x:(x +. w -. rx *. (1.0 -. kappa90)) ~c1y:(y +. h)
+          ~c2x:(x +. w) ~c2y:(y +. h -. ry *. (1.0 -. kappa90))
+          ~x:(x +. w) ~y:(y +. h -. ry);
+      end;
+      begin
+        let rx = copysign (Utils.minf rtr hw) w in
+        let ry = copysign (Utils.minf rtr hh) h in
+        line_to t ~x:(x +. w) ~y:(y +. ry);
+        bezier_to t
+          ~c1x:(x +. w) ~c1y:(y +. ry *. (1.0 -. kappa90))
+          ~c2x:(x +. w -. rx *. (1.0 -. kappa90)) ~c2y:y
+          ~x:(x +. w -. rx) ~y;
+      end;
+      begin
+        let rx = copysign (Utils.minf rtl hw) w in
+        let ry = copysign (Utils.minf rtl hh) h in
+        line_to t ~x:(x +. rx) ~y;
+        bezier_to t
+          ~c1x:(x +. rx *. (1.0 -. kappa90)) ~c1y:y
+          ~c2x:x ~c2y:(y +. ry *. (1.0 -. kappa90))
+          ~x ~y:(y +. ry);
+      end;
+      close t
+
+  let round_rect t ~x ~y ~w ~h ~r =
+    if r < 0.1 *. level_of_detail t then
+      rect t ~x ~y ~w ~h
+    else begin
+      let rx = copysign (Utils.minf r (abs_float w *. 0.5)) w in
+      let ry = copysign (Utils.minf r (abs_float h *. 0.5)) h in
+      move_to t ~x ~y:(y +. ry);
+      line_to t ~x ~y:(y +. h -. ry);
+      bezier_to t
+        ~c1x:x ~c1y:(y +. h -. ry *. (1.0 -. kappa90))
+        ~c2x:(x +. rx *. (1.0 -. kappa90)) ~c2y:(y +. h)
+        ~x:(x +. rx) ~y:(y +. h);
+      line_to t ~x:(x +. w -. rx) ~y:(y +. h);
+      bezier_to t
+        ~c1x:(x +. w -. rx *. (1.0 -. kappa90)) ~c1y:(y +. h)
+        ~c2x:(x +. w) ~c2y:(y +. h -. ry *. (1.0 -. kappa90))
+        ~x:(x +. w) ~y:(y +. h -. ry);
+      line_to t ~x:(x +. w) ~y:(y +. ry);
+      bezier_to t
+        ~c1x:(x +. w) ~c1y:(y +. ry *. (1.0 -. kappa90))
+        ~c2x:(x +. w -. rx *. (1.0 -. kappa90)) ~c2y:y
+        ~x:(x +. w -. rx) ~y;
+      line_to t ~x:(x +. rx) ~y;
+      bezier_to t
+        ~c1x:(x +. rx *. (1.0 -. kappa90)) ~c1y:y
+        ~c2x:x ~c2y:(y +. ry *. (1.0 -. kappa90))
+        ~x ~y:(y +. ry);
+      close t
+    end
+
+  let ellipse t ~cx ~cy ~rx ~ry =
+    move_to t ~x:(cx -. rx) ~y:cy;
+    bezier_to t
+      ~c1x:(cx -. rx) ~c1y:(cy +. ry *. kappa90)
+      ~c2x:(cx -. rx *. kappa90) ~c2y:(cy +. ry) ~x:cx ~y:(cy +. ry);
+    bezier_to t
+      ~c1x:(cx +. rx *. kappa90) ~c1y:(cy +. ry)
+      ~c2x:(cx +. rx) ~c2y:(cy +. ry *. kappa90) ~x:(cx +. rx) ~y:cy;
+    bezier_to t
+      ~c1x:(cx  +. rx) ~c1y:(cy -. ry *. kappa90)
+      ~c2x:(cx +. rx *. kappa90) ~c2y:(cy -. ry) ~x:cx ~y:(cy -. ry);
+    bezier_to t
+      ~c1x:(cx  -. rx *. kappa90) ~c1y:(cy -. ry)
+      ~c2x:(cx -. rx) ~c2y:(cy -. ry *. kappa90) ~x:(cx -. rx) ~y:cy;
+    close t
+
+  let circle t ~cx ~cy ~r =
+    ellipse t ~cx ~cy ~rx:r ~ry:r
+
+  let arc t ~cx ~cy ~r ~a0 ~a1 dir =
+    let da = (a1 -. a0) in
+    let da =
+      if abs_float da >= 2.0 *. pi then
+        match dir with
+        | `CW  -> 2.0 *. pi
+        | `CCW -> -. 2.0 *. pi
+      else
+        match dir with
+        | `CW  -> if da < 0.0 then da +. 2.0 *. pi else da
+        | `CCW -> if da > 0.0 then da -. 2.0 *. pi else da
+    in
+    let ndivs =
+      Utils.clampi ~min:1 ~max:5
+        (int_of_float (abs_float da /. (pi *. 0.5) +. 0.5))
+    in
+    (* Split arc into max 90 degree segments. *)
+    let kappa =
+      let hda = (da /. float ndivs) /. 2.0 in
+      abs_float (4.0 /. 3.0 *. (1.0 -. cos hda) /. sin hda)
+    in
+    let kappa = match dir with
+      | `CW  -> kappa
+      | `CCW -> -.kappa
+    in
+    let coords i =
+      let a = a0 +. da *. (float i /. float ndivs) in
+      let dx = cos a and dy = sin a in
+      let x = cx +. dx *. r and y = cy +. dy *. r in
+      let tanx = -. dy *. r *. kappa and tany = dx *. r *. kappa in
+      x, y, tanx, tany
+    in
+    let rec step (px, py, ptanx, ptany) i =
+      if i > ndivs then () else
+        let (x, y, tanx, tany) as coords = coords i in
+        bezier_to t
+          ~c1x:(px +. ptanx) ~c1y:(py +. ptany)
+          ~c2x:(x -. tanx) ~c2y:(y -. tany)
+          ~x ~y;
+        step coords (i + 1)
+    in
+    let (x, y, _, _) as coords = coords 0 in
+    if T.has_path t then
+      line_to t ~x ~y
+    else
+      move_to t ~x ~y;
+    step coords 1
+
+  let dist_pt_seg x y px py qx qy =
+    let pqx = qx -. px in
+    let pqy = qy -. py in
+    let dx = x -. px in
+    let dy = y -. py in
+    let d = pqx *. pqx +. pqy *. pqy in
+    let t = pqx *. dx +. pqy *. dy in
+    let t =
+      if t < 0.0 then 0.0 else
+        let t = if d > 0.0 then t /. d else t in
+        if t > 1.0 then 1.0 else t
+    in
+    let dx = px +. t *. pqx -. x in
+    let dy = py +. t *. pqy -. y in
+    (dx *. dx +. dy *. dy)
+
+  let arc_to t ~x1 ~y1 ~x2 ~y2 ~r =
+    if T.has_path t then (
+      let tol = T.tess_tol t in
+      let x0 = T.last_x t and y0 = T.last_y t in
+      (* Handle degenerate cases. *)
+      if r < tol ||
+         (abs_float (x1 -. x0) < tol && abs_float (y1 -. y0) < tol) ||
+         (abs_float (x2 -. x1) < tol && abs_float (y2 -. y1) < tol) ||
+         (dist_pt_seg x1 y1 x0 y0 x2 y2 < tol *. tol)
+      then line_to t x1 y1
+      else
+        let dx0 = x0 -. x1 and dy0 = y0 -. y1 in
+        let dx1 = x2 -. x1 and dy1 = y2 -. y1 in
+        let n0 = 1. /. sqrt (dx0 *. dx0 +. dy0 *. dy0) in
+        let n1 = 1. /. sqrt (dx1 *. dx1 +. dy1 *. dy1) in
+        let dx0 = dx0 *. n0 and dy0 = dy0 *. n0 in
+        let dx1 = dx1 *. n1 and dy1 = dy1 *. n1 in
+        let a = acos (dx0 *. dx1 +. dy0 *. dy1) in
+        let d = r /. tan (a /. 2.0) in
+        (* printf("a=%f° d=%f\n", a/NVG_PI*180.0f, d); *)
+        if d > 10000.0
+        then line_to t x1 y1
+        else (
+          let cross = dx1 *. dy0 -. dx0 *. dy1 in
+          if cross > 0.0
+          then (
+            arc t `CW ~r
+              ~cx:(x1 +. dx0 *. d +. (dy0 *. r))
+              ~cy:(y1 +. dy0 *. d -. (dx0 *. r))
+              ~a0:(atan2 dx0 (-.dy0)) ~a1:(atan2 (-.dx1) dy1)
+              (* printf("CW c=(%f, %f) a0=%f° a1=%f°\n", cx, cy, a0/NVG_PI*180.0f, a1/NVG_PI*180.0f); *)
+          ) else (
+            arc t `CCW ~r
+              ~cx:(x1 +. dx0 *. d -. dy0 *. r)
+              ~cy:(y1 +. dy0 *. d +. dx0 *. r)
+              ~a0:(atan2 (-.dx0) dy0) ~a1:(atan2 dx1 (-.dy1))
+              (* printf("CCW c=(%f, %f) a0=%f° a1=%f°\n", cx, cy, a0/NVG_PI*180.0f, a1/NVG_PI*180.0f); *)
+          )
+        )
+    )
+
+  type t = { closure : (ctx -> unit) }
+  let make closure = { closure }
+end
+
+module Image = struct
+  type t =
+    (* Base cases *)
+    | Empty
+    | Fill    of Path.t
+    | Stroke  of Path.t * Outline.t
+    | String  :  'a * 'a Typesetter.t -> t
+    (* Recursive cases *)
+    | Xform   of t * Transform.t
+    | Paint   of t * Texture.t Paint.t
+    | Scissor of t * Transform.t * Gg.box2 * [`Set | `Reset | `Intersect]
+    | Alpha   of t * float
+    | Seq     of t * t
+
+  let empty = Empty
+
+  let stroke outline path =
+    Stroke (path, outline)
+
+  let fill path =
+    Fill path
+
+  let typeset typesetter contents =
+    String (contents, typesetter)
+
+  let paint paint node = Paint (node, paint)
+  let transform xf node = Xform (node, xf)
+  let impose n1 n2 = Seq (n1, n2)
+  let rec seq = function
+    | [] -> Empty
+    | [x] -> x
+    | x :: xs -> impose x (seq xs)
+
+  let scissor ?(transform=Transform.identity) box node =
+    Scissor (node, transform, box, `Set)
+
+  let reset_scissor node =
+    Scissor (node, Transform.identity, Gg.Box2.empty, `Reset)
+
+  let intersect_scissor ?(transform=Transform.identity) box node =
+    Scissor (node, transform, box, `Intersect)
+
+  let alpha a node = Alpha (node, a)
+
+  let fill_path f = fill (Path.make f)
+  let stroke_path o f = stroke o (Path.make f)
+end
+
+module Renderer = struct
+  open Wall__geom
+  open Image
+  module Backend = Wall__backend
+
+  type t = {
+    t : T.t;
+    b : B.t;
+    g : Wall__backend.t;
+    antialias : bool;
+    stencil_strokes : bool;
+  }
+
+  let create ?(antialias=true) ?(stencil_strokes=true) () = {
+    t = T.make ();
+    b = B.make ();
+    g = Wall__backend.create ~antialias;
+    antialias;
+    stencil_strokes;
+  }
+
+  let delete t =
+    T.clear t.t;
+    B.clear t.b;
+    Backend.delete t.g
+
+  let rec typesetter_prepare acc xx xy yx yy = function
+    | Empty | Fill _ | Stroke _ -> acc
+    | Paint (n, _) | Alpha (n, _) | Scissor (n, _, _, _) ->
+      typesetter_prepare acc xx xy yx yy n
+    | Seq (n1, n2) ->
+      let acc = typesetter_prepare acc xx xy yx yy n1 in
+      typesetter_prepare acc xx xy yx yy n2
+    | Xform (n, xf) ->
+      Printf.printf "(%f,%f) (%f,%f) -> " xx xy yx yy;
+      let xx = Transform.linear_px xf xx xy
+      and xy = Transform.linear_py xf xx xy
+      and yx = Transform.linear_px xf yx yy
+      and yy = Transform.linear_py xf yx yy
+      in
+      Printf.printf "(%f,%f) (%f,%f)\n%!" xx xy yx yy;
+      typesetter_prepare acc xx xy yx yy n
+    | String (x, cls) ->
+      let sx = sqrt (xx *. xx +. xy *. xy) in
+      let sy = sqrt (yx *. yx +. yy *. yy) in
+      match cls.allocate ~sx ~sy x with
+      | None -> acc
+      | Some f -> (f :: acc)
+
+  type buffer_item = {
+    paths : V.path list;
+    triangle_offset : int;
+    triangle_count  : int;
+  }
+
+  type prepared_node =
+    (* Base cases *)
+    | PFill   of buffer_item
+    | PStroke of buffer_item * float
+    | PString of buffer_item * Texture.t
+    | PEmpty
+    (* Recursive cases *)
+    | PXform  of prepared_node * Transform.t
+    | PPaint  of prepared_node * Texture.t paint
+    | PScissor of prepared_node * Transform.t * Gg.box2 * [`Set | `Reset | `Intersect]
+    | PAlpha  of prepared_node * float
+    | PSeq    of prepared_node * prepared_node
+
+  let is_convex = function
+    | [path] -> path.V.convex
+    | _ -> false
+
+  let quadbuf =
+    {Typesetter.
+      x0 = 0.0; y0 = 0.0; x1 = 0.0; y1 = 0.0;
+      u0 = 0.0; v0 = 0.0; u1 = 0.0; v1 = 0.0}
+
+  let push_quad b =
+    let d = B.data b and c = B.alloc b (6 * 4) in
+    let q = quadbuf in
+    d.{c+ 0+0}<-q.x0; d.{c+ 0+1}<-q.y0; d.{c+ 0+2}<-q.u0; d.{c+ 0+3}<-q.v0;
+    d.{c+ 4+0}<-q.x1; d.{c+ 4+1}<-q.y1; d.{c+ 4+2}<-q.u1; d.{c+ 4+3}<-q.v1;
+    d.{c+ 8+0}<-q.x1; d.{c+ 8+1}<-q.y0; d.{c+ 8+2}<-q.u1; d.{c+ 8+3}<-q.v0;
+    d.{c+12+0}<-q.x0; d.{c+12+1}<-q.y0; d.{c+12+2}<-q.u0; d.{c+12+3}<-q.v0;
+    d.{c+16+0}<-q.x0; d.{c+16+1}<-q.y1; d.{c+16+2}<-q.u0; d.{c+16+3}<-q.v1;
+    d.{c+20+0}<-q.x1; d.{c+20+1}<-q.y1; d.{c+20+2}<-q.u1; d.{c+20+3}<-q.v1
+
+  let push_quad_strip b =
+    let d = B.data b and c = B.alloc b (4 * 4) in
+    let q = quadbuf in
+    d.{c+ 0+0}<-q.x1; d.{c+ 0+1}<-q.y1; d.{c+ 0+2}<-q.u1; d.{c+ 0+3}<-q.v1;
+    d.{c+ 4+0}<-q.x1; d.{c+ 4+1}<-q.y0; d.{c+ 4+2}<-q.u1; d.{c+ 4+3}<-q.v0;
+    d.{c+ 8+0}<-q.x0; d.{c+ 8+1}<-q.y1; d.{c+ 8+2}<-q.u0; d.{c+ 8+3}<-q.v1;
+    d.{c+12+0}<-q.x0; d.{c+12+1}<-q.y0; d.{c+12+2}<-q.u0; d.{c+12+3}<-q.v0
+
+  let prepare_path t ~quality xf path =
+    T.clear t;
+    let factor =
+      let sx = Utils.norm xf.x00 xf.x10 in
+      let sy = Utils.norm xf.x01 xf.x11 in
+      sx *. sy
+    in
+    T.set_tess_tol t (0.25 /. (factor *. quality));
+    path.Path.closure t
+
+  let rec prepare t xf = function
+    (* Base cases *)
+    | Empty -> PEmpty
+    | Fill path ->
+      prepare_path t.t ~quality:1.0 xf path;
+      let bounds, paths = T.flush t.t in
+      let paths =
+        V.fill t.t t.b
+          ~edge_antialias:t.antialias
+          ~fringe_width:(1.0 /. Transform.average_scale xf)
+          paths
+      in
+      if is_convex paths then (
+        PFill { paths; triangle_offset = 0; triangle_count = 0 }
+      ) else (
+        let {T. minx; miny; maxx; maxy} = bounds in
+        B.reserve t.b (4 * 4);
+        let triangle_offset = B.offset t.b / 4 in
+        let q = quadbuf in
+        q.x0 <- minx; q.y0 <- miny;
+        q.x1 <- maxx; q.y1 <- maxy;
+        q.u0 <-  0.5; q.v0 <-  1.0;
+        q.u1 <-  0.5; q.v1 <-  1.0;
+        push_quad_strip t.b;
+        PFill { paths; triangle_offset; triangle_count = 4 }
+      )
+    | Stroke (path, {Outline. stroke_width; miter_limit; line_join; line_cap}) ->
+      prepare_path t.t ~quality:1.0 xf path;
+      let _bounds, paths = T.flush t.t in
+      let paths =
+        V.stroke t.t t.b
+          ~edge_antialias:t.antialias
+          ~fringe_width:(1.0 /. Transform.average_scale xf)
+          ~stroke_width
+          ~miter_limit
+          ~line_join
+          ~line_cap
+          paths
+      in
+      PStroke ({ paths; triangle_offset = 0; triangle_count = 6 }, stroke_width)
+    | String (x, cls) ->
+      let vbuffer = t.b in
+      let offset = B.offset vbuffer in
+      begin match cls.Typesetter.render xf x quadbuf
+                    (fun () ->
+                       B.reserve vbuffer (6 * 4);
+                       push_quad vbuffer)
+        with
+        | exception _ -> PEmpty
+        | texture ->
+          let triangle_offset = offset / 4 in
+          let triangle_count  = (B.offset vbuffer - offset) / 4 in
+          PString ({ paths = []; triangle_offset; triangle_count; }, texture)
+      end
+    (* Recursive cases *)
+    | Xform  (n, xf') ->
+      let xf = Transform.compose xf' xf in
+      PXform (prepare t xf n, xf)
+    | Paint  (n, p) ->
+      PPaint (prepare t xf n, Paint.transform p xf)
+    | Scissor (n, xf', box, action) ->
+      PScissor (prepare t xf n, xf', box, action)
+    | Alpha (n, a) ->
+      PAlpha (prepare t xf n, a)
+    | Seq (n1, n2) ->
+      PSeq (prepare t xf n1, prepare t xf n2)
+
+  let xform_outofdate = ref true
+
+  let counter_fill = ref 0
+  let counter_convex_fill = ref 0
+  let counter_stroke = ref 0
+  let counter_opaque = ref 0
+  let counter_transparent = ref 0
+
+  let rec exec t xf paint frame = function
+    | PFill _ | PStroke _ | PString _ when
+        !xform_outofdate &&
+        (Backend.set_xform t.g xf; xform_outofdate := false; false) -> assert false
+    | PFill { paths = [path]; triangle_offset = 0; triangle_count = 0 } ->
+      incr counter_convex_fill;
+      Backend.Convex_fill.prepare t.g Texture.tex paint frame;
+      Backend.Convex_fill.draw path.V.fill_first path.V.fill_count;
+      if t.antialias then
+        Backend.Convex_fill.draw_aa path.V.stroke_first path.V.stroke_count
+    | PFill b ->
+      incr counter_fill;
+      (* Render stencil *)
+      Backend.Fill.prepare_stencil t.g;
+      List.iter
+        (fun {V. fill_first; fill_count} ->
+           Backend.Fill.draw_stencil fill_first fill_count)
+        b.paths;
+      Backend.Fill.prepare_cover t.g Texture.tex paint frame;
+      if t.antialias then (
+        (* Draw anti-aliased pixels *)
+        Backend.Fill.prepare_aa ();
+        List.iter
+          (fun {V. stroke_first; stroke_count} ->
+             Backend.Fill.draw_aa stroke_first stroke_count)
+          b.paths;
+      );
+      (* Cover *)
+      Backend.Fill.finish_and_cover b.triangle_offset b.triangle_count
+    | PStroke (b, width) when t.stencil_strokes ->
+      (* Fill the stroke base without overlap *)
+      incr counter_stroke;
+      Backend.Stencil_stroke.prepare_stencil t.g Texture.tex paint frame width;
+      List.iter
+        (fun {V. stroke_first; stroke_count} ->
+           Backend.Stencil_stroke.draw_stencil stroke_first stroke_count)
+        b.paths;
+      (* Draw anti-aliased pixels. *)
+      Backend.Stencil_stroke.prepare_aa
+        t.g Texture.tex paint frame width;
+      List.iter
+        (fun {V. stroke_first; stroke_count} ->
+           Backend.Stencil_stroke.draw_aa stroke_first stroke_count)
+        b.paths;
+      (*  Clear stencil buffer. *)
+      Backend.Stencil_stroke.prepare_clear ();
+      List.iter
+        (fun {V. stroke_first; stroke_count} ->
+           Backend.Stencil_stroke.draw_clear stroke_first stroke_count)
+        b.paths;
+      Backend.Stencil_stroke.finish ()
+    | PStroke (b, width) ->
+      incr counter_stroke;
+      (*  Draw Strokes *)
+      Backend.Direct_stroke.prepare t.g Texture.tex paint frame width;
+      List.iter
+        (fun {V. stroke_first; stroke_count} ->
+           Backend.Direct_stroke.draw stroke_first stroke_count)
+        b.paths
+    | PString (b, tex) ->
+      Backend.Triangles.prepare t.g Texture.tex
+        {paint with texture = Some tex} frame;
+      Backend.Triangles.draw b.triangle_offset b.triangle_count
+    | PEmpty -> ()
+    (* Recursive cases *)
+    | PXform (n, xf)    ->
+      xform_outofdate := true;
+      exec t xf paint frame n;
+      xform_outofdate := true
+    | PPaint (n, paint) ->
+      if Color.a paint.Paint.inner < 1.0 || Color.a paint.Paint.outer < 1.0 then
+        incr counter_transparent
+      else
+        incr counter_opaque;
+      exec t xf paint frame n
+    | PScissor (n, xf', box, `Set) ->
+      let x = Gg.Box2.minx box in
+      let y = Gg.Box2.miny box in
+      let w = Gg.Box2.w box in
+      let h = Gg.Box2.h box in
+      exec t xf paint (Frame.set_scissor ~x ~y ~w ~h (Transform.compose xf' xf) frame) n
+    | PScissor (n, xf', box, `Intersect) ->
+      let x = Gg.Box2.minx box in
+      let y = Gg.Box2.miny box in
+      let w = Gg.Box2.w box in
+      let h = Gg.Box2.h box in
+      exec t xf paint (Frame.intersect_scissor ~x ~y ~w ~h (Transform.compose xf' xf) frame) n
+    | PScissor  (n, _, _, `Reset) ->
+      exec t xf paint (Frame.reset_scissor frame) n
+    | PSeq (n1, n2) ->
+      exec t xf paint frame n1;
+      exec t xf paint frame n2
+    | PAlpha (n, alpha) ->
+      exec t xf paint {frame with Frame.alpha} n
+
+  let render t ~width ~height node =
+    T.clear t.t;
+    B.clear t.b;
+    let time0 = Backend.time_spent () and mem0 = Backend.memory_spent () in
+    let todo = typesetter_prepare [] 1.0 0.0 0.0 1.0 node in
+    let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in
+    List.iter (fun f -> f ()) todo;
+    let time2 = Backend.time_spent () and mem2 = Backend.memory_spent () in
+    (*for i = 0 to 99 do ignore (prepare t Transform.identity node) done;*)
+    let pnode = prepare t Transform.identity node in
+    let time3 = Backend.time_spent () and mem3 = Backend.memory_spent () in
+    Backend.prepare t.g width height (B.sub t.b);
+    xform_outofdate := true;
+    counter_fill := 0;
+    counter_convex_fill := 0;
+    counter_stroke := 0;
+    counter_transparent := 0;
+    counter_opaque := 0;
+    exec t Transform.identity Paint.black Frame.default pnode;
+    Backend.finish ();
+    let time4 = Backend.time_spent () and mem4 = Backend.memory_spent () in
+    let row name t0 t1 m0 m1 =
+      Printf.printf "% 9.03f us % 9d words     %s\n" (float (t1 - t0) /. 1000.0) (m1 - m0) name
+    in
+    Printf.printf "--- new frame: %d convex fill, %d complex fill, %d stroke, %d transparent styles, %d opaque styles\n" !counter_convex_fill !counter_fill !counter_stroke !counter_transparent !counter_opaque;
+    row "typeset preparation" time0 time1 mem0 mem1;
+    row (Printf.sprintf "typeset baking (%d jobs)" (List.length todo)) time1 time2 mem1 mem2;
+    row "command list preparation" time2 time3 mem2 mem3;
+    row "command list submission (GL driver)" time3 time4 mem3 mem4;
+    Printf.printf "%!"
+end
+
+type color     = Color.t
 type transform = Transform.t
-type outline = Outline.t
-type 'image paint = 'image Paint.t
-type ('input, 'image) typesetter = ('input, 'image) Typesetter.t
-type font = Font.t
-type frame = Frame.t
-type color = Color.t
+type outline   = Outline.t
+type frame     = Frame.t
+type path      = Path.t
+type texture   = Texture.t
+type image     = Image.t
+type renderer  = Renderer.t
+type 'texture paint = 'texture Paint.t
+type 'input typesetter = 'input Typesetter.t

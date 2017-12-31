@@ -1,4 +1,4 @@
-open Wall
+open Wall_types
 open Gg
 open Bigarray
 
@@ -159,7 +159,6 @@ module Shader = struct
       9
 
   let set_xform t xf =
-    let open Transform in
     xfbuf.{00} <- xf.x00;
     xfbuf.{01} <- xf.x01;
     xfbuf.{02} <- 0.0;
@@ -190,21 +189,43 @@ module Shader = struct
     buf.{c + 10} <- 0.0;
     buf.{c + 11} <- 0.0
 
-  let set_inv_xform c xf =
-    let open Transform in
-    let xf = inverse xf in
-    buf.{c + 00} <- xf.x00;
-    buf.{c + 01} <- xf.x01;
+  let set_inv_xform c xf invdet =
+    let x00 =    xf.x11 *. invdet in
+    let x10 = -. xf.x10 *. invdet in
+    let x20 =    (xf.x10 *. xf.x21 -. xf.x11 *. xf.x20) *. invdet in
+    let x01 = -. xf.x01 *. invdet in
+    let x11 =    xf.x00 *. invdet in
+    let x21 =    (xf.x01 *. xf.x20 -. xf.x00 *. xf.x21) *. invdet in
+    buf.{c + 00} <- x00;
+    buf.{c + 01} <- x01;
     buf.{c + 02} <- 0.0;
     buf.{c + 03} <- 0.0;
-    buf.{c + 04} <- xf.x10;
-    buf.{c + 05} <- xf.x11;
+    buf.{c + 04} <- x10;
+    buf.{c + 05} <- x11;
     buf.{c + 06} <- 0.0;
     buf.{c + 07} <- 0.0;
-    buf.{c + 08} <- xf.x20;
-    buf.{c + 09} <- xf.x21;
+    buf.{c + 08} <- x20;
+    buf.{c + 09} <- x21;
     buf.{c + 10} <- 1.0;
     buf.{c + 11} <- 0.0
+
+  let set_inv_xform c xf =
+    let det = xf.x00 *. xf.x11 -. xf.x10 *. xf.x01 in
+    if det > -1e-6 && det < 1e-6 then (
+      buf.{c + 00} <- 1.0;
+      buf.{c + 01} <- 0.0;
+      buf.{c + 02} <- 0.0;
+      buf.{c + 03} <- 0.0;
+      buf.{c + 04} <- 0.0;
+      buf.{c + 05} <- 1.0;
+      buf.{c + 06} <- 0.0;
+      buf.{c + 07} <- 0.0;
+      buf.{c + 08} <- 0.0;
+      buf.{c + 09} <- 0.0;
+      buf.{c + 10} <- 1.0;
+      buf.{c + 11} <- 0.0
+    ) else
+      set_inv_xform c xf (1.0 /. det)
 
   let set_4 c f0 f1 f2 f3 =
     buf.{c + 0} <- f0;
@@ -244,39 +265,37 @@ module Shader = struct
     if x < min then x else if x > max then max else x
 
   let set_tool t ?typ prj paint frame width stroke_thr =
-    let sextent = frame.Frame.extent in
-    let sxform  = frame.Frame.xform in
-    let alpha = frame.Frame.alpha in
+    let sextent = frame.extent in
+    let sxform  = frame.xform in
+    let alpha = frame.alpha in
     let alpha =
       if width < 1.0 then
         let da = clampf 0.0 (width (*/. fringe_width*)) 1.0 in
         alpha *. da *. da
       else alpha
     in
-    set_color inner_color alpha paint.Paint.inner;
-    set_color outer_color alpha paint.Paint.outer;
-    set_inv_xform paint_mat paint.Paint.xform;
+    set_color inner_color alpha paint.inner;
+    set_color outer_color alpha paint.outer;
+    set_inv_xform paint_mat paint.xform;
     let sw = Size2.w sextent and sh = Size2.h sextent in
     if sw < -0.5 || sh < -0.5 then begin
       set_zero_m34 sciss_mat;
       set_4 sciss_extent_scale
         1.0 1.0 1.0 1.0
     end else begin
-      let open Transform in
       set_inv_xform sciss_mat sxform;
       set_4 sciss_extent_scale sw sh
         (sqrt (sxform.x00 *. sxform.x00 +. sxform.x10 *. sxform.x10) /. fringe)
         (sqrt (sxform.x01 *. sxform.x01 +. sxform.x11 *. sxform.x11) /. fringe)
     end;
-    let pw = Size2.w paint.Paint.extent and ph = Size2.h paint.Paint.extent in
-    set_4 paint_extent_radius_feather pw ph
-      paint.Paint.radius paint.Paint.feather;
-    let typ = match typ, paint.Paint.image  with
+    let pw = Size2.w paint.extent and ph = Size2.h paint.extent in
+    set_4 paint_extent_radius_feather pw ph paint.radius paint.feather;
+    let typ = match typ, paint.texture  with
       | None, Some _ -> `FILLIMG
       | None, None   -> `FILLGRAD
       | Some typ, _  -> typ
     in
-    let texType = match paint.Paint.image with
+    let texType = match paint.texture with
       | None -> 2.0
       | Some tex ->
         let {Texture. premultiplied; channels; gl_tex} = prj tex in
@@ -371,11 +390,8 @@ let force_set_reversed flag =
   wall_gl_set_reversed flag;
   gl_reversed := flag
 
-let set_reversed xform =
-  let reversing_transform {Transform. x00; x10; x01; x11; _} =
-    x00 *. x11 < x01 *. x10
-  in
-  let reversing = reversing_transform xform in
+let set_reversed xf =
+  let reversing = xf.x00 *. xf.x11 < xf.x01 *. xf.x10 in
   if reversing <> !gl_reversed then
     force_set_reversed reversing
 

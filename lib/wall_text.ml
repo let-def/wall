@@ -1,6 +1,123 @@
 open Wall
 open Wall__geom
 
+(* utf-8 decoding dfa, from http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ *)
+
+let utf8d =
+  "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
+   \000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
+   \000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
+   \000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
+   \001\001\001\001\001\001\001\001\001\001\001\001\001\001\001\001\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\
+   \007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\007\
+   \b\b\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\002\
+   \n\003\003\003\003\003\003\003\003\003\003\003\003\004\003\003\
+   \011\006\006\006\005\b\b\b\b\b\b\b\b\b\b\b\
+   \000\001\002\003\005\b\007\001\001\001\004\006\001\001\001\001\
+   \001\001\001\001\001\001\001\001\001\001\001\001\001\001\001\001\001\000\001\001\001\001\001\000\001\000\001\001\001\001\001\001\
+   \001\002\001\001\001\001\001\002\001\002\001\001\001\001\001\001\001\001\001\001\001\001\001\002\001\001\001\001\001\001\001\001\
+   \001\002\001\001\001\001\001\001\001\002\001\001\001\001\001\001\001\001\001\001\001\001\001\003\001\003\001\001\001\001\001\001\
+   \001\003\001\001\001\001\001\003\001\003\001\001\001\001\001\001\001\003\001\001\001\001\001\001\001\001\001\001\001\001\001\001"
+
+let utf8_decode index str =
+  let codep = ref 0 in
+  let state = ref 0 in
+  let len = String.length str in
+  let index' = ref !index in
+  while (
+    !index' < len &&
+    let c = Char.code (String.get str !index') in
+    let t = Char.code (String.unsafe_get utf8d c) in
+    codep := (if !state <> 0 then (c land 0x3f) lor (!codep lsl 6) else (0xff lsr t) land c);
+    state := Char.code (String.unsafe_get utf8d (256 + !state * 16 + t) );
+    incr index';
+    !state > 1
+  ) do ()
+  done;
+  index := !index';
+  if !state = 0 then !codep else (-1)
+
+module Font = struct
+  type glyph_placement = [ `Align | `Exact ]
+
+  type t = {
+    glyphes: Stb_truetype.t;
+    size: float;
+    blur: float;
+    spacing: float;
+    line_height: float;
+    placement   : glyph_placement;
+  }
+
+  let make ?(size=16.0) ?(blur=0.0) ?(spacing=0.0) ?(line_height=1.0) ?(placement=`Align) glyphes =
+    { glyphes; blur; size; spacing; line_height; placement }
+
+  type metrics = {
+    ascent   : float;
+    descent  : float;
+    line_gap : float;
+  }
+
+  let font_metrics t =
+    let scale = Stb_truetype.scale_for_pixel_height t.glyphes t.size in
+    let {Stb_truetype. ascent; descent; line_gap} =
+      Stb_truetype.vmetrics t.glyphes in
+    { ascent = float ascent *. scale;
+      descent = float descent *. scale;
+      line_gap = float line_gap *. scale;
+    }
+
+  let text_width t text =
+    let len = String.length text in
+    let index = ref 0 in
+    let width = ref 0 in
+    let last = ref Stb_truetype.invalid_glyph in
+    while !index < len  do
+      match utf8_decode index text with
+      | -1 -> last := Stb_truetype.invalid_glyph
+      | cp ->
+        let glyph = Stb_truetype.get t.glyphes cp in
+        width := !width
+                 + Stb_truetype.kern_advance t.glyphes !last glyph
+                 + Stb_truetype.glyph_advance t.glyphes glyph;
+        last := glyph
+    done;
+    (float !width *. Stb_truetype.scale_for_pixel_height t.glyphes t.size)
+
+  type measure = {
+    width : float;
+    height : float;
+    depth : float;
+  }
+
+  let text_measure t text =
+    let len = String.length text in
+    let index = ref 0 in
+    let width = ref 0 in
+    let ascent = ref 0 in
+    let descent = ref 0 in
+    let maxi a b : int = if a >= b then a else b in
+    let mini a b : int = if a <= b then a else b in
+    let last = ref Stb_truetype.invalid_glyph in
+    while !index < len  do
+      match utf8_decode index text with
+      | -1 -> last := Stb_truetype.invalid_glyph
+      | cp ->
+        let glyph = Stb_truetype.get t.glyphes cp in
+        let box = Stb_truetype.glyph_box t.glyphes glyph in
+        ascent := maxi !ascent box.y1;
+        descent := mini !descent box.y0;
+        width := !width
+                 + Stb_truetype.kern_advance t.glyphes !last glyph
+                 + Stb_truetype.glyph_advance t.glyphes glyph;
+        last := glyph
+    done;
+    let scale = Stb_truetype.scale_for_pixel_height t.glyphes t.size in
+    { width  = float !width *. scale;
+      height = float !ascent *. scale;
+      depth  = float (- !descent) *. scale }
+end
+
 module Glyph = struct
   let quantize x = int_of_float (x *. 10.0)
 
@@ -37,7 +154,7 @@ end
 
 type font_buffer = {
   image: Stb_image.int8 Stb_image.t;
-  texture: Wall_tex.t;
+  texture: Texture.t;
   mutable room : unit Maxrects.t;
 }
 
@@ -121,7 +238,7 @@ let ok = function
 let new_font_buffer width height =
   let data = Bigarray.(Array1.create int8_unsigned c_layout (width * height)) in
   let image = ok (Stb_image.image ~width ~height ~channels:1 data) in
-  let texture = Wall_tex.from_image ~name:"font atlas" image in
+  let texture = Texture.from_image ~name:"font atlas" image in
   let room = Maxrects.add_bin () width height Maxrects.empty in
   { image; texture; room }
 
@@ -200,7 +317,7 @@ let bake_glyphs t =
         Hashtbl.add t.font_glyphes key { Glyph. box; uv; frame = !frame_nr; glyph }
     ) boxes;
   Hashtbl.reset t.font_todo;
-  Wall_tex.update buffer.texture buffer.image;
+  Texture.update buffer.texture buffer.image;
   incr frame_nr
 
 let has_todo stash = Hashtbl.length stash.font_todo > 0
@@ -228,8 +345,32 @@ let allocate_glyphes stash ~sx ~sy (font,_pos,text) =
   else
     None
 
-let typesetter () =
+type simple_typesetter = (Font.t * Gg.p2 * string) typesetter
+
+let simple_typesetter () =
   let stash = font_stash () in
   Wall.Typesetter.make
     ~allocate:(allocate_glyphes stash)
     ~render:(render_glyphes stash)
+
+let a_simple_typesetter = lazy (simple_typesetter ())
+
+let simple_text
+    ?(typesetter=Lazy.force a_simple_typesetter)
+    ?(halign=`LEFT) ?(valign=`BASELINE) font ~x ~y str
+  =
+  let x = match halign with
+    | `LEFT   -> x
+    | `CENTER -> (x -. Font.text_width font str *. 0.5)
+    | `RIGHT  -> (x -. Font.text_width font str)
+  in
+  let y = match valign with
+    | `TOP    -> y +. (Font.font_metrics font).Font.ascent
+    | `BASELINE -> y
+    | `BOTTOM -> y +. (Font.font_metrics font).Font.descent
+    | `MIDDLE ->
+      let {Font. ascent; descent} = Font.font_metrics font in
+      (y +. (ascent +. descent) *. 0.5)
+  in
+  Image.typeset typesetter (font, Gg.P2.v x y, str)
+
