@@ -5,7 +5,7 @@ module Glyph = struct
   let quantize x = int_of_float (x *. 10.0)
 
   let estimate_scale sx sy {Font. size} =
-    let factor = (sx +. sy) *. 0.5 in
+    let factor = (sqrt (sx *. sx +. sy *. sy)) *. 0.5 in
     let scale = factor *. size in
     (*Printf.eprintf "sx = %f, sy = %f, size = %f, scale = %f\n%!"
       sx sy size scale;*)

@@ -331,10 +331,14 @@ module Render = struct
       let acc = typesetter_prepare acc xx xy yx yy n1 in
       typesetter_prepare acc xx xy yx yy n2
     | Xform (n, xf) ->
-      typesetter_prepare acc
-        (Transform.px xf xx xy) (Transform.py xf xx xy)
-        (Transform.px xf yx yy) (Transform.py xf yx yy)
-        n
+      Printf.printf "(%f,%f) (%f,%f) -> " xx xy yx yy;
+      let xx = Transform.linear_px xf xx xy
+      and xy = Transform.linear_py xf xx xy
+      and yx = Transform.linear_px xf yx yy
+      and yy = Transform.linear_py xf yx yy
+      in
+      Printf.printf "(%f,%f) (%f,%f)\n%!" xx xy yx yy;
+      typesetter_prepare acc xx xy yx yy n
     | String (x, cls) ->
       let sx = sqrt (xx *. xx +. xy *. xy) in
       let sy = sqrt (yx *. yx +. yy *. yy) in
