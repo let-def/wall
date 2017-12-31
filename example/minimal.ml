@@ -1,8 +1,6 @@
 open Tsdl
 
 open Wall
-module C = Wall_canvas
-module P = C.Path
 
 let load_font name =
   let ic = open_in_bin name in
@@ -36,23 +34,27 @@ let render context sw sh t =
   let lh = float h in
   let pw = lw *. f *. sw in
   let ph = lh *. f *. sh in
-  C.render context ~width:pw ~height:ph
-    (C.seq [
-        (*C.simple_text ~x:10.0 ~y:0.0
+  Renderer.render context ~width:pw ~height:ph
+    (Image.seq [
+        (*Image.simple_text ~x:10.0 ~y:0.0
           (Font.make (Lazy.force font_sans) ~size:60.0)
           "Settings";*)
-        C.transform (Transform.translation 40.0 80.0) (
-          C.transform (Transform.rotation (-. C.pi /. 4.0)) (
-            C.impose
-              (C.stroke_path (Outline.make ~width:10.0 ()) @@ fun p ->
-               P.move_to p 00.0 50.0;
-               P.line_to p 0.0 0.0;
-               P.line_to p 50.0 0.0)
-              (C.scissor (b2 0.0 0.0 1000.0 1000.0) (
-                 (C.transform (Transform.rotation (C.pi /. 4.0))) (
-                    (C.simple_text ~x:(-. 60.0 +. 100.0 *. sin (2.0 *. t +. C.pi /. 2.0)) ~y:0.0 ~valign:`MIDDLE
-                       (Font.make (Lazy.force font_sans) ~size:60.0 ~placement:`Exact)
-                       "Settings"))))
+        Image.transform (Transform.translation 40.0 80.0) (
+          Image.transform (Transform.rotation (-. pi /. 4.0)) (
+            Image.impose
+              (Image.stroke_path (Outline.make ~width:10.0 ()) @@ fun p ->
+               Path.move_to p 00.0 50.0;
+               Path.line_to p 0.0 0.0;
+               Path.line_to p 50.0 0.0)
+              (Image.scissor (b2 0.0 0.0 1000.0 1000.0) (
+                 (Image.transform (Transform.rotation (pi /. 4.0))) (
+                   Wall_text.(simple_text
+                                ~x:(-. 60.0 +. 100.0 *. sin (2.0 *. t +. pi /. 2.0))
+                                ~y:0.0
+                                ~valign:`MIDDLE
+                                (Font.make (Lazy.force font_sans)
+                                   ~size:60.0 ~placement:`Exact)
+                                "Settings"))))
           )
         )
       ])
@@ -81,7 +83,7 @@ let main () =
       match Sdl.gl_create_context w with
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
       | Ok ctx ->
-        let context = C.create ~antialias:false ~stencil_strokes:false () in
+        let context = Renderer.create ~antialias:false ~stencil_strokes:false () in
         let quit = ref false in
         let event = Sdl.Event.create () in
         while not !quit do

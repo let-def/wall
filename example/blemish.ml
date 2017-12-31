@@ -1,7 +1,7 @@
 open Tsdl
 
 open Wall
-module C = Wall_canvas
+module Text = Wall_text
 
 let normalize (dx, dy) =
   let d = sqrt (dx *. dx +. dy *. dy) in
@@ -313,15 +313,15 @@ module Blender = struct
     let d   = minf (B2.w box) (B2.h box) in
     let cr2 = minf cr2 (d /. 2.0) in
     let cr3 = minf cr3 (d /. 2.0) in
-    let shape = C.stroke_path (Outline.make ~width:1.0 ()) @@ fun t ->
-      C.Path.move_to t x2 (y2-.cr2);
-      C.Path.arc_to t x2 y2 x1 y2 cr2;
-      C.Path.arc_to t x1 y2 x1 y1 cr3;
+    let shape = Image.stroke_path (Outline.make ~width:1.0 ()) @@ fun t ->
+      Path.move_to t x2 (y2-.cr2);
+      Path.arc_to t x2 y2 x1 y2 cr2;
+      Path.arc_to t x1 y2 x1 y1 cr3;
     in
     let bevel_color =
       offset_color Theme.background Default.inset_bevel_shade
     in
-    C.paint
+    Image.paint
       (Paint.linear_gradient
          ~sx:x1 ~sy:(y2 -. maxf cr2 cr3 -. 1.0)
          ~ex:x1 ~ey:(y2 -. 1.0)
@@ -333,24 +333,24 @@ module Blender = struct
   let draw_bevel box =
     let x1 = B2.minx box +. 0.5 and y1 = B2.miny box +. 0.5 in
     let x2 = B2.maxx box -. 0.5 and y2 = B2.maxy box -. 0.5 in
-    C.seq [
+    Image.seq [
       begin
-        let shape = C.stroke_path Outline.default @@ fun t ->
-          C.Path.move_to t ~x:x1 ~y:y2;
-          C.Path.line_to t ~x:x2 ~y:y2;
-          C.Path.line_to t ~x:x1 ~y:y2;
+        let shape = Image.stroke_path Outline.default @@ fun t ->
+          Path.move_to t ~x:x1 ~y:y2;
+          Path.line_to t ~x:x2 ~y:y2;
+          Path.line_to t ~x:x1 ~y:y2;
         in
         let color = offset_color Theme.background (-.Default.bevel_shade) in
-        C.paint (Paint.color (transparent color)) shape;
+        Image.paint (Paint.color (transparent color)) shape;
       end;
       begin
-        let shape = C.stroke_path Outline.default @@ fun t ->
-          C.Path.move_to t ~x:x1 ~y:y2;
-          C.Path.line_to t ~x:x1 ~y:y1;
-          C.Path.line_to t ~x:x2 ~y:y1;
+        let shape = Image.stroke_path Outline.default @@ fun t ->
+          Path.move_to t ~x:x1 ~y:y2;
+          Path.line_to t ~x:x1 ~y:y1;
+          Path.line_to t ~x:x2 ~y:y1;
         in
         let color = offset_color Theme.background Default.bevel_shade in
-        C.paint (Paint.color (transparent color)) shape
+        Image.paint (Paint.color (transparent color)) shape
       end
     ]
 
@@ -372,16 +372,16 @@ module Blender = struct
       let d = if w < h then w else h in
       let x1 = B2.minx box and y1 = B2.miny box in
       let x2 = B2.maxx box and y2 = B2.maxy box in
-      C.path @@ fun t ->
-      C.Path.move_to t x1 (B2.midy box);
-      C.Path.arc_to t x1 y1 x2 y1 (minf cr0 (d/.2.0));
-      C.Path.arc_to t x2 y1 x2 y2 (minf cr1 (d/.2.0));
-      C.Path.arc_to t x2 y2 x1 y2 (minf cr2 (d/.2.0));
-      C.Path.arc_to t x1 y2 x1 y1 (minf cr3 (d/.2.0));
-      C.Path.close t;
+      Path.make @@ fun t ->
+      Path.move_to t x1 (B2.midy box);
+      Path.arc_to t x1 y1 x2 y1 (minf cr0 (d/.2.0));
+      Path.arc_to t x2 y1 x2 y2 (minf cr1 (d/.2.0));
+      Path.arc_to t x2 y2 x1 y2 (minf cr2 (d/.2.0));
+      Path.arc_to t x1 y2 x1 y1 (minf cr3 (d/.2.0));
+      Path.close t;
     )
     else
-      C.path ignore
+      Path.make ignore
 
   let offset_box box x1 y1 x2 y2 =
     let p1 = B2.o box in
@@ -392,76 +392,76 @@ module Blender = struct
   let draw_inner_box box (cr0, cr1, cr2, cr3) inner outer =
     let x1 = B2.minx box and y1 = B2.miny box in
     let x2 = B2.maxx box and y2 = B2.maxy box in
-    C.paint
+    Image.paint
       (if B2.h box -. 2.0 > B2.w box
        then Paint.linear_gradient ~sx:x1 ~sy:y1 ~ex:x2 ~ey:y1 ~inner ~outer
        else Paint.linear_gradient ~sx:x1 ~sy:y1 ~ex:x1 ~ey:y2 ~inner ~outer)
-      (C.fill @@ rounded_box (offset_box box 1.0 1.0 (-2.0) (-3.0))
+      (Image.fill @@ rounded_box (offset_box box 1.0 1.0 (-2.0) (-3.0))
          ~corners:(max 0.0 (cr0 -. 1.0), max 0.0 (cr1 -. 1.0),
                    max 0.0 (cr2 -. 1.0), max 0.0 (cr3 -. 1.0)))
 
   let draw_outline_box box corners color =
     let path = rounded_box (offset_box box 0.5 0.5 (-1.0) (-2.0)) ~corners in
-    C.paint
+    Image.paint
       (Paint.color color)
-      (C.stroke (Outline.make ~width:1.0 ()) path)
+      (Image.stroke (Outline.make ~width:1.0 ()) path)
 
   let draw_check ~x ~y color =
-    C.paint (Paint.color color)
-      (C.stroke_path (Outline.make ~cap:`BUTT ~join:`MITER ~width:2.0 ()) @@ fun t ->
-       C.Path.move_to t (x+.4.0) (y+.5.0);
-       C.Path.line_to t (x+.7.0) (y+.8.0);
-       C.Path.line_to t (x+.14.0) (y+.1.0)
+    Image.paint (Paint.color color)
+      (Image.stroke_path (Outline.make ~cap:`BUTT ~join:`MITER ~width:2.0 ()) @@ fun t ->
+       Path.move_to t (x+.4.0) (y+.5.0);
+       Path.line_to t (x+.7.0) (y+.8.0);
+       Path.line_to t (x+.14.0) (y+.1.0)
       )
 
   let draw_up_down_arrow ~x ~y ~size color =
     let w = 1.1 *. size in
-    C.paint (Paint.color color)
-      (C.fill_path @@ fun t ->
-       C.Path.move_to t x (y-.1.0);
-       C.Path.line_to t (x+.0.5*.w) (y-.size-.1.0);
-       C.Path.line_to t (x+.w) (y-.1.0);
-       C.Path.move_to t x (y+.1.);
-       C.Path.line_to t (x+.0.5*.w) (y+.size+.1.0);
-       C.Path.line_to t (x+.w) (y+.1.0);
-       C.Path.close t
+    Image.paint (Paint.color color)
+      (Image.fill_path @@ fun t ->
+       Path.move_to t x (y-.1.0);
+       Path.line_to t (x+.0.5*.w) (y-.size-.1.0);
+       Path.line_to t (x+.w) (y-.1.0);
+       Path.move_to t x (y+.1.);
+       Path.line_to t (x+.0.5*.w) (y+.size+.1.0);
+       Path.line_to t (x+.w) (y+.1.0);
+       Path.close t
       )
 
   let draw_arrow ~x ~y ~size color =
-    C.paint (Paint.color color)
-      (C.fill_path @@ fun t ->
-       C.Path.move_to t x y;
-       C.Path.line_to t (x-.size) (y+.size);
-       C.Path.line_to t (x-.size) (y-.size);
-       C.Path.close t;
+    Image.paint (Paint.color color)
+      (Image.fill_path @@ fun t ->
+       Path.move_to t x y;
+       Path.line_to t (x-.size) (y+.size);
+       Path.line_to t (x-.size) (y-.size);
+       Path.close t;
       )
 
   let draw_node_port ~x ~y state color =
-    let circle = C.path @@ fun t ->
-      C.Path.circle t ~cx:x ~cy:y ~r:Default.node_port_radius
+    let circle = Path.make @@ fun t ->
+      Path.circle t ~cx:x ~cy:y ~r:Default.node_port_radius
     in
-    C.impose
-      (C.paint (Paint.color Theme.node.wire)
-         (C.stroke (Outline.make ~width:1.0 ()) circle))
-      (C.paint
+    Image.impose
+      (Image.paint (Paint.color Theme.node.wire)
+         (Image.stroke (Outline.make ~width:1.0 ()) circle))
+      (Image.paint
          (Paint.color (if state = `DEFAULT then color
                        else offset_color color Default.hover_shade))
-         (C.fill circle))
+         (Image.fill circle))
 
   let draw_colored_node_wire x0 y0 c0 x1 y1 c1 =
     let length = maxf (abs_float (x1 -. x0)) (abs_float (y1 -. y0)) in
     let delta = length *. Theme.node.noodle_curving in
-    let path = C.path @@ fun t ->
-      C.Path.move_to t x0 y0;
-      C.Path.bezier_to t
+    let path = Path.make @@ fun t ->
+      Path.move_to t x0 y0;
+      Path.bezier_to t
         ~c1x:(x0 +. delta) ~c1y:y0 ~c2x:(x1 -. delta) ~c2y:y1 ~x:x1 ~y:y1
     in
     let colorw = Color.with_a Theme.node.wire (minf (Color.a c0) (Color.a c1)) in
-    C.impose
-      (C.paint (Paint.color colorw)
-         (C.stroke (Outline.make ~width:Default.node_wire_outline_width ()) path))
-      (C.paint (Paint.linear_gradient x0 y0 x1 y1 c0 c1)
-         (C.stroke (Outline.make ~width:Default.node_wire_width ()) path))
+    Image.impose
+      (Image.paint (Paint.color colorw)
+         (Image.stroke (Outline.make ~width:Default.node_wire_outline_width ()) path))
+      (Image.paint (Paint.linear_gradient x0 y0 x1 y1 c0 c1)
+         (Image.stroke (Outline.make ~width:Default.node_wire_width ()) path))
 
   let gray = Theme.gray 0.5
   let node_wire_color =
@@ -480,19 +480,19 @@ module Blender = struct
     B2.v tl (Gg.Size2.v w h)
 
   let draw_drop_shadow box ~r ~feather ~alpha =
-    let shape = C.fill_path @@ fun t ->
+    let shape = Image.fill_path @@ fun t ->
       let x1 = B2.minx box and y1 = B2.miny box in
       let x2 = B2.maxx box and y2 = B2.maxy box in
-      C.Path.move_to t (x1 -. feather) y1;
-      C.Path.line_to t x1 y1;
-      C.Path.line_to t x1 (y2 -. feather);
-      C.Path.arc_to t ~x1 ~y1:y2 ~x2:(x1+.r) ~y2 ~r;
-      C.Path.arc_to t ~x1:x2 ~y1:y2 ~x2 ~y2:(y2-.r) ~r;
-      C.Path.line_to t x2 y1;
-      C.Path.line_to t (x2+.feather) y1;
-      C.Path.line_to t (x2+.feather) (y2+.feather);
-      C.Path.line_to t (x1-.feather) (y2+.feather);
-      C.Path.close t
+      Path.move_to t (x1 -. feather) y1;
+      Path.line_to t x1 y1;
+      Path.line_to t x1 (y2 -. feather);
+      Path.arc_to t ~x1 ~y1:y2 ~x2:(x1+.r) ~y2 ~r;
+      Path.arc_to t ~x1:x2 ~y1:y2 ~x2 ~y2:(y2-.r) ~r;
+      Path.line_to t x2 y1;
+      Path.line_to t (x2+.feather) y1;
+      Path.line_to t (x2+.feather) (y2+.feather);
+      Path.line_to t (x1-.feather) (y2+.feather);
+      Path.close t
     in
     let x1 = B2.minx box and y1 = B2.miny box in
     let x2 = B2.maxx box and y2 = B2.maxy box in
@@ -506,13 +506,13 @@ module Blender = struct
         ~inner:(Theme.gray ~a:(alpha*.alpha) 0.0)
         ~outer:(Theme.gray ~a:0.0 0.0)
     in
-    C.paint paint shape
+    Image.paint paint shape
 
   let draw_tooltip_background box =
     let shade_top, shade_down = inner_colors Theme.tooltip `DEFAULT in
     let corners = Default.(menu_radius,menu_radius,menu_radius,menu_radius) in
     let box' = offset_box box 0.0 0.0 0.0 1.0 in
-    C.seq [
+    Image.seq [
       draw_inner_box box' corners shade_top shade_down;
       draw_outline_box box' corners Theme.(transparent tooltip.outline);
       draw_drop_shadow box ~r:Default.menu_radius
@@ -520,7 +520,7 @@ module Blender = struct
     ]
 
   type icon = {
-    tex: Wall_tex.t;
+    tex: Texture.t;
     x: int;
     y: int;
     w: int;
@@ -528,45 +528,45 @@ module Blender = struct
   }
 
   let draw_icon x y icon =
-    let shape = C.fill_path @@ fun t ->
-      C.Path.rect t ~x ~y ~w:(float icon.w) ~h:(float icon.h)
+    let shape = Image.fill_path @@ fun t ->
+      Path.rect t ~x ~y ~w:(float icon.w) ~h:(float icon.h)
     in
     let paint = Paint.image_pattern
         (P2.v (float icon.x) (float icon.y))
         (Gg.Size2.v
-           (float (Wall_tex.width icon.tex))
-           (float (Wall_tex.height icon.tex)))
+           (float (Texture.width icon.tex))
+           (float (Texture.height icon.tex)))
         ~angle:0.0 ~alpha:1.0
         icon.tex
     in
-    C.paint paint shape
+    Image.paint paint shape
 
   let draw_node_icon_label box ?icon c0 c1 ~align ~font label =
-    C.impose
+    Image.impose
       begin match font, label with
         | Some font, Some label ->
-          let font' = {font with Font.blur = Default.node_title_feather} in
-          C.impose
-            (C.paint (Paint.color c1)
-               (C.simple_text font' label
+          let font' = {font with Text.Font.blur = Default.node_title_feather} in
+          Image.impose
+            (Image.paint (Paint.color c1)
+               (Text.simple_text font' label
                   ~halign:`LEFT ~valign:`BASELINE
                   ~x:(B2.minx box +. 1.0)
                   ~y:(B2.maxy box +. 3.0 -. Default.text_pad_down)))
-            (C.paint (Paint.color c0)
-               (C.simple_text font label
+            (Image.paint (Paint.color c0)
+               (Text.simple_text font label
                   ~halign:`LEFT ~valign:`BASELINE
                   ~x:(B2.minx box +. 0.0)
                   ~y:(B2.maxy box +. 2.0 -. Default.text_pad_down)))
-        | _ -> C.none
+        | _ -> Image.empty
       end
       begin match icon with
-        | None -> C.none
+        | None -> Image.empty
         | Some icon ->
           draw_icon (B2.maxx box -. float icon.w) (B2.miny box +. 3.0) icon
       end
 
   let draw_node_background box state ?icon ?font label color =
-    C.seq [
+    Image.seq [
       draw_inner_box
         (b2_with_h box (Default.node_title_height +. 2.0))
         Default.(node_radius,node_radius,0.0,0.0)
@@ -610,51 +610,51 @@ module Blender = struct
     in
     let x1 = B2.minx box and y1 = B2.miny box
     and x2 = B2.maxx box and y2 = B2.maxy box in
-    C.seq [
-      C.paint (Paint.color inset_dark)
-        (C.stroke_path Outline.default @@ fun t ->
-         C.Path.move_to t (x1 +. 0.0 ) (y2 -. 13.0);
-         C.Path.line_to t (x1 +. 13.0) (y2 +. 0.0 );
-         C.Path.move_to t (x1        ) (y2 -. 9.0 );
-         C.Path.line_to t (x1 +. 9.0 ) (y2        );
-         C.Path.move_to t (x1        ) (y2 -. 5.0 );
-         C.Path.line_to t (x1 +. 5.0 ) (y2        );
-         C.Path.move_to t (x2 -. 11.0) (y1        );
-         C.Path.line_to t (x2        ) (y1 +. 11.0);
-         C.Path.move_to t (x2 -. 7.0 ) (y1        );
-         C.Path.line_to t (x2        ) (y1 +. 7.0 );
-         C.Path.move_to t (x2 -. 3.0 ) (y1        );
-         C.Path.line_to t (x2        ) (y1 +. 3.0 );
+    Image.seq [
+      Image.paint (Paint.color inset_dark)
+        (Image.stroke_path Outline.default @@ fun t ->
+         Path.move_to t (x1 +. 0.0 ) (y2 -. 13.0);
+         Path.line_to t (x1 +. 13.0) (y2 +. 0.0 );
+         Path.move_to t (x1        ) (y2 -. 9.0 );
+         Path.line_to t (x1 +. 9.0 ) (y2        );
+         Path.move_to t (x1        ) (y2 -. 5.0 );
+         Path.line_to t (x1 +. 5.0 ) (y2        );
+         Path.move_to t (x2 -. 11.0) (y1        );
+         Path.line_to t (x2        ) (y1 +. 11.0);
+         Path.move_to t (x2 -. 7.0 ) (y1        );
+         Path.line_to t (x2        ) (y1 +. 7.0 );
+         Path.move_to t (x2 -. 3.0 ) (y1        );
+         Path.line_to t (x2        ) (y1 +. 3.0 );
         );
-      C.paint (Paint.color inset_light)
-        (C.stroke_path Outline.default @@ fun t ->
-         C.Path.move_to t (x1        ) (y2 -. 11.0);
-         C.Path.line_to t (x1 +. 11.0) (y2        );
-         C.Path.move_to t (x1        ) (y2 -. 7.0 );
-         C.Path.line_to t (x1 +. 7.0 ) (y2        );
-         C.Path.move_to t (x1        ) (y2 -. 3.0 );
-         C.Path.line_to t (x1 +. 3.0 ) (y2        );
-         C.Path.move_to t (x2 -. 13.0) (y1        );
-         C.Path.line_to t (x2        ) (y1 +. 13.0);
-         C.Path.move_to t (x2 -. 9.0 ) (y1        );
-         C.Path.line_to t (x2        ) (y1 +. 9.0 );
-         C.Path.move_to t (x2 -. 5.0 ) (y1        );
-         C.Path.line_to t (x2        ) (y1 +. 5.0 );
+      Image.paint (Paint.color inset_light)
+        (Image.stroke_path Outline.default @@ fun t ->
+         Path.move_to t (x1        ) (y2 -. 11.0);
+         Path.line_to t (x1 +. 11.0) (y2        );
+         Path.move_to t (x1        ) (y2 -. 7.0 );
+         Path.line_to t (x1 +. 7.0 ) (y2        );
+         Path.move_to t (x1        ) (y2 -. 3.0 );
+         Path.line_to t (x1 +. 3.0 ) (y2        );
+         Path.move_to t (x2 -. 13.0) (y1        );
+         Path.line_to t (x2        ) (y1 +. 13.0);
+         Path.move_to t (x2 -. 9.0 ) (y1        );
+         Path.line_to t (x2        ) (y1 +. 9.0 );
+         Path.move_to t (x2 -. 5.0 ) (y1        );
+         Path.line_to t (x2        ) (y1 +. 5.0 );
         );
-      C.paint (Paint.color inset)
-        (C.stroke_path Outline.default @@ fun t ->
-         C.Path.move_to t (x1        ) (y2 -. 12.0);
-         C.Path.line_to t (x1 +. 12.0) (y2        );
-         C.Path.move_to t (x1        ) (y2 -. 8.0 );
-         C.Path.line_to t (x1 +. 8.0 ) (y2        );
-         C.Path.move_to t (x1        ) (y2 -. 4.0 );
-         C.Path.line_to t (x1 +. 4.0 ) (y2        );
-         C.Path.move_to t (x2 -. 12.0) (y1        );
-         C.Path.line_to t (x2        ) (y1 +. 12.0);
-         C.Path.move_to t (x2 -. 8.0 ) (y1        );
-         C.Path.line_to t (x2        ) (y1 +. 8.0 );
-         C.Path.move_to t (x2 -. 4.0 ) (y1        );
-         C.Path.line_to t (x2        ) (y1 +. 4.0 );
+      Image.paint (Paint.color inset)
+        (Image.stroke_path Outline.default @@ fun t ->
+         Path.move_to t (x1        ) (y2 -. 12.0);
+         Path.line_to t (x1 +. 12.0) (y2        );
+         Path.move_to t (x1        ) (y2 -. 8.0 );
+         Path.line_to t (x1 +. 8.0 ) (y2        );
+         Path.move_to t (x1        ) (y2 -. 4.0 );
+         Path.line_to t (x1 +. 4.0 ) (y2        );
+         Path.move_to t (x2 -. 12.0) (y1        );
+         Path.line_to t (x2        ) (y1 +. 12.0);
+         Path.move_to t (x2 -. 8.0 ) (y1        );
+         Path.line_to t (x2        ) (y1 +. 8.0 );
+         Path.move_to t (x2 -. 4.0 ) (y1        );
+         Path.line_to t (x2        ) (y1 +. 4.0 );
         )
     ]
 
@@ -685,16 +685,16 @@ module Blender = struct
       x4       ; yc -. s8 ;
       x0       ; yc -. s8 ;
     |] in
-    let path = C.fill_path @@ fun t ->
+    let path = Image.fill_path @@ fun t ->
       let vertical = if vertical then 1 else 0 in
-      C.Path.move_to t (x +. points.(vertical)) (y +. points.(1-vertical));
+      Path.move_to t (x +. points.(vertical)) (y +. points.(1-vertical));
       for i = 1 to Array.length points / 2 - 1 do
-        C.Path.line_to t
+        Path.line_to t
           (x +. points.(2 * i + vertical))
           (y +. points.(2 * i + 1 - vertical))
       done
     in
-    C.paint (Paint.color (Theme.gray ~a:0.3 0.0)) path
+    Image.paint (Paint.color (Theme.gray ~a:0.3 0.0)) path
 
   let b2 x y w h = B2.v (P2.v x y) (Gg.Size2.v w h)
 
@@ -704,7 +704,7 @@ module Blender = struct
     | Some font, Some label ->
       let x = x +. Default.pad_left in
       let icon, x = match icon with
-        | None -> (C.none, x)
+        | None -> (Image.empty, x)
         | Some icon ->
           (draw_icon (x +. 4.0) (y +. 2.0) icon, x +. float icon.w)
       in
@@ -718,13 +718,13 @@ module Blender = struct
         | `CENTER -> B2.midx box
         | `RIGHT -> B2.maxx box -. Default.pad_right
       in
-      C.impose icon
-        (C.paint paint
-           (C.simple_text ~halign ?valign font
+      Image.impose icon
+        (Image.paint paint
+           (Text.simple_text ~halign ?valign font
               ~x ~y:(y +. Default.widget_height -. Default.text_pad_down)
               text))
     | _, _ -> begin match icon with
-        | None -> C.none
+        | None -> Image.empty
         | Some icon -> draw_icon (x +. 2.0) (y +. 2.0) icon
       end
 
@@ -735,7 +735,7 @@ module Blender = struct
   let draw_tool_button box ~corners state ~font ?icon text =
     let corners = select_corners corners Default.text_radius in
     let (shade_top, shade_down) = inner_colors Theme.tool_button state ~flip:true in
-    C.seq [
+    Image.seq [
       draw_bevel_inset box corners;
       draw_inner_box box corners shade_top shade_down;
       draw_outline_box box corners Theme.tool_button.outline;
@@ -746,7 +746,7 @@ module Blender = struct
   let draw_radio_button box ~font ~corners state ?icon ?label () =
     let corners = select_corners corners Default.option_radius in
     let shade_top, shade_down = inner_colors Theme.radio_button state ~flip:true in
-    C.seq [
+    Image.seq [
       draw_bevel_inset box corners;
       draw_inner_box box corners shade_top shade_down;
       draw_outline_box box corners Theme.(transparent radio_button.outline);
@@ -762,30 +762,30 @@ module Blender = struct
       Theme.regular.text
 
   let draw_background box =
-    C.paint (Paint.color Theme.background)
-      (C.fill_path @@ fun t ->
-       C.Path.rect t (B2.minx box) (B2.miny box) (B2.w box) (B2.h box))
+    Image.paint (Paint.color Theme.background)
+      (Image.fill_path @@ fun t ->
+       Path.rect t (B2.minx box) (B2.miny box) (B2.w box) (B2.h box))
 
   let draw_node_arrow_down ~x ~y ~size color =
-    C.paint (Paint.color color)
-      (C.fill_path @@ fun t ->
-       C.Path.move_to t x y;
-       C.Path.line_to t (x +. size *. 0.5) (y -. size);
-       C.Path.line_to t (x -. size *. 0.5) (y -. size);
-       C.Path.close t
+    Image.paint (Paint.color color)
+      (Image.fill_path @@ fun t ->
+       Path.move_to t x y;
+       Path.line_to t (x +. size *. 0.5) (y -. size);
+       Path.line_to t (x -. size *. 0.5) (y -. size);
+       Path.close t
       )
 
   let draw_menu_item box state ?icon ~font label =
     let base, state =
       if state = `DEFAULT then
-        (C.none, state)
+        (Image.empty, state)
       else
         (draw_inner_box box (0.0,0.0,0.0,0.0)
            Theme.(offset_color menu_item.inner_selected menu_item.shade_top)
            Theme.(offset_color menu_item.inner_selected menu_item.shade_down),
         `ACTIVE)
     in
-    C.impose base
+    Image.impose base
       (draw_icon_label_value box ?icon ~font ~label
          (text_color Theme.menu_item state) ~halign:`LEFT)
 
@@ -793,7 +793,7 @@ module Blender = struct
     let corners = select_corners corners Default.menu_radius in
     let shade_top, shade_down = inner_colors Theme.menu `DEFAULT in
     let box' = offset_box box 0.0 0.0 0.0 1.0 in
-    C.seq [
+    Image.seq [
       draw_inner_box box' corners shade_top shade_down;
       draw_outline_box box' corners Theme.(transparent menu.outline);
       draw_drop_shadow box
@@ -810,7 +810,7 @@ module Blender = struct
     let corners =
       Default.(scrollbar_radius,scrollbar_radius,scrollbar_radius,scrollbar_radius) in
     let base =
-      C.seq [
+      Image.seq [
         draw_bevel_inset box corners;
         draw_inner_box box corners
           Theme.(offset_color scrollbar.inner (3.0 *. scrollbar.shade_down))
@@ -840,7 +840,7 @@ module Blender = struct
       then offset_color item_color Default.scrollbar_active_shade
       else item_color
     in
-    C.seq [
+    Image.seq [
       base;
       draw_inner_box box corners
         (offset_color item_color Theme.(3.0 *. scrollbar.shade_top))
@@ -852,7 +852,7 @@ module Blender = struct
   let draw_text_field box ~corners state ?icon text ~font ~caret =
     let corners = select_corners corners Default.text_radius in
     let shade_top, shade_down = inner_colors Theme.text_field state in
-    C.seq [
+    Image.seq [
       draw_bevel_inset box corners;
       draw_inner_box box corners shade_top shade_down;
       draw_outline_box box corners
@@ -875,14 +875,14 @@ module Blender = struct
     let corners =
       Default.(option_radius, option_radius, option_radius, option_radius) in
     let shade_top, shade_down = inner_colors Theme.option state ~flip:true in
-    C.seq [
+    Image.seq [
       draw_bevel_inset box' corners;
       draw_inner_box box' corners shade_top shade_down;
       draw_outline_box box' corners
         Theme.(transparent option.outline);
       (if state = `ACTIVE
        then draw_check Theme.(transparent option.item) ~x:ox ~y:oy
-       else C.none
+       else Image.empty
       );
       draw_icon_label_value (offset_box box 12.0 0.0 (-12.0) (-1.0))
         (text_color Theme.option state)
@@ -893,7 +893,7 @@ module Blender = struct
     let corners = select_corners corners Default.option_radius in
     let shade_top, shade_down = inner_colors Theme.choice state ~flip:true in
     let x = B2.maxx box -. 10.0 and y = B2.miny box +. 10.0 in
-    C.seq [
+    Image.seq [
       draw_bevel_inset box corners;
       draw_inner_box box corners shade_top shade_down;
       draw_outline_box box corners Theme.(transparent choice.outline);
@@ -906,7 +906,7 @@ module Blender = struct
 
   let draw_color_button box ~corners color =
     let corners = select_corners corners Default.tool_radius in
-    C.seq [
+    Image.seq [
       draw_bevel_inset box corners;
       draw_inner_box box corners color color;
       draw_outline_box box corners
@@ -918,7 +918,7 @@ module Blender = struct
     let shade_top, shade_down = inner_colors Theme.number_field state ~flip:false in
     let y = B2.miny box +. 10.0 in
     let x1 = B2.minx box +. 8.0 and x2 = B2.maxx box -. 8.0 in
-    C.seq [
+    Image.seq [
       draw_bevel_inset box corners;
       draw_inner_box box corners shade_top shade_down;
       draw_outline_box box corners Theme.(transparent number_field.outline);
@@ -936,7 +936,7 @@ module Blender = struct
   let draw_slider box ~corners state ~progress ~font ~label ~value =
     let corners = select_corners corners Default.number_radius in
     let shade_top, shade_down = inner_colors Theme.slider state in
-    C.seq [
+    Image.seq [
       draw_bevel_inset box corners;
       draw_inner_box box corners shade_top shade_down;
       let shade_top = Theme.(offset_color slider.item slider.shade_top)
@@ -949,8 +949,8 @@ module Blender = struct
       in
       (* TODO nvgScissor(ctx,x,y,8+(w-8)*bnd_clamp(progress,0,1),h); *)
       let x = B2.minx box and y = B2.miny box and w = B2.w box and h = B2.h box in
-      C.seq [
-        C.intersect_scissor (b2 x y (8.+.(w-.8.)*.progress) h)
+      Image.seq [
+        Image.intersect_scissor (b2 x y (8.+.(w-.8.)*.progress) h)
           (draw_inner_box box corners shade_top shade_down);
         draw_outline_box box corners Theme.(transparent slider.outline);
         draw_icon_label_value box
@@ -960,8 +960,8 @@ module Blender = struct
     ]
 
   let draw =
-    let font = Font.make ~size:Default.label_font_size (Lazy.force font_sans) in
-    C.seq [
+    let font = Text.Font.make ~size:Default.label_font_size (Lazy.force font_sans) in
+    Image.seq [
       draw_background (b2 0. 0. 640. 480.);
       draw_check ~x:40. ~y:40. (transparent Theme.(option.item));
       draw_up_down_arrow ~x:80. ~y:40. ~size:10.0 (transparent Theme.(choice.item));
@@ -1009,8 +1009,12 @@ let pw = lw *. f
 let ph = lh *. f
 
 let render vg _t =
-  C.render vg ~width:pw ~height:ph
-    (C.transform (Transform.scale f f) Blender.draw);
+  Renderer.render vg ~width:pw ~height:ph
+    (Image.transform
+       (Transform.compose
+          (Transform.scale f f)
+          (Transform.skew 0.1 0.0)
+       ) Blender.draw);
 
 open Tgles2
 
@@ -1029,7 +1033,7 @@ let main () =
       match Sdl.gl_create_context w with
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
       | Ok ctx ->
-        let vg = C.create ~antialias:true () in
+        let vg = Renderer.create ~antialias:true () in
         let t = ref 0.0 in
         let quit = ref false in
         let event = Sdl.Event.create () in
