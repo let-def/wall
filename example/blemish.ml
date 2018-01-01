@@ -3,13 +3,6 @@ open Tsdl
 open Wall
 module Text = Wall_text
 
-let normalize (dx, dy) =
-  let d = sqrt (dx *. dx +. dy *. dy) in
-  if d > 1.0 then
-    (dx /. d, dy /. d)
-  else
-    (dx, dy)
-
 let load_font name =
   let ic = open_in_bin name in
   let dim = in_channel_length ic in
