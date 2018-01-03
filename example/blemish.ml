@@ -1006,7 +1006,7 @@ let render vg _t =
     (Image.transform
        (Transform.compose
           (Transform.scale f f)
-          (Transform.skew 0.1 0.0)
+          (Transform.skew 0.0 0.0)
        ) Blender.draw);
 
 open Tgles2
