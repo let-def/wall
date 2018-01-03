@@ -38,7 +38,7 @@ let utf8_decode index str =
   if !state = 0 then !codep else (-1)
 
 module Font = struct
-  type glyph_placement = [ `Align | `Exact ]
+  type glyph_placement = [ `Aligned | `Subpixel ]
 
   type t = {
     glyphes: Stb_truetype.t;
@@ -49,7 +49,7 @@ module Font = struct
     placement   : glyph_placement;
   }
 
-  let make ?(size=16.0) ?(blur=0.0) ?(spacing=0.0) ?(line_height=1.0) ?(placement=`Align) glyphes =
+  let make ?(size=16.0) ?(blur=0.0) ?(spacing=0.0) ?(line_height=1.0) ?(placement=`Aligned) glyphes =
     { glyphes; blur; size; spacing; line_height; placement }
 
   type metrics = {
@@ -119,15 +119,27 @@ module Font = struct
 end
 
 module Glyph = struct
-  let quantize x = int_of_float (x *. 10.0)
+  let decimal_quantize x = int_of_float (x *. 10.0)
 
-  let estimate_scale sx sy {Font. size} =
+  let subpixel_quantize x =
+    let rec aux x n =
+      if n >= x then n
+      else aux x (n lsl 1)
+    in
+    (aux (int_of_float (x *. 1.70)) 4) * 10
+
+  let estimate_scale sx sy {Font. size; placement}  =
     let factor = sqrt (sx *. sx +. sy *. sy) in
     let scale = factor *. size in
-    let x = quantize scale in
-    if x > 2000
-    then (float x /. 2000.0 /. factor, 2000)
-    else (1.0 /. factor, x)
+    match placement with
+    | `Aligned ->
+      let x = decimal_quantize scale in
+      if x > 2000
+      then (float x /. 2000.0 /. factor, 2000)
+      else (1.0 /. factor, x)
+    | `Subpixel ->
+      let x = subpixel_quantize scale in
+      ((scale /. (float x /. 10.0)) /. factor, x)
 
   type key = {
     cp    : int;
@@ -138,7 +150,7 @@ module Glyph = struct
 
   let key ~sx ~sy font =
     let ttf = font.Font.glyphes in
-    let blur = quantize font.Font.blur in
+    let blur = decimal_quantize font.Font.blur in
     let factor, scale = estimate_scale sx sy font in
     (factor, (fun cp -> { cp; scale; ttf; blur }))
 
@@ -177,8 +189,8 @@ let align_place factor x =
   let x = x +. factor *. 0.5 in x -. mod_float x factor
 
 let place factor = function
-  | `Exact -> (fun x -> x)
-  | `Align -> align_place factor
+  | `Subpixel -> (fun x -> x)
+  | `Aligned -> align_place factor
 
 let render_glyphes stash xform (font,pos,text) quad ~(push : unit -> unit) =
   let x = Gg.P2.x pos and y = Gg.P2.y pos in
@@ -212,14 +224,14 @@ let render_glyphes stash xform (font,pos,text) quad ~(push : unit -> unit) =
           box.x0 box.y0 box.x1 box.y1 factor;*)
         let x = place (x +. float !xoff *. scale) in
         let open Typesetter in
-        quad.x0 <- x +. float box.x0 *. factor;
-        quad.y0 <- y +. float box.y0 *. factor;
-        quad.x1 <- x +. float box.x1 *. factor;
-        quad.y1 <- y +. float box.y1 *. factor;
-        quad.u0 <- float uv.x0 /. 1024.0;
-        quad.v0 <- float uv.y0 /. 1024.0;
-        quad.u1 <- float uv.x1 /. 1024.0;
-        quad.v1 <- float uv.y1 /. 1024.0;
+        quad.x0 <- x +. float (box.x0 - 2) *. factor;
+        quad.y0 <- y +. float (box.y0 - 2) *. factor;
+        quad.x1 <- x +. float (box.x1 + 2) *. factor;
+        quad.y1 <- y +. float (box.y1 + 2) *. factor;
+        quad.u0 <- float (uv.x0 - 2) /. 1024.0;
+        quad.v0 <- float (uv.y0 - 2) /. 1024.0;
+        quad.u1 <- float (uv.x1 + 2) /. 1024.0;
+        quad.v1 <- float (uv.y1 + 2) /. 1024.0;
         push ();
         xoff := !xoff + Stb_truetype.glyph_advance glyphes glyph;
       | exception Not_found ->
@@ -263,7 +275,7 @@ let bake_glyphs t =
       let box = Stb_truetype.get_glyph_bitmap_box ttf glyph ~scale_x:scale ~scale_y:scale in
       let {Stb_truetype. x0; y0; x1; y1} = box in
       Maxrects.box (key, ttf, glyph, scale, box)
-        (x1 - x0 + 2 + blur / 10) (y1 - y0 + 2 + blur / 10) :: boxes
+        (x1 - x0 + 4 + blur / 10) (y1 - y0 + 4 + blur / 10) :: boxes
   in
   let todo = Hashtbl.fold add_box t.font_todo [] in
   let room, boxes = Maxrects.insert_batch buffer.room todo in
@@ -289,7 +301,7 @@ let bake_glyphs t =
       | None -> ()
       | Some {Maxrects. x; y; w; h; box; bin =_} ->
         let (key, ttf, glyph, scale, box) = box.Maxrects.tag in
-        let pad = 1 + key.Glyph.blur / 20 in
+        let pad = 2 + key.Glyph.blur / 20 in
         let uv = {Stb_truetype. x0 = x + pad; x1 = x + w - pad;
                   y0 = y + pad; y1 = y + h - pad} in
         Stb_truetype.make_glyph_bitmap

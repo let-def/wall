@@ -953,7 +953,7 @@ module Blender = struct
     ]
 
   let draw =
-    let font = Text.Font.make ~size:Default.label_font_size (Lazy.force font_sans) in
+    let font = Text.Font.make ~placement:`Subpixel ~size:Default.label_font_size (Lazy.force font_sans) in
     Image.seq [
       draw_background (b2 0. 0. 640. 480.);
       draw_check ~x:40. ~y:40. (transparent Theme.(option.item));

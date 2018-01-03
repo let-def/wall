@@ -8,7 +8,7 @@ val utf8_decode : int ref -> string -> int
     advanced to hopefully resume parsing. *)
 
 module Font : sig
-  type glyph_placement = [ `Align | `Exact ]
+  type glyph_placement = [ `Aligned | `Subpixel ]
 
   type t = {
     glyphes     : Stb_truetype.t;
