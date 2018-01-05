@@ -663,24 +663,45 @@ module Image = struct
   let typeset typesetter contents =
     String (contents, typesetter)
 
-  let paint paint node = Paint (node, paint)
-  let transform xf node = Xform (node, xf)
-  let impose n1 n2 = Seq (n1, n2)
+  let paint paint = function
+    | Empty -> Empty
+    | Paint _ as node -> node
+    | node -> Paint (node, paint)
+
+  let transform xf = function
+    | node when xf == Transform.identity -> node
+    | Empty -> Empty
+    | Xform (node, xf') -> Xform (node, Transform.compose xf' xf)
+    | node -> Xform (node, xf)
+
+  let impose n1 n2 =
+    match n1, n2 with
+    | Empty, n | n, Empty -> n
+    | _ -> Seq (n1, n2)
+
   let rec seq = function
     | [] -> Empty
     | [x] -> x
     | x :: xs -> impose x (seq xs)
 
-  let scissor ?(transform=Transform.identity) box node =
-    Scissor (node, transform, box, `Set)
+  let scissor ?(transform=Transform.identity) box = function
+    | Empty -> Empty
+    | Scissor (_, _, _, (`Set | `Reset)) as node -> node
+    | node -> Scissor (node, transform, box, `Set)
 
-  let reset_scissor node =
-    Scissor (node, Transform.identity, Gg.Box2.empty, `Reset)
+  let reset_scissor = function
+    | Empty -> Empty
+    | Scissor (_, _, _, (`Set | `Reset)) as node -> node
+    | node -> Scissor (node, Transform.identity, Gg.Box2.empty, `Reset)
 
-  let intersect_scissor ?(transform=Transform.identity) box node =
-    Scissor (node, transform, box, `Intersect)
+  let intersect_scissor ?(transform=Transform.identity) box = function
+    | Empty -> Empty
+    | node -> Scissor (node, transform, box, `Intersect)
 
-  let alpha a node = Alpha (node, a)
+  let alpha a = function
+    | Empty -> Empty
+    | Alpha (node, a') -> Alpha (node, a *. a')
+    | node -> Alpha (node, a)
 
   let fill_path f = fill (Path.make f)
   let stroke_path o f = stroke o (Path.make f)
