@@ -893,6 +893,7 @@ let main () =
           Gl.enable Gl.cull_face_enum;
           Gl.disable Gl.depth_test;
           let time0 = (Unix.times ()).tms_utime in
+          Gc.minor ();
           render context sw sh (Int32.to_float (Sdl.get_ticks ()) /. 1000.0);
           let time1 = (Unix.times ()).tms_utime in
           let time2 = (Unix.times ()).tms_utime in

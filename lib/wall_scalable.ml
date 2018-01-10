@@ -1,57 +1,56 @@
 open Wall
-module Sz = Wall_sizer
-type measure = Wall_text.Font.measure
-type size = Sz.par
-type page = Sz.page
-type len = Sz.len
+open Wall_sizer
 
-type 'a t = Scalable of size * (page -> image * 'a)
+type 'a t = Scalable of 'a spec * ('a -> image)
 
-let allocate sz : measure t =
-  Scalable (sz, fun page ->
-      let {Sz. x; y; h; w; d} = Sz.page_line page in
-      (Image.empty, {Wall_text.Font. width = w; height = h; depth = d})
+let allocate spec =
+  Scalable (spec, fun _ -> Image.empty)
+
+let apply op (Scalable (spec, f)) =
+  Scalable (
+    Op.apply_unary op spec,
+    fun sol -> f (Op.solve_unary op spec sol)
+  )
+
+let join op (Scalable (spec1, f1)) (Scalable (spec2, f2)) =
+  Scalable (
+    Op.apply_binary op spec1 spec2,
+    fun sol ->
+      let sol1, sol2 = Op.solve_binary op spec1 spec2 sol in
+      Image.impose (f1 sol1) (f2 sol2)
+  )
+
+let ( *&* ) a b =
+  join Ops.concat a b
+
+let pad ?left ?right (Scalable (spec, f) as t) =
+  match left, right with
+  | None, None -> t
+  | Some l, None ->
+    Scalable (
+      Op.apply_binary Ops.concat l spec,
+      fun sol -> let _, sol = Op.solve_binary Ops.concat l spec sol in f sol
+    )
+  | None, Some r ->
+    Scalable (
+      Op.apply_binary Ops.concat spec r,
+      fun sol -> let _, sol = Op.solve_binary Ops.concat spec r sol in f sol
+    )
+  | Some l, Some r ->
+    Scalable (
+      Op.apply_binary Ops.concat (Op.apply_binary Ops.concat l spec) r,
+      fun sol ->
+        let spec' = Op.apply_binary Ops.concat l spec in
+        let sol, _ = Op.solve_binary Ops.concat spec' r sol in
+        let _, sol = Op.solve_binary Ops.concat l spec sol in
+        f sol
     )
 
-let map f (Scalable (sz, g)) =
-  Scalable (sz, fun page ->
-      let img, a = g page in (img, f a)
-    )
+let draw f (Scalable (spec, f')) =
+  Scalable (spec, fun sol -> Image.impose (f' sol) (f sol))
 
-let box (Scalable (sz, f)) =
-  Scalable (Sz.par (Sz.box sz), f)
+let draw_under f (Scalable (spec, f')) =
+  Scalable (spec, fun sol -> Image.impose (f sol) (f' sol))
 
-let draw f (Scalable (sz, g)) =
-  Scalable (sz, fun page ->
-      let img, a = g page in
-      let {Sz. x; y; h; w; d} = Sz.page_line page in
-      let img' = Image.transform (Transform.translation ~x ~y) (f a) in
-      (Image.impose img img', a)
-    )
-
-let ( *&* ) (Scalable (sz1, f1)) (Scalable (sz2, f2)) =
-  Scalable (Sz.(--) sz1 sz2, fun page ->
-      let p1, p2 = Sz.split page sz1 sz2 in
-      let img1, a = f1 p1 in
-      let img2, b = f2 p2 in
-      (Image.impose img1 img2, (a, b))
-    )
-
-let ( *&  ) a b = map (fun (a, ()) -> a) (a *&* b)
-let (  &* ) a b = map (fun ((), b) -> b) (a *&* b)
-
-let pad ?(left=Sz.empty) ?(right=Sz.empty) (Scalable (sz, f)) =
-  Scalable (Sz.(left -- sz -- right), fun page ->
-      let _, page = Sz.split page left sz in
-      let page, _ = Sz.split page sz right in
-      f page)
-
-let ideal_size (Scalable (sz, _)) =
-  Sz.ideal_size sz
-
-let minimal_size (Scalable (sz, _)) =
-  Sz.minimal_size sz
-
-let render page (Scalable (sz, f)) =
-  f page
-
+let spec (Scalable (spec, _)) = spec
+let render sol (Scalable (_, f)) = f sol

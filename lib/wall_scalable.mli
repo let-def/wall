@@ -1,20 +1,17 @@
 open Wall
-type measure = Wall_text.Font.measure
-type size = Wall_sizer.par
-type page = Wall_sizer.page
-type len = Wall_sizer.len
+open Wall_sizer
 
-type 'a t
+type 'a t = Scalable of 'a spec * ('a -> image)
 
-val allocate : size -> measure t
-val map : ('a -> 'b) -> 'a t -> 'b t
-val box : 'a t -> 'a t
+val allocate : 'a spec -> 'a t
+
+val apply : ('a, 'b) Op.unary -> 'a t -> 'b t
+val join : ('a, 'b, 'c) Op.binary -> 'a t -> 'b t -> 'c t
+
+val ( *&* ) : 'a t -> 'a t -> 'a t
+val pad : ?left:'a spec -> ?right:'a spec -> 'a t -> 'a t
+
 val draw : ('a -> image) -> 'a t -> 'a t
-val ( *&* ) : 'a t -> 'b t -> ('a * 'b) t
-val ( *&  ) : 'a t -> unit t -> 'a t
-val (  &* ) : unit t -> 'b t -> 'b t
-val pad : ?left:size -> ?right:size -> 'a t -> 'a t
 
-val ideal_size : _ t -> len * len
-val minimal_size : _ t -> len * len
-val render : page -> 'a t -> 'a * image
+val spec : 'a t -> 'a spec
+val render : 'a -> 'a t -> image
