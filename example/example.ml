@@ -850,10 +850,6 @@ let render context sw sh t =
 
 open Tgles2
 
-let time_cpu = ref 0.0
-let time_gpu = ref 0.0
-let time_counter = ref 0
-
 let main () =
   Printexc.record_backtrace true;
   match Sdl.init Sdl.Init.video with
@@ -892,19 +888,7 @@ let main () =
           Gl.blend_func_separate Gl.one Gl.src_alpha Gl.one Gl.one_minus_src_alpha;
           Gl.enable Gl.cull_face_enum;
           Gl.disable Gl.depth_test;
-          let time0 = (Unix.times ()).tms_utime in
           render context sw sh (Int32.to_float (Sdl.get_ticks ()) /. 1000.0);
-          let time1 = (Unix.times ()).tms_utime in
-          let time2 = (Unix.times ()).tms_utime in
-          time_cpu := !time_cpu +. (time1 -. time0);
-          time_gpu := !time_gpu +. (time2 -. time1);
-          incr time_counter;
-          if (!time_counter >= 60) then (
-            Printf.printf "cpu time: %0.3f ms\ngpu time: %0.3f ms\n%!" (!time_cpu *. 1000.0 /. float !time_counter) (!time_gpu *. 1000.0 /. float !time_counter);
-            time_cpu := 0.0;
-            time_gpu := 0.0;
-            time_counter := 0;
-          );
           Sdl.gl_swap_window w;
         done;
         Sdl.gl_delete_context ctx;

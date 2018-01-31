@@ -347,8 +347,8 @@ let allocate_glyphes stash ~sx ~sy (font,_pos,text) =
       | cache -> cache.Glyph.frame <- frame_nr
       | exception Not_found ->
         if not (Hashtbl.mem stash.font_todo key) then
-          (prerr_endline ("new glyph: " ^ string_of_int cp);
-           Hashtbl.add stash.font_todo key ())
+          (*(prerr_endline ("new glyph: " ^ string_of_int cp);*)
+          (Hashtbl.add stash.font_todo key ())
   done;
   if not has_todo0 && (has_todo stash) then
     Some (fun () -> bake_glyphs stash)

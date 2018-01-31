@@ -1,3 +1,13 @@
+# Expose performance counters
+
+# depth-based shading pipeline
+
+Use depth rather than stencil to occlude objects (as in fast ui draw):
+- simpler for stroke and convex fill, similar for complex fill 
+- opaque draw can benefit of Z rejection
+- might be possible to implement a `frame` combinator to clip in/out. should be
+  combined with a stroke to hide the lack of antialiasing :P
+
 # Abstract the GL backend.
 
 The two promising approaches are:

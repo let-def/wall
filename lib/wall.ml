@@ -741,13 +741,13 @@ module Renderer = struct
       let acc = typesetter_prepare acc xx xy yx yy n1 in
       typesetter_prepare acc xx xy yx yy n2
     | Xform (n, xf) ->
-      Printf.printf "(%f,%f) (%f,%f) -> " xx xy yx yy;
+      (*Printf.printf "(%f,%f) (%f,%f) -> " xx xy yx yy;*)
       let xx = Transform.linear_px xf xx xy
       and xy = Transform.linear_py xf xx xy
       and yx = Transform.linear_px xf yx yy
       and yy = Transform.linear_py xf yx yy
       in
-      Printf.printf "(%f,%f) (%f,%f)\n%!" xx xy yx yy;
+      (*Printf.printf "(%f,%f) (%f,%f)\n%!" xx xy yx yy;*)
       typesetter_prepare acc xx xy yx yy n
     | String (x, cls) ->
       let sx = sqrt (xx *. xx +. xy *. xy) in
@@ -985,14 +985,13 @@ module Renderer = struct
   let render t ~width ~height node =
     T.clear t.t;
     B.clear t.b;
-    let time0 = Backend.time_spent () and mem0 = Backend.memory_spent () in
+    (*let time0 = Backend.time_spent () and mem0 = Backend.memory_spent () in*)
     let todo = typesetter_prepare [] 1.0 0.0 0.0 1.0 node in
-    let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in
+    (*let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in*)
     List.iter (fun f -> f ()) todo;
-    let time2 = Backend.time_spent () and mem2 = Backend.memory_spent () in
-    (*for i = 0 to 99 do ignore (prepare t Transform.identity node) done;*)
+    (*let time2 = Backend.time_spent () and mem2 = Backend.memory_spent () in*)
     let pnode = prepare t Transform.identity node in
-    let time3 = Backend.time_spent () and mem3 = Backend.memory_spent () in
+    (*let time3 = Backend.time_spent () and mem3 = Backend.memory_spent () in*)
     Backend.prepare t.g width height (B.sub t.b);
     xform_outofdate := true;
     counter_fill := 0;
@@ -1001,8 +1000,8 @@ module Renderer = struct
     counter_transparent := 0;
     counter_opaque := 0;
     exec t Transform.identity Paint.black Frame.default pnode;
-    Backend.finish ();
-    let time4 = Backend.time_spent () and mem4 = Backend.memory_spent () in
+    Backend.finish ()
+    (*let time4 = Backend.time_spent () and mem4 = Backend.memory_spent () in
     let row name t0 t1 m0 m1 =
       Printf.printf "% 9.03f us % 9d words     %s\n" (float (t1 - t0) /. 1000.0) (m1 - m0) name
     in
@@ -1011,7 +1010,7 @@ module Renderer = struct
     row (Printf.sprintf "typeset baking (%d jobs)" (List.length todo)) time1 time2 mem1 mem2;
     row "command list preparation" time2 time3 mem2 mem3;
     row "command list submission (GL driver)" time3 time4 mem3 mem4;
-    Printf.printf "%!"
+    Printf.printf "%!"*)
 end
 
 type color     = Color.t
