@@ -10,5 +10,6 @@ build: [
 ]
 depends: [
   "ocamlfind" {build}
-  "gg" "result" "stb_image" "stb_truetype" "grenier"
+  "gg" "result" "stb_image" "grenier"
+  "stb_truetype" { >= "0.5" }
 ]
