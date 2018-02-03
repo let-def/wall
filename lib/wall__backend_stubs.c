@@ -2,7 +2,11 @@
 #include <caml/custom.h>
 #include <caml/fail.h>
 #include <caml/memory.h>
-#include <GLES2/gl2.h>
+#ifdef __APPLE__
+#include <OpenGL/gl3.h>
+#else
+#include <GLES/gl2.h>
+#endif
 #include <string.h>
 #include <stdio.h>
 
@@ -518,7 +522,11 @@ static GLenum gl_format_from_channels(value channels)
   switch(Long_val(channels))
   {
     case 1:
+#ifdef __APPLE__
+      return GL_RED;
+#else
       return GL_LUMINANCE;
+#endif
     case 3:
       return GL_RGB;
     case 4:

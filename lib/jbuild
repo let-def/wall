@@ -9,5 +9,5 @@
   (c_names (wall__backend_stubs))
   (c_flags (-g))
   ;(c_flags (-I/blah/include))
-  ;(c_library_flags (-lGL))
+  (c_library_flags (-framework OpenGL))
   (libraries (gg result stb_image stb_truetype grenier.binpacking))))
