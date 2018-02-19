@@ -16,6 +16,7 @@
    3. This notice may not be removed or altered from any source distribution.
 *)
 
+[@@@landmark "auto"]
 module BA = Bigarray.Array1
 let ba_empty = BA.create Bigarray.float32 Bigarray.c_layout 0
 
