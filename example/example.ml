@@ -855,6 +855,8 @@ let main () =
   match Sdl.init Sdl.Init.video with
   | Error (`Msg e) -> Sdl.log "Init error: %s" e; exit 1
   | Ok () ->
+    Sdl.gl_set_attribute Sdl.Gl.depth_size 24;
+    Sdl.gl_set_attribute Sdl.Gl.stencil_size 8;
     match
       Sdl.create_window ~w:fw ~h:fh "SDL OpenGL"
         Sdl.Window.(opengl + allow_highdpi)

@@ -27,3 +27,6 @@ node_modules
 
 *.lock
 yarn-error.log
+
+example/.merlin
+lib/.merlin

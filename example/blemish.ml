@@ -1016,13 +1016,13 @@ let main () =
   match Sdl.init Sdl.Init.video with
   | Error (`Msg e) -> Sdl.log "Init error: %s" e; exit 1
   | Ok () ->
+    ignore (Sdl.gl_set_attribute Sdl.Gl.stencil_size 1);
     match Sdl.create_window ~w:fw ~h:fh "SDL OpenGL" Sdl.Window.opengl with
     | Error (`Msg e) -> Sdl.log "Create window error: %s" e; exit 1
     | Ok w ->
       (*Sdl.gl_set_attribute Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core;*)
       (*Sdl.gl_set_attribute Sdl.Gl.context_major_version 2;*)
       (*Sdl.gl_set_attribute Sdl.Gl.context_minor_version 1;*)
-      ignore (Sdl.gl_set_attribute Sdl.Gl.stencil_size 1);
       match Sdl.gl_create_context w with
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
       | Ok ctx ->
