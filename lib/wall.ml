@@ -986,7 +986,7 @@ module Renderer = struct
   let render t ~width ~height node =
     T.clear t.t;
     B.clear t.b;
-    (*let time0 = Backend.time_spent () and mem0 = Backend.memory_spent () in*)
+    let time0 = Backend.time_spent () and mem0 = Backend.memory_spent () in
     let todo = typesetter_prepare [] 1.0 0.0 0.0 1.0 node in
     (*let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in*)
     List.iter (fun f -> f ()) todo;
@@ -1001,11 +1001,13 @@ module Renderer = struct
     counter_transparent := 0;
     counter_opaque := 0;
     exec t Transform.identity Paint.black Frame.default pnode;
-    Backend.finish ()
-    (*let time4 = Backend.time_spent () and mem4 = Backend.memory_spent () in
+    Backend.finish ();
+    let time4 = Backend.time_spent () and mem4 = Backend.memory_spent () in
     let row name t0 t1 m0 m1 =
       Printf.printf "% 9.03f us % 9d words     %s\n" (float (t1 - t0) /. 1000.0) (m1 - m0) name
     in
+    row "frame" time0 time4 mem0 mem4
+    (*let time4 = Backend.time_spent () and mem4 = Backend.memory_spent () in
     Printf.printf "--- new frame: %d convex fill, %d complex fill, %d stroke, %d transparent styles, %d opaque styles\n" !counter_convex_fill !counter_fill !counter_stroke !counter_transparent !counter_opaque;
     row "typeset preparation" time0 time1 mem0 mem1;
     row (Printf.sprintf "typeset baking (%d jobs)" (List.length todo)) time1 time2 mem1 mem2;
