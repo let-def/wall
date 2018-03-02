@@ -95,7 +95,6 @@ module T = struct
     val prepare_aux : t -> unit
 
     val aux_set_d : t -> int -> float -> float -> float -> unit
-    val aux_set_dm : t -> int -> float -> float -> unit
 
     val aux_dx : t -> int -> float
     val aux_dy : t -> int -> float
@@ -252,11 +251,6 @@ module T = struct
       points_aux.{5 * pt + 0} <- dx;
       points_aux.{5 * pt + 1} <- dy;
       points_aux.{5 * pt + 2} <- dlen
-
-    let aux_set_dm {points_aux} pt dmx dmy =
-      (*Printf.printf "set_dm: %f %f\n" dmx dmy;*)
-      points_aux.{5 * pt + 3} <- dmx;
-      points_aux.{5 * pt + 4} <- dmy
 
     let aux_dx   {points_aux} pt = points_aux.{5 * pt + 0}
     let aux_dy   {points_aux} pt = points_aux.{5 * pt + 1}
@@ -560,13 +554,37 @@ module V = struct
 
   let pi = 3.14159265358979323846264338327
 
-  let vbuffer_put (b : B.t) ~x ~y ~u ~v =
+  let vbuffer_put (b : B.t) ~x ~y ~u =
     let data = B.data b and c = B.alloc b 4 in
     (*Printf.printf "vbuffer_put %f %f %f %f\n" x y u v;*)
     data.{c + 0} <- x;
     data.{c + 1} <- y;
     data.{c + 2} <- u;
-    data.{c + 3} <- v
+    data.{c + 3} <- 1.0
+
+  let decode (b : B.t) c =
+    let data = B.data b in
+    let x = data.{c + 0} in
+    let y = data.{c + 1} in
+    let tx = data.{c + 2} in
+    let dy = data.{c + 3} in
+    let fx, ix = modf tx in
+    let fx = if fx < 0.0 then 1.0 +. fx else fx in
+    let dx = fx *. 4.0 -. 2.0 in
+    let u = int_of_float (-. 1.0 -. ix) in
+    Printf.printf "dvbuffer_put(decode) %f+%f %f+%f %d\t(fx=%0.2f,ix=%f)\n"
+      x dy y dx u fx ix
+
+  let dvbuffer_put (b : B.t) ~x ~y ~dx ~dy ~u =
+    let data = B.data b and c = B.alloc b 4 in
+    Printf.printf "dvbuffer_put(encode) %f+%f %f+%f %d\n" x dx y dy u;
+    assert (abs_float dx < 2.0);
+    assert (abs_float dy < 2.0);
+    data.{c + 0} <- x;
+    data.{c + 1} <- y;
+    data.{c + 2} <- dy /. 4.0 -. 1.5 -. float u;
+    data.{c + 3} <- dx;
+    decode b c
 
   let choose_bevel bevel ~w t p0 p1 =
     let x1 = T.get_x t p1 and y1 = T.get_y t p1 in
@@ -581,7 +599,7 @@ module V = struct
        x1 +. T.get_dmx t p1 *. w,
        y1 +. T.get_dmy t p1 *. w)
 
-  let bevel_join vb t p0 p1 lw rw lu ru =
+  let bevel_join vb t p0 p1 lw rw lu =
     let x1 = T.get_x t p1 in
     let y1 = T.get_y t p1 in
     let dlx0 = +. T.get_dy t p0 in
@@ -593,46 +611,46 @@ module V = struct
       let lx0, ly0, lx1, ly1 =
         choose_bevel (flags land T.flag_innerbevel <> 0) ~w:lw t p0 p1 in
 
-      vbuffer_put vb ~x:lx0 ~y:ly0 ~u:lu ~v:1.0;
+      vbuffer_put vb ~x:lx0 ~y:ly0 ~u:lu;
       vbuffer_put vb
         ~x:(x1 -. dlx0 *. rw)
         ~y:(y1 -. dly0 *. rw)
-        ~u:ru ~v:1.0;
+        ~u:1.0;
 
       if flags land T.flag_bevel <> 0 then begin
-        vbuffer_put vb ~x:lx0 ~y:ly0 ~u:lu ~v:1.0;
+        vbuffer_put vb ~x:lx0 ~y:ly0 ~u:lu;
         vbuffer_put vb
           ~x:(x1 -. dlx0 *. rw)
           ~y:(y1 -. dly0 *. rw)
-          ~u:ru ~v:1.0;
-        vbuffer_put vb ~x:lx1 ~y:ly1 ~u:lu ~v:1.0;
+          ~u:1.0;
+        vbuffer_put vb ~x:lx1 ~y:ly1 ~u:lu;
         vbuffer_put vb
           ~x:(x1 -. dlx1 *. rw)
           ~y:(y1 -. dly1 *. rw)
-          ~u:ru ~v:1.0;
+          ~u:1.0;
       end else begin
         let rx0 = x1 -. T.get_dmx t p1 *. rw in
         let ry0 = y1 -. T.get_dmy t p1 *. rw in
-        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5 ~v:1.0;
+        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5;
         vbuffer_put vb
           ~x:(x1 -. dlx0 *. rw)
           ~y:(y1 -. dly0 *. rw)
-          ~u:ru ~v:1.0;
-        vbuffer_put vb ~x:rx0 ~y:ry0 ~u:ru ~v:1.0;
-        vbuffer_put vb ~x:rx0 ~y:ry0 ~u:ru ~v:1.0;
+          ~u:1.0;
+        vbuffer_put vb ~x:rx0 ~y:ry0 ~u:1.0;
+        vbuffer_put vb ~x:rx0 ~y:ry0 ~u:1.0;
 
-        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5 ~v:1.0;
+        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5;
         vbuffer_put vb
           ~x:(x1 -. dlx1 *. rw)
           ~y:(y1 -. dly1 *. rw)
-          ~u:ru ~v:1.0;
+          ~u:1.0;
       end;
 
-      vbuffer_put vb ~x:lx1 ~y:ly1 ~u:lu ~v:1.0;
+      vbuffer_put vb ~x:lx1 ~y:ly1 ~u:lu;
       vbuffer_put vb
         ~x:(x1 -. dlx1 *. rw)
         ~y:(y1 -. dly1 *. rw)
-        ~u:ru ~v:1.0
+        ~u:1.0
     end else begin
       let rx0, ry0, rx1, ry1 =
         choose_bevel (flags land T.flag_innerbevel <> 0) ~w:(-.rw) t p0 p1 in
@@ -640,48 +658,48 @@ module V = struct
       vbuffer_put vb
         ~x:(x1 +. dlx0 *. lw)
         ~y:(y1 +. dly0 *. lw)
-        ~u:lu ~v:1.0;
-      vbuffer_put vb ~x:rx0 ~y:ry0 ~u:ru ~v:1.0;
+        ~u:lu;
+      vbuffer_put vb ~x:rx0 ~y:ry0 ~u:1.0;
 
       if flags land T.flag_bevel <> 0 then begin
         vbuffer_put vb
           ~x:(x1 +. dlx0 *. lw)
           ~y:(y1 +. dly0 *. lw)
-          ~u:lu ~v:1.0;
-        vbuffer_put vb ~x:rx0 ~y:ry0 ~u:ru ~v:1.0;
+          ~u:lu;
+        vbuffer_put vb ~x:rx0 ~y:ry0 ~u:1.0;
 
         vbuffer_put vb
           ~x:(x1 +. dlx1 *. lw)
           ~y:(y1 +. dly1 *. lw)
-          ~u:lu ~v:1.0;
-        vbuffer_put vb ~x:rx1 ~y:ry1 ~u:ru ~v:1.0;
+          ~u:lu;
+        vbuffer_put vb ~x:rx1 ~y:ry1 ~u:1.0;
       end else begin
         let lx0 = x1 +. T.get_dmx t p1 *. lw in
         let ly0 = y1 +. T.get_dmy t p1 *. lw in
         vbuffer_put vb
           ~x:(x1 +. dlx0 *. lw)
           ~y:(y1 +. dly0 *. lw)
-          ~u:lu ~v:1.0;
-        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5 ~v:1.0;
+          ~u:lu;
+        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5;
 
-        vbuffer_put vb ~x:lx0 ~y:ly0 ~u:lu ~v:1.0;
-        vbuffer_put vb ~x:lx0 ~y:ly0 ~u:lu ~v:1.0;
+        vbuffer_put vb ~x:lx0 ~y:ly0 ~u:lu;
+        vbuffer_put vb ~x:lx0 ~y:ly0 ~u:lu;
 
         vbuffer_put vb
           ~x:(x1 +. dlx1 *. lw)
           ~y:(y1 +. dly1 *. lw)
-          ~u:lu ~v:1.0;
-        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5 ~v:1.0;
+          ~u:lu;
+        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5;
       end;
 
       vbuffer_put vb
         ~x:(x1 +. dlx1 *. lw)
         ~y:(y1 +. dly1 *. lw)
-        ~u:lu ~v:1.0;
-      vbuffer_put vb ~x:rx1 ~y:ry1 ~u:ru ~v:1.0;
+        ~u:lu;
+      vbuffer_put vb ~x:rx1 ~y:ry1 ~u:1.0;
     end
 
-  let round_join vb t p0 p1 lw rw lu ru ncap =
+  let round_join vb t p0 p1 lw rw ncap =
     let x1 = T.get_x t p1 in
     let y1 = T.get_y t p1 in
     let dlx0 = +. T.get_dy t p0 in
@@ -693,11 +711,11 @@ module V = struct
       let lx0, ly0, lx1, ly1 =
         choose_bevel (flags land T.flag_innerbevel <> 0) ~w:lw t p0 p1 in
 
-      vbuffer_put vb ~x:lx0 ~y:ly0 ~u:lu ~v:1.0;
+      vbuffer_put vb ~x:lx0 ~y:ly0 ~u:0.0;
       vbuffer_put vb
         ~x:(x1 -. dlx0 *. rw)
         ~y:(y1 -. dly0 *. rw)
-        ~u:ru ~v:1.0;
+        ~u:1.0;
 
       let a0 = atan2 (-.dly0) (-.dlx0) in
       let a1 = atan2 (-.dly1) (-.dlx1) in
@@ -709,15 +727,15 @@ module V = struct
         let a = a0 +. u *. (a1 -. a0) in
         let rx = x1 +. cos a *. rw in
         let ry = y1 +. sin a *. rw in
-        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5 ~v:1.0;
-        vbuffer_put vb ~x:rx ~y:ry ~u:ru ~v:1.0;
+        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5;
+        vbuffer_put vb ~x:rx ~y:ry ~u:1.0;
       done;
 
-      vbuffer_put vb ~x:lx1 ~y:ly1 ~u:lu ~v:1.0;
+      vbuffer_put vb ~x:lx1 ~y:ly1 ~u:0.0;
       vbuffer_put vb
         ~x:(x1 -. dlx1 *. rw)
         ~y:(y1 -. dly1 *. rw)
-        ~u:ru ~v:1.0
+        ~u:1.0
 
     end else begin
       let rx0, ry0, rx1, ry1 =
@@ -726,8 +744,8 @@ module V = struct
       vbuffer_put vb
         ~x:(x1 +. dlx0 *. rw)
         ~y:(y1 +. dly0 *. rw)
-        ~u:lu ~v:1.0;
-      vbuffer_put vb ~x:rx0 ~y:ry0 ~u:ru ~v:1.0;
+        ~u:0.0;
+      vbuffer_put vb ~x:rx0 ~y:ry0 ~u:1.0;
 
       let a0 = atan2 dly0 dlx0 in
       let a1 = atan2 dly1 dlx1 in
@@ -739,15 +757,15 @@ module V = struct
         let a = a0 +. u *. (a1 -. a0) in
         let lx = x1 +. cos a *. lw in
         let ly = y1 +. sin a *. lw in
-        vbuffer_put vb ~x:lx ~y:ly ~u:lu ~v:1.0;
-        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5 ~v:1.0;
+        vbuffer_put vb ~x:lx ~y:ly ~u:0.0;
+        vbuffer_put vb ~x:x1 ~y:y1 ~u:0.5;
       done;
 
       vbuffer_put vb
         ~x:(x1 +. dlx1 *. rw)
         ~y:(y1 +. dly1 *. rw)
-        ~u:lu ~v:1.0;
-      vbuffer_put vb ~x:rx1 ~y:ry1 ~u:ru ~v:1.0;
+        ~u:0.0;
+      vbuffer_put vb ~x:rx1 ~y:ry1 ~u:1.0;
     end
 
   (* Expand fill *)
@@ -777,7 +795,7 @@ module V = struct
     let no_fringe t vb path =
       let fill_first = B.offset vb / 4 in
       for i = path.T.path_first to path.T.path_first + path.T.path_count - 1 do
-        vbuffer_put vb ~x:(T.get_x t i) ~y:(T.get_y t i) ~u:0.5 ~v:1.0
+        vbuffer_put vb ~x:(T.get_x t i) ~y:(T.get_y t i) ~u:0.5
       done;
       let fill_count = (B.offset vb / 4 - fill_first) in
       { convex = path.T.path_convex;
@@ -800,33 +818,39 @@ module V = struct
             vbuffer_put vb
               ~x:(x1 +. T.get_dmx t p1 *. woff)
               ~y:(y1 +. T.get_dmy t p1 *. woff)
-              ~u:0.5 ~v:1.0
+              ~u:0.5
           else begin
             vbuffer_put vb
               ~x:(x1 +. T.get_dy t p0 *. woff)
               ~y:(y1 -. T.get_dx t p0 *. woff)
-              ~u:0.5 ~v:1.0;
+              ~u:0.5;
             vbuffer_put vb
               ~x:(x1 +. T.get_dy t p1 *. woff)
               ~y:(y1 -. T.get_dx t p1 *. woff)
-              ~u:0.5 ~v:1.0
+              ~u:0.5
           end
-        end else
-          vbuffer_put vb
+        end else (
+          (*vbuffer_put vb
             ~x:(x1 +. T.get_dmx t p1 *. woff)
             ~y:(y1 +. T.get_dmy t p1 *. woff)
-            ~u:0.5 ~v:1.0
+            ~u:0.5*)
+          dvbuffer_put vb
+            ~x:x1
+            ~y:y1
+            ~dx:(T.get_dmx t p1 *. 0.5)
+            ~dy:(T.get_dmy t p1 *. 0.5)
+            ~u:1
+        )
       done;
       let stroke_first = B.offset vb / 4 in
       (* Calculate fringe *)
-      let ru = 1.0 in
       let rw = w -. woff in
       let lw, lu = if convex then woff, 0.5 else w +. woff, 0.0 in
       for p1 = first to last do
         let p0 = if p1 = first then last else p1 - 1 in
         if T.get_flags t p1 land (T.flag_bevel lor T.flag_innerbevel) <> 0
         then
-          bevel_join vb t p0 p1 lw rw lu ru
+          bevel_join vb t p0 p1 lw rw lu
         else begin
           let x1 = T.get_x t p1 in
           let y1 = T.get_y t p1 in
@@ -837,7 +861,7 @@ module V = struct
           vbuffer_put vb
             ~x:(x1 +. T.get_dmx t p1 *. lw)
             ~y:(y1 +. T.get_dmy t p1 *. lw)
-            ~u:lu ~v:1.0;
+            ~u:lu;
           (*Printf.printf "fringe_stroke: %f %f %f %f\n"
             (x1 -. T.get_dmx t p1 *. rw)
             (y1 -. T.get_dmy t p1 *. rw)
@@ -845,7 +869,7 @@ module V = struct
           vbuffer_put vb
             ~x:(x1 -. T.get_dmx t p1 *. rw)
             ~y:(y1 -. T.get_dmy t p1 *. rw)
-            ~u:ru ~v:1.0
+            ~u:1.0
         end
       done;
       let data = B.data vb and c = B.alloc vb 8 in
@@ -856,7 +880,7 @@ module V = struct
       data.{c + 3} <- 1.0;
       data.{c + 4} <- data.{stroke_first * 4 + 4};
       data.{c + 5} <- data.{stroke_first * 4 + 5};
-      data.{c + 6} <- ru;
+      data.{c + 6} <- 1.0;
       data.{c + 7} <- 1.0;
       let stroke_last = B.offset vb / 4 in
       { convex = path.T.path_convex;
@@ -912,16 +936,16 @@ module V = struct
       (*Printf.printf "roundcap_end %f %f %f %d\n" dx dy w ncap;*)
       let px = T.get_x t p and py = T.get_y t p in
       let dlx = dy and dly = -.dx in
-      vbuffer_put vb ~x:(px +. dlx *. w) ~y:(py +. dly *. w) ~u:0.0 ~v:1.0;
-      vbuffer_put vb ~x:(px -. dlx *. w) ~y:(py -. dly *. w) ~u:1.0 ~v:1.0;
+      vbuffer_put vb ~x:(px +. dlx *. w) ~y:(py +. dly *. w) ~u:0.0;
+      vbuffer_put vb ~x:(px -. dlx *. w) ~y:(py -. dly *. w) ~u:1.0;
       for i = 0 to ncap - 1 do
         let a = float i /. float (ncap - 1) *. pi in
         let ax = cos a *. w and ay = sin a *. w in
-        vbuffer_put vb ~x:px ~y:py ~u:0.5 ~v:1.0;
+        vbuffer_put vb ~x:px ~y:py ~u:0.5;
         vbuffer_put vb
           ~x:(px -. dlx *. ax +. dx *. ay)
           ~y:(py -. dly *. ax +. dy *. ay)
-          ~u:1.0 ~v:1.0;
+          ~u:1.0;
       done
 
     let roundcap_start vb t p ~dx ~dy ~w ~ncap =
@@ -934,27 +958,27 @@ module V = struct
         vbuffer_put vb
           ~x:(px -. dlx *. ax -. dx *. ay)
           ~y:(py -. dly *. ax -. dy *. ay)
-          ~u:0.0 ~v:1.0;
-        vbuffer_put vb ~x:px ~y:py ~u:0.5 ~v:1.0;
+          ~u:0.0;
+        vbuffer_put vb ~x:px ~y:py ~u:0.5;
       done;
-      vbuffer_put vb ~x:(px +. dlx *. w) ~y:(py +. dly *. w) ~u:0.0 ~v:1.0;
-      vbuffer_put vb ~x:(px -. dlx *. w) ~y:(py -. dly *. w) ~u:1.0 ~v:1.0
+      vbuffer_put vb ~x:(px +. dlx *. w) ~y:(py +. dly *. w) ~u:0.0;
+      vbuffer_put vb ~x:(px -. dlx *. w) ~y:(py -. dly *. w) ~u:1.0
 
     let buttcap_start vb t p ~dx ~dy ~w ~d ~aa =
       (*Printf.printf "buttcap_start %f %f %f %f %f\n" dx dy w d aa;*)
       let px = T.get_x t p -. dx *. d in
       let py = T.get_y t p -. dy *. d in
       let dlx = dy *. w and dly = -.dx *. w in
-      vbuffer_put vb ~u:0.0 ~v:0.0
+      vbuffer_put vb ~u:0.0
         ~x:(px +. dlx -. dx *. aa)
         ~y:(py +. dly -. dy *. aa);
-      vbuffer_put vb ~u:1.0 ~v:0.0
+      vbuffer_put vb ~u:1.0
         ~x:(px -. dlx -. dx *. aa)
         ~y:(py -. dly -. dy *. aa);
-      vbuffer_put vb ~u:0.0 ~v:1.0
+      vbuffer_put vb ~u:0.0
         ~x:(px +. dlx)
         ~y:(py +. dly);
-      vbuffer_put vb ~u:1.0 ~v:1.0
+      vbuffer_put vb ~u:1.0
         ~x:(px -. dlx)
         ~y:(py -. dly)
 
@@ -963,16 +987,16 @@ module V = struct
       let px = T.get_x t p +. dx *. d in
       let py = T.get_y t p +. dy *. d in
       let dlx = dy *. w and dly = -.dx *. w in
-      vbuffer_put vb ~u:0.0 ~v:1.0
+      vbuffer_put vb ~u:0.0
         ~x:(px +. dlx)
         ~y:(py +. dly);
-      vbuffer_put vb ~u:1.0 ~v:1.0
+      vbuffer_put vb ~u:1.0
         ~x:(px -. dlx)
         ~y:(py -. dly);
-      vbuffer_put vb ~u:0.0 ~v:0.0
+      vbuffer_put vb ~u:0.0
         ~x:(px +. dlx +. dx *. aa)
         ~y:(py +. dly +. dy *. aa);
-      vbuffer_put vb ~u:1.0 ~v:0.0
+      vbuffer_put vb ~u:1.0
         ~x:(px -. dlx +. dx *. aa)
         ~y:(py -. dly +. dy *. aa)
 
@@ -1002,24 +1026,24 @@ module V = struct
         if T.get_flags t p1 land (T.flag_bevel lor T.flag_innerbevel) <> 0 then begin
           let p0 = if p1 = first then last else p1 - 1 in
           if line_join = `ROUND then
-            round_join vb t p0 p1 w w 0.0 1.0 ncap
+            round_join vb t p0 p1 w w ncap
           else
-            bevel_join vb t p0 p1 w w 0.0 1.0
+            bevel_join vb t p0 p1 w w 0.0
         end else begin
           let x1 = T.get_x t p1 in
           let y1 = T.get_y t p1 in
           let dx = T.get_dmx t p1 *. w in
           let dy = T.get_dmy t p1 *. w in
-          vbuffer_put vb ~x:(x1 +. dx) ~y:(y1 +. dy) ~u:0.0 ~v:1.0;
-          vbuffer_put vb ~x:(x1 -. dx) ~y:(y1 -. dy) ~u:1.0 ~v:1.0;
+          vbuffer_put vb ~x:(x1 +. dx) ~y:(y1 +. dy) ~u:0.0;
+          vbuffer_put vb ~x:(x1 -. dx) ~y:(y1 -. dy) ~u:1.0;
         end
       done;
 
       if path.T.path_closed then begin
         (* Loop it *)
         let data = B.data vb and index = stroke_first * 4 in
-        vbuffer_put vb ~x:data.{index + 0} ~y:data.{index + 1} ~u:0.0 ~v:1.0;
-        vbuffer_put vb ~x:data.{index + 4} ~y:data.{index + 5} ~u:1.0 ~v:1.0;
+        vbuffer_put vb ~x:data.{index + 0} ~y:data.{index + 1} ~u:0.0;
+        vbuffer_put vb ~x:data.{index + 4} ~y:data.{index + 5} ~u:1.0;
       end else begin
         let p0 = last - 1 and p1 = last in
         let dx = T.get_x t p1 -. T.get_x t p0 in
