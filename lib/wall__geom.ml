@@ -493,9 +493,9 @@ module T = struct
     p.path_nbevel <- !nbevel;
     p.path_convex <- !nleft = p.path_count
 
-  let calculate_joins t ~w ~line_join ~miter_limit paths =
+  let calculate_joins t ~width ~line_join ~miter_limit paths =
     let line_join = match line_join with `BEVEL | `ROUND -> true | _ -> false in
-    List.iter (calculate_joins t w line_join miter_limit) paths
+    List.iter (calculate_joins t width line_join miter_limit) paths
 
   let get_x     = T.get_x
   let get_y     = T.get_y
@@ -559,7 +559,7 @@ module V = struct
     (*Printf.printf "vbuffer_put %f %f %f %f\n" x y u v;*)
     data.{c + 0} <- x;
     data.{c + 1} <- y;
-    data.{c + 2} <- u;
+    data.{c + 2} <- float u /. 2.0;
     data.{c + 3} <- 1.0
 
   let dvbuffer_put (b : B.t) ~x ~y ~dx ~dy ~u =
@@ -738,7 +738,7 @@ module V = struct
     let no_fringe t vb path =
       let fill_first = B.offset vb / 4 in
       for i = path.T.path_first to path.T.path_first + path.T.path_count - 1 do
-        vbuffer_put vb ~x:(T.get_x t i) ~y:(T.get_y t i) ~u:0.5
+        dvbuffer_put vb ~x:(T.get_x t i) ~y:(T.get_y t i) ~dx:0.0 ~dy:0.0 ~u:1
       done;
       let fill_count = (B.offset vb / 4 - fill_first) in
       { convex = path.T.path_convex;
@@ -840,9 +840,8 @@ module V = struct
       List.map (fringe t vb ~convex) paths
   end
 
-  let fill t vb ~edge_antialias ~fringe_width paths =
-    let w = if edge_antialias then fringe_width else 0.0 in
-    T.calculate_joins t ~w ~line_join:`MITER ~miter_limit:2.4 paths;
+  let fill t vb ~edge_antialias ~scale paths =
+    T.calculate_joins t ~width:scale ~line_join:`MITER ~miter_limit:2.4 paths;
     if edge_antialias then
       Fill.expand_aa t vb paths
     else
@@ -868,75 +867,67 @@ module V = struct
          | `ROUND -> ncap
          | _ -> 2)
 
-    let roundcap_end vb t p ~dx ~dy ~w ~ncap =
+    let roundcap_end vb t p ~dx ~dy ~width ~ncap =
       (*Printf.printf "roundcap_end %f %f %f %d\n" dx dy w ncap;*)
       let px = T.get_x t p and py = T.get_y t p in
       let dlx = dy and dly = -.dx in
-      vbuffer_put vb ~x:(px +. dlx *. w) ~y:(py +. dly *. w) ~u:0.0;
-      vbuffer_put vb ~x:(px -. dlx *. w) ~y:(py -. dly *. w) ~u:1.0;
+      vbuffer_put vb ~x:(px +. dlx *. width) ~y:(py +. dly *. width) ~u:0;
+      vbuffer_put vb ~x:(px -. dlx *. width) ~y:(py -. dly *. width) ~u:2;
       for i = 0 to ncap - 1 do
         let a = float i /. float (ncap - 1) *. pi in
-        let ax = cos a *. w and ay = sin a *. w in
-        vbuffer_put vb ~x:px ~y:py ~u:0.5;
+        let ax = cos a *. width and ay = sin a *. width in
+        vbuffer_put vb ~x:px ~y:py ~u:1;
         vbuffer_put vb
           ~x:(px -. dlx *. ax +. dx *. ay)
           ~y:(py -. dly *. ax +. dy *. ay)
-          ~u:1.0;
+          ~u:2;
       done
 
-    let roundcap_start vb t p ~dx ~dy ~w ~ncap =
+    let roundcap_start vb t p ~dx ~dy ~width ~ncap =
       (*Printf.printf "roundcap_start %f %f %f %d\n" dx dy w ncap;*)
       let px = T.get_x t p and py = T.get_y t p in
       let dlx = dy and dly = -.dx in
       for i = 0 to ncap - 1 do
         let a = float i /. float (ncap - 1) *. pi in
-        let ax = cos a *. w and ay = sin a *. w in
+        let ax = cos a *. width and ay = sin a *. width in
         vbuffer_put vb
           ~x:(px -. dlx *. ax -. dx *. ay)
           ~y:(py -. dly *. ax -. dy *. ay)
-          ~u:0.0;
-        vbuffer_put vb ~x:px ~y:py ~u:0.5;
+          ~u:0;
+        vbuffer_put vb ~x:px ~y:py ~u:1;
       done;
-      vbuffer_put vb ~x:(px +. dlx *. w) ~y:(py +. dly *. w) ~u:0.0;
-      vbuffer_put vb ~x:(px -. dlx *. w) ~y:(py -. dly *. w) ~u:1.0
+      vbuffer_put vb ~x:(px +. dlx *. width) ~y:(py +. dly *. width) ~u:0;
+      vbuffer_put vb ~x:(px -. dlx *. width) ~y:(py -. dly *. width) ~u:2
 
-    let buttcap_start vb t p ~dx ~dy ~w ~d ~aa =
+    let buttcap_start vb t p ~dx ~dy ~d ~dd ~width =
       (*Printf.printf "buttcap_start %f %f %f %f %f\n" dx dy w d aa;*)
       let px = T.get_x t p -. dx *. d in
       let py = T.get_y t p -. dy *. d in
-      let dlx = dy *. w and dly = -.dx *. w in
-      vbuffer_put vb ~u:0.0
-        ~x:(px +. dlx -. dx *. aa)
-        ~y:(py +. dly -. dy *. aa);
-      vbuffer_put vb ~u:1.0
-        ~x:(px -. dlx -. dx *. aa)
-        ~y:(py -. dly -. dy *. aa);
-      vbuffer_put vb ~u:0.0
-        ~x:(px +. dlx)
-        ~y:(py +. dly);
-      vbuffer_put vb ~u:1.0
-        ~x:(px -. dlx)
-        ~y:(py -. dly)
+      let dlx = dy *. width and dly = -.dx *. width in
+      dvbuffer_put vb ~u:0
+        ~x:(px +. dlx) ~dx:(-. dx -. dx *. dd)
+        ~y:(py +. dly) ~dy:(-. dy -. dy *. dd);
+      dvbuffer_put vb ~u:2
+        ~x:(px -. dlx) ~dx:(-. dx -. dx *. dd)
+        ~y:(py -. dly) ~dy:(-. dy -. dy *. dd);
+      dvbuffer_put vb ~u:0
+        ~x:(px +. dlx) ~dx:(-. dx *. dd)
+        ~y:(py +. dly) ~dy:(-. dy *. dd);
+      dvbuffer_put vb ~u:2
+        ~x:(px -. dlx) ~dx:(-. dx *. dd)
+        ~y:(py -. dly) ~dy:(-. dy *. dd)
 
-    let buttcap_end vb t p ~dx ~dy ~w ~d ~aa =
+    let buttcap_end vb t p ~dx ~dy ~d ~dd ~width =
       (*Printf.printf "buttcap_end %f %f %f %f %f\n" dx dy w d aa;*)
       let px = T.get_x t p +. dx *. d in
       let py = T.get_y t p +. dy *. d in
-      let dlx = dy *. w and dly = -.dx *. w in
-      vbuffer_put vb ~u:0.0
-        ~x:(px +. dlx)
-        ~y:(py +. dly);
-      vbuffer_put vb ~u:1.0
-        ~x:(px -. dlx)
-        ~y:(py -. dly);
-      vbuffer_put vb ~u:0.0
-        ~x:(px +. dlx +. dx *. aa)
-        ~y:(py +. dly +. dy *. aa);
-      vbuffer_put vb ~u:1.0
-        ~x:(px -. dlx +. dx *. aa)
-        ~y:(py -. dly +. dy *. aa)
+      let dlx = dy *. width and dly = -.dx *. width in
+      dvbuffer_put vb ~u:0 ~x:(px +. dlx) ~y:(py +. dly) ~dx:dd ~dy:dd;
+      dvbuffer_put vb ~u:2 ~x:(px -. dlx) ~y:(py -. dly) ~dx:dd ~dy:dd;
+      dvbuffer_put vb ~u:0 ~x:(px +. dlx) ~dx ~y:(py +. dly) ~dy;
+      dvbuffer_put vb ~u:2 ~x:(px -. dlx) ~dx ~y:(py -. dly) ~dy
 
-    let expand_path t vb ~line_join ~line_cap ~w aa ncap path =
+    let expand_path t vb ~line_join ~line_cap ~width aa ncap path =
       let stroke_first = B.offset vb / 4 in
       let first = path.T.path_first in
       let last = first + path.T.path_count - 1 in
@@ -948,9 +939,9 @@ module V = struct
         let dlen = if dlen < 1e-6 then 1. else 1. /. dlen in
         let dx = dx *. dlen and dy = dy *. dlen in
         match line_cap with
-        | `BUTT   -> buttcap_start  vb t p0 ~dx ~dy ~w ~d:(-.aa *. 0.5) ~aa
-        | `SQUARE -> buttcap_start  vb t p0 ~dx ~dy ~w ~d:(w -. aa) ~aa
-        | `ROUND  -> roundcap_start vb t p0 ~dx ~dy ~w ~ncap
+        | `BUTT   -> buttcap_start  vb t p0 ~dx ~dy ~width ~d:0.0 ~dd:(-.0.5)
+        | `SQUARE -> buttcap_start  vb t p0 ~dx ~dy ~width ~d:width ~dd:(-. 1.0)
+        | `ROUND  -> roundcap_start vb t p0 ~dx ~dy ~width ~ncap
       end;
       let s, e =
         if path.T.path_closed then
@@ -962,24 +953,24 @@ module V = struct
         if false && T.get_flags t p1 land (T.flag_bevel lor T.flag_innerbevel) <> 0 then begin
           let p0 = if p1 = first then last else p1 - 1 in
           if line_join = `ROUND then
-            round_join vb t p0 p1 w w ncap
+            round_join vb t p0 p1 width width ncap
           else
-            bevel_join vb t p0 p1 w w 0
+            bevel_join vb t p0 p1 width width 0
         end else begin
           let x1 = T.get_x t p1 in
           let y1 = T.get_y t p1 in
-          let dx = T.get_dmx t p1 *. w in
-          let dy = T.get_dmy t p1 *. w in
-          vbuffer_put vb ~x:(x1 +. dx) ~y:(y1 +. dy) ~u:0.0;
-          vbuffer_put vb ~x:(x1 -. dx) ~y:(y1 -. dy) ~u:1.0;
+          let dx = T.get_dmx t p1 *. width in
+          let dy = T.get_dmy t p1 *. width in
+          dvbuffer_put vb ~x:x1 ~dx:(+. dx) ~y:y1 ~dy:(+. dy) ~u:0;
+          dvbuffer_put vb ~x:x1 ~dx:(-. dx) ~y:y1 ~dy:(-. dy) ~u:2;
         end
       done;
 
       if path.T.path_closed then begin
         (* Loop it *)
         let data = B.data vb and index = stroke_first * 4 in
-        vbuffer_put vb ~x:data.{index + 0} ~y:data.{index + 1} ~u:0.0;
-        vbuffer_put vb ~x:data.{index + 4} ~y:data.{index + 5} ~u:1.0;
+        vbuffer_put vb ~x:data.{index + 0} ~y:data.{index + 1} ~u:0;
+        vbuffer_put vb ~x:data.{index + 4} ~y:data.{index + 5} ~u:2;
       end else begin
         let p0 = last - 1 and p1 = last in
         let dx = T.get_x t p1 -. T.get_x t p0 in
@@ -988,22 +979,22 @@ module V = struct
         let dlen = if dlen < 1e-6 then 1. else 1. /. dlen in
         let dx = dx *. dlen and dy = dy *. dlen in
         match line_cap with
-        | `BUTT   -> buttcap_end  vb t p1 ~dx ~dy ~w ~d:(-.aa *. 0.5) ~aa
-        | `SQUARE -> buttcap_end  vb t p1 ~dx ~dy ~w ~d:(w -. aa) ~aa
-        | `ROUND  -> roundcap_end vb t p1 ~dx ~dy ~w ~ncap
+        | `BUTT   -> buttcap_end  vb t p1 ~dx ~dy ~width ~d:(-.aa *. 0.5)
+        | `SQUARE -> buttcap_end  vb t p1 ~dx ~dy ~width ~d:(width -. aa)
+        | `ROUND  -> roundcap_end vb t p1 ~dx ~dy ~width ~ncap
       end;
       { convex = false;
         fill_first = 0; fill_count = 0;
         stroke_first; stroke_count = B.offset vb / 4 - stroke_first;
       }
 
-    let expand t vb ~line_join ~line_cap ~w ~miter_limit ~aa paths =
-      let ncap = curve_divs w pi (T.tess_tol t) in
-      T.calculate_joins t ~w ~line_join ~miter_limit paths;
+    let expand t vb ~line_join ~line_cap ~width ~miter_limit ~aa paths =
+      let ncap = curve_divs width pi (T.tess_tol t) in
+      T.calculate_joins t ~width ~line_join ~miter_limit paths;
       let count = sum (count ~line_join ~line_cap ncap) paths * 4 in
       (*Printf.printf "count:%d w:%f\n" count w;*)
       B.reserve vb count;
-      List.map (expand_path t vb ~line_join ~line_cap ~w aa ncap) paths
+      List.map (expand_path t vb ~line_join ~line_cap ~width aa ncap) paths
   end
 
   let stroke t vb ~edge_antialias ~fringe_width
@@ -1015,6 +1006,5 @@ module V = struct
       else
         stroke_width *. 0.5
     in
-    let aa = fringe_width in
-    Stroke.expand t vb ~line_join ~line_cap ~miter_limit ~w ~aa paths
+    Stroke.expand t vb ~line_join ~line_cap ~miter_limit ~width ~aa paths
 end

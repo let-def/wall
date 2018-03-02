@@ -247,6 +247,7 @@ let ok = function
 
 let new_font_buffer width height =
   let data = Bigarray.(Array1.create int8_unsigned c_layout (width * height)) in
+  Bigarray.Array1.fill data 0;
   let image = ok (Stb_image.image ~width ~height ~channels:1 data) in
   let texture = Texture.from_image ~name:"font atlas" image in
   let room = Maxrects.add_bin () width height Maxrects.empty in
