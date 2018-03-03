@@ -86,8 +86,8 @@ module T : sig
     x3:float -> y3:float ->
     unit
 
-  val calculate_joins : t -> w:float ->
-    line_join:[> `BEVEL | `ROUND ] -> miter_limit:float -> path list -> unit
+  val calculate_joins : t -> width:float ->
+    line_join:[ `BEVEL | `MITER | `ROUND ] -> miter_limit:float -> path list -> unit
 
   val get_x    : t -> int -> float
   val get_y    : t -> int -> float
@@ -114,15 +114,12 @@ module V : sig
 
   val fill :
     T.t -> B.t ->
-    edge_antialias:bool ->
-    fringe_width:float ->
+    edge_antialias:bool -> scale:float ->
     T.path list -> path list
 
   val stroke :
     T.t -> B.t ->
-    edge_antialias:bool ->
-    fringe_width:float ->
-    stroke_width:float ->
+    width:float ->
     line_join:[ `BEVEL | `MITER | `ROUND ] ->
     line_cap:[ `BUTT | `ROUND | `SQUARE ] ->
     miter_limit:float ->
