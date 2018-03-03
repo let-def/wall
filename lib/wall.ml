@@ -822,7 +822,7 @@ module Renderer = struct
       let paths =
         V.fill t.t t.b
           ~edge_antialias:t.antialias
-          ~fringe_width:(1.0 /. Transform.average_scale xf)
+          ~scale:(1.0 /. Transform.average_scale xf)
           paths
       in
       if is_convex paths then (
@@ -844,9 +844,7 @@ module Renderer = struct
       let _bounds, paths = T.flush t.t in
       let paths =
         V.stroke t.t t.b
-          ~edge_antialias:t.antialias
-          ~fringe_width:(1.0 /. Transform.average_scale xf)
-          ~stroke_width
+          ~width:stroke_width
           ~miter_limit
           ~line_join
           ~line_cap
@@ -992,7 +990,7 @@ module Renderer = struct
     List.iter (fun f -> f ()) todo;
     (*let time2 = Backend.time_spent () and mem2 = Backend.memory_spent () in*)
     let pnode = prepare t Transform.identity node in
-    (*let time3 = Backend.time_spent () and mem3 = Backend.memory_spent () in*)
+    let time3 = Backend.time_spent () and mem3 = Backend.memory_spent () in
     Backend.prepare t.g width height (B.sub t.b);
     xform_outofdate := true;
     counter_fill := 0;
@@ -1006,7 +1004,9 @@ module Renderer = struct
     let row name t0 t1 m0 m1 =
       Printf.printf "% 9.03f us % 9d words     %s\n" (float (t1 - t0) /. 1000.0) (m1 - m0) name
     in
-    row "frame" time0 time4 mem0 mem4
+    row "ocaml" time0 time3 mem0 mem3;
+    row "driver" time3 time4 mem3 mem4;
+    row "total" time0 time4 mem0 mem4
     (*let time4 = Backend.time_spent () and mem4 = Backend.memory_spent () in
     Printf.printf "--- new frame: %d convex fill, %d complex fill, %d stroke, %d transparent styles, %d opaque styles\n" !counter_convex_fill !counter_fill !counter_stroke !counter_transparent !counter_opaque;
     row "typeset preparation" time0 time1 mem0 mem1;
