@@ -562,7 +562,7 @@ module V = struct
     data.{c + 2} <- float u /. 2.0;
     data.{c + 3} <- 1.0
 
-  let dvbuffer_put (b : B.t) ~x ~y ~dx ~dy ~u =
+  let dvbuffer_put ?(v=2) (b : B.t) ~x ~y ~dx ~dy ~u =
     let data = B.data b and c = B.alloc b 4 in
     (*Printf.printf "dvbuffer_put(encode) %f+%f %f+%f %d\n" x dx y dy u;*)
     (*assert (abs_float dx < 4.0);
@@ -570,7 +570,7 @@ module V = struct
     data.{c + 0} <- x;
     data.{c + 1} <- y;
     data.{c + 2} <- dx /. 8.0 -. 1.5 -. float u;
-    data.{c + 3} <- dy
+    data.{c + 3} <- dy /. 8.0 -. 1.5 -. float v
 
   let choose_bevel bevel ~w t p0 p1 =
     if bevel then
@@ -971,10 +971,10 @@ module V = struct
       let px = T.get_x t p -. dx *. d in
       let py = T.get_y t p -. dy *. d in
       let dlx = dy *. width and dly = -.dx *. width in
-      dvbuffer_put vb ~u:0
+      dvbuffer_put vb ~u:0 ~v:0
         ~x:(px +. dlx) ~dx:(-. dx -. dx *. dd)
         ~y:(py +. dly) ~dy:(-. dy -. dy *. dd);
-      dvbuffer_put vb ~u:2
+      dvbuffer_put vb ~u:2 ~v:0
         ~x:(px -. dlx) ~dx:(-. dx -. dx *. dd)
         ~y:(py -. dly) ~dy:(-. dy -. dy *. dd);
       dvbuffer_put vb ~u:0
@@ -992,7 +992,7 @@ module V = struct
       dvbuffer_put vb ~u:0 ~x:(px +. dlx) ~y:(py +. dly) ~dx:(dx *. dd) ~dy:(dy *. dd);
       dvbuffer_put vb ~u:2 ~x:(px -. dlx) ~y:(py -. dly) ~dx:(dx *. dd) ~dy:(dy *. dd);
       dvbuffer_put vb ~u:0 ~x:(px +. dlx) ~dx:(dx *. dd +. dx) ~y:(py +. dly) ~dy:(dy *. dd +. dy);
-      dvbuffer_put vb ~u:2 ~x:(px -. dlx) ~dx:(dx *. dd +. dx) ~y:(py -. dly) ~dy:(dy *. dd +. dy)
+      dvbuffer_put vb ~u:2 ~x:(px -. dlx) ~dx:(dx *. dd +. dx) ~y:(py -. dly) ~dy:(dy *. dd +. dy) ~v:0
 
     let expand_path t vb ~line_join ~line_cap ~width ncap path =
       let stroke_first = B.offset vb / 4 in
