@@ -991,7 +991,7 @@ module V = struct
       let dlx = dy *. width and dly = -.dx *. width in
       dvbuffer_put vb ~u:0 ~x:(px +. dlx) ~y:(py +. dly) ~dx:(dx *. dd) ~dy:(dy *. dd);
       dvbuffer_put vb ~u:2 ~x:(px -. dlx) ~y:(py -. dly) ~dx:(dx *. dd) ~dy:(dy *. dd);
-      dvbuffer_put vb ~u:0 ~x:(px +. dlx) ~dx:(dx *. dd +. dx) ~y:(py +. dly) ~dy:(dy *. dd +. dy);
+      dvbuffer_put vb ~u:0 ~x:(px +. dlx) ~dx:(dx *. dd +. dx) ~y:(py +. dly) ~dy:(dy *. dd +. dy) ~v:0;
       dvbuffer_put vb ~u:2 ~x:(px -. dlx) ~dx:(dx *. dd +. dx) ~y:(py -. dly) ~dy:(dy *. dd +. dy) ~v:0
 
     let expand_path t vb ~line_join ~line_cap ~width ncap path =
