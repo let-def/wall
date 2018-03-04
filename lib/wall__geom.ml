@@ -752,7 +752,7 @@ module V = struct
       done;
 
       vbuffer_put vb ~x:x1 ~y:y1 ~dx:lx1 ~dy:ly1 ~u:0;
-      vbuffer_put vb ~x:x1 ~dx:(-. dlx1 *. rw) ~y:y1 ~dy:(-. dly1 *. rw) ~u:2
+      vbuffer_put vb ~x:x1 ~dx:(-. dlx1 *. rw) ~y:y1 ~dy:(-. dly1 *. rw) ~u:2;
 
     end else begin
       let rx0, ry0, rx1, ry1 =
@@ -1031,7 +1031,7 @@ module V = struct
           let dx = dmx *. width in
           let dy = dmy *. width in
           dvbuffer_put vb ~x:(x1 +. dx) ~dx:(dmx *. 0.5) ~y:(y1 +. dy) ~dy:(dmy *. 0.5) ~u:0;
-          dvbuffer_put vb ~x:(x1 -. dx) ~dx:(dmx *. 0.5) ~y:(y1 -. dy) ~dy:(dmy *. 0.5) ~u:2;
+          dvbuffer_put vb ~x:(x1 -. dx) ~dx:(-. dmx *. 0.5) ~y:(y1 -. dy) ~dy:(-. dmy *. 0.5) ~u:2;
         end
       done;
 
