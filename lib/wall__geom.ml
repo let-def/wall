@@ -938,15 +938,17 @@ module V = struct
       (*Printf.printf "roundcap_end %f %f %f %d\n" dx dy w ncap;*)
       let px = T.get_x t p and py = T.get_y t p in
       let dlx = dy and dly = -.dx in
-      vbuffer_put vb ~x:px ~dx:(+.dlx *. width) ~y:py ~dy:(+.dly *. width) ~u:0;
-      vbuffer_put vb ~x:px ~dx:(-.dlx *. width) ~y:py ~dy:(-.dly *. width) ~u:2;
+      dvbuffer_put vb ~x:(px +. dlx *. width) ~y:(py +. dly *. width) ~dx:(dlx *. 0.5) ~dy:(dly *. 0.5) ~u:0;
+      dvbuffer_put vb ~x:(px -. dlx *. width) ~y:(py -. dly *. width) ~dx:(-. dlx *. 0.5) ~dy:(-. dly *. 0.5) ~u:2;
       for i = 0 to ncap - 1 do
         let a = float i /. float (ncap - 1) *. pi in
-        let ax = cos a *. width and ay = sin a *. width in
-        vbuffer_put vb ~x:px ~y:py ~dx:0.0 ~dy:0.0 ~u:1;
-        vbuffer_put vb
-          ~x:px ~dx:(dx *. ay -. dlx *. ax)
-          ~y:py ~dy:(dy *. ay -. dly *. ax)
+        let ax = cos a and ay = sin a in
+        let fx = dx *. ay -. dlx *. ax in
+        let fy = dy *. ay -. dly *. ax in
+        dvbuffer_put vb ~x:px ~y:py ~dx:0.0 ~dy:0.0 ~u:1;
+        dvbuffer_put vb
+          ~x:(px +. fx *. width) ~dx:(fx *. 0.5)
+          ~y:(py +. fy *. width) ~dy:(fy *. 0.5)
           ~u:2;
       done
 
@@ -956,15 +958,17 @@ module V = struct
       let dlx = dy and dly = -.dx in
       for i = 0 to ncap - 1 do
         let a = float i /. float (ncap - 1) *. pi in
-        let ax = cos a *. width and ay = sin a *. width in
-        vbuffer_put vb
-          ~x:px ~dx:(-.(dlx *. ax +. dx *. ay))
-          ~y:py ~dy:(-.(dly *. ax +. dy *. ay))
+        let ax = cos a and ay = sin a in
+        let fx = dlx *. ax +. dx *. ay in
+        let fy = dly *. ax +. dy *. ay in
+        dvbuffer_put vb
+          ~x:(px -. fx *. width) ~dx:(-. fx *. 0.5)
+          ~y:(py -. fy *. width) ~dy:(-. fy *. 0.5)
           ~u:0;
-        vbuffer_put vb ~x:px ~y:py ~dx:0.0 ~dy:0.0 ~u:1;
+        dvbuffer_put vb ~x:px ~y:py ~dx:0.0 ~dy:0.0 ~u:1;
       done;
-      vbuffer_put vb ~x:px ~dx:(+.dlx *. width) ~y:py ~dy:(+.dly *. width) ~u:0;
-      vbuffer_put vb ~x:px ~dx:(-.dlx *. width) ~y:py ~dy:(-.dly *. width) ~u:2
+      dvbuffer_put vb ~x:(px +. dlx *. width) ~y:(py +. dly *. width) ~dx:(dlx *. 0.5) ~dy:(dly *. 0.5) ~u:0;
+      dvbuffer_put vb ~x:(px -. dlx *. width) ~y:(py -. dly *. width) ~dx:(-. dlx *. 0.5) ~dy:(-. dly *. 0.5)  ~u:2
 
     let buttcap_start vb t p ~dx ~dy ~d ~dd ~width =
       (*Printf.printf "buttcap_start %f %f %f %f %f\n" dx dy w d aa;*)
@@ -1073,6 +1077,6 @@ module V = struct
   end
 
   let stroke t vb ~width ~line_join ~line_cap ~miter_limit paths =
-    let width = width *. 0.5 in
+    let width = maxf 2.0 width *. 0.5 in
     Stroke.expand t vb ~line_join ~line_cap ~miter_limit ~width paths
 end
