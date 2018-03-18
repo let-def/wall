@@ -563,6 +563,9 @@ module V = struct
     data.{c + 3} <- 1.0
 
   let dvbuffer_put ?(v=2) (b : B.t) ~x ~y ~dx ~dy ~u =
+    if not (abs_float dx +. abs_float dy > 0.0) then (
+      (*prerr_endline (Printexc.raw_backtrace_to_string (Printexc.get_callstack 30))*)
+    );
     let data = B.data b and c = B.alloc b 4 in
     (*Printf.printf "dvbuffer_put(encode) %f+%f %f+%f %d\n" x dx y dy u;*)
     (*assert (abs_float dx < 4.0);
@@ -1028,14 +1031,11 @@ module V = struct
           else
             bevel_join vb t p0 p1 width width 0
         end else begin
-          let x1 = T.get_x t p1 in
-          let y1 = T.get_y t p1 in
-          let dmx = T.get_dmx t p1 in
-          let dmy = T.get_dmy t p1 in
-          let dx = dmx *. width in
-          let dy = dmy *. width in
-          dvbuffer_put vb ~x:(x1 +. dx) ~dx:(dmx *. 0.5) ~y:(y1 +. dy) ~dy:(dmy *. 0.5) ~u:0;
-          dvbuffer_put vb ~x:(x1 -. dx) ~dx:(-. dmx *. 0.5) ~y:(y1 -. dy) ~dy:(-. dmy *. 0.5) ~u:2;
+          let x1 = T.get_x t p1 and dmx = T.get_dmx t p1 in
+          let y1 = T.get_y t p1 and dmy = T.get_dmy t p1 in
+          let dx = dmx *. width and dy = dmy *. width in
+          dvbuffer_put vb ~x:(x1 +. dx) ~y:(y1 +. dy) ~dx:(+. dmx *. 0.5) ~dy:(+. dmy *. 0.5) ~u:0;
+          dvbuffer_put vb ~x:(x1 -. dx) ~y:(y1 -. dy) ~dx:(-. dmx *. 0.5) ~dy:(-. dmy *. 0.5) ~u:2;
         end
       done;
 
@@ -1077,6 +1077,6 @@ module V = struct
   end
 
   let stroke t vb ~width ~line_join ~line_cap ~miter_limit paths =
-    let width = maxf 2.0 width *. 0.5 in
+    let width = width *. 0.5 in
     Stroke.expand t vb ~line_join ~line_cap ~miter_limit ~width paths
 end
