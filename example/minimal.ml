@@ -53,7 +53,7 @@ let render context sw sh t =
                                 ~y:0.0
                                 ~valign:`MIDDLE
                                 (Font.make (Lazy.force font_sans)
-                                   ~size:60.0 ~placement:`Exact)
+                                   ~size:60.0 )
                                 "Settings"))))
           )
         )
