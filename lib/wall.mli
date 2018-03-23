@@ -19,16 +19,24 @@
 open Gg
 open Wall_types
 
+(** Definition of colors, taken from Gg *)
 module Color : sig
   include module type of struct include Color end
+
+  (* Beware:
+     Lots of operators (e.g. [gray]) take SRGB values, not linear RGB.
+  *)
 
   val hsl   : h:float -> s:float -> l:float -> t
   val hsla  : h:float -> s:float -> l:float -> a:float -> t
 
+  (* Linear interpolation between to (linear) RGBA values. *)
   val lerp_rgba : float -> t -> t -> t
 end
 
+(** Definition of affine transformation matrices. *)
 module Transform : sig
+
   type t = transform = {
     x00 : float;
     x01 : float;
@@ -54,13 +62,49 @@ module Transform : sig
   val rotate    : float -> t -> t
   val rescale   : sx:float -> sy:float -> t -> t
 
+  (** [px t x y] is the x coordinate of the point (x,y) after applying the
+      affine transformation [t]. *)
   val px : t -> float -> float -> float
+
+  (** [py t x y] is the y coordinate of the point (x,y) after applying the
+      affine transformation [t]. *)
   val py : t -> float -> float -> float
+
+  (** [linear_px t x y] is the x coordinate of the point (x,y) after applying
+      the linear transformation described by [t]. Translation is ignored! *)
   val linear_px : t -> float -> float -> float
+
+  (** [linear_py t x y] is the y coordinate of the point (x,y) after applying
+      the linear transformation described by [t]. Translation is ignored! *)
   val linear_py : t -> float -> float -> float
 
+  (** [point t p] is the point [p] after transformation by [t] *)
   val point     : t -> p2 -> p2
 end
+
+
+(** {Wall drawing model}
+ *
+ * Drawing in wall is achieved by intersecting a simple, infinite image with a
+ * shape.
+ *
+ * This image is described by a ['a Paint.t] value and is simple by nature:
+ * - a single color,
+ * - a few different kinds of gradients,
+ * - some user-defined pattern or textures, as determined by ['a].
+ *
+ * The ['a] depends on the renderer and in practice it will be a
+ * [Wall_texture.t], an abstraction over OpenGL texture.
+ *
+ * The shapes are made from a [Path.t] that is filled or stroked.
+ * The path is list of points that are connected by straight or curved (bezier)
+ * lines.
+ * When filled, the path is interpreted as the contour of a surface and the
+ * resulting image is this surface.
+ * When stroked, the path is interpreted as one or more lines: an [Outline.t]
+ * that describe the style of line rendering (thickness, square or round ends,
+ * etc) is used transform the abstract lines into a surface.
+ *)
 
 module Paint : sig
   type 'texture t = 'texture paint = {
@@ -115,51 +159,6 @@ module Outline : sig
   val make : ?miter_limit:float -> ?join:line_join -> ?cap:line_cap -> ?width:float -> unit -> t
 end
 
-module Frame : sig
-  type t = frame = {
-    xform  : Transform.t;
-    extent : size2;
-    alpha  : float;
-  }
-
-  val default : t
-
-  val set_scissor : x:float -> y:float -> w:float -> h:float -> Transform.t -> t -> t
-  val intersect_scissor : x:float -> y:float -> w:float -> h:float -> Transform.t -> t -> t
-  val reset_scissor : t -> t
-
-  val transform : t -> Transform.t -> t
-  val reset_transform : t -> t
-  val translate : x:float -> y:float -> t -> t
-  val rotate    : float -> t -> t
-  val scale     : sx:float -> sy:float -> t -> t
-end
-
-module Texture = Wall_texture
-
-module Typesetter : sig
-  type quadbuf = {
-    mutable x0: float;
-    mutable y0: float;
-    mutable x1: float;
-    mutable y1: float;
-    mutable u0: float;
-    mutable v0: float;
-    mutable u1: float;
-    mutable v1: float;
-  }
-
-  type 'input t = {
-    allocate : sx:float -> sy:float -> 'input -> (unit -> unit) option;
-    render   : Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t;
-  }
-
-  val make
-    :  allocate:(sx:float -> sy:float -> 'input -> (unit -> unit) option)
-    -> render:(Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t)
-    -> 'input t
-end
-
 module Path : sig
   type ctx
 
@@ -205,6 +204,31 @@ module Path : sig
   val make : (ctx -> unit) -> t
 end
 
+module Texture = Wall_texture
+
+module Typesetter : sig
+  type quadbuf = {
+    mutable x0: float;
+    mutable y0: float;
+    mutable x1: float;
+    mutable y1: float;
+    mutable u0: float;
+    mutable v0: float;
+    mutable u1: float;
+    mutable v1: float;
+  }
+
+  type 'input t = {
+    allocate : sx:float -> sy:float -> 'input -> (unit -> unit) option;
+    render   : Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t;
+  }
+
+  val make
+    :  allocate:(sx:float -> sy:float -> 'input -> (unit -> unit) option)
+    -> render:(Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t)
+    -> 'input t
+end
+
 module Image : sig
   type t
 
@@ -229,6 +253,22 @@ module Image : sig
   val fill_path : (Path.ctx -> unit) -> t
 end
 
+module Performance_counter : sig
+  type t
+
+  val make : unit -> t
+
+  (** Nanoseconds spent rendering *)
+  val time_spent : t -> int
+
+  (** Memory words allocated *)
+  val mem_spent : t -> int
+
+  val reset : t -> unit
+
+  val report : t -> string
+end
+
 module Renderer : sig
   (** A renderer allocates the OpenGL resources that are necessary to
       render contents.  *)
@@ -246,13 +286,13 @@ module Renderer : sig
       it if you are no longer going to use it.  *)
   val delete : t -> unit
 
-  val render : t -> width:float -> height:float -> Image.t -> unit
+  val render :  t -> ?performance_counter:Performance_counter.t
+             -> width:float -> height:float -> Image.t -> unit
 end
 
 type color     = Color.t
 type transform = Transform.t
 type outline   = Outline.t
-type frame     = Frame.t
 type path      = Path.t
 type texture   = Texture.t
 type image     = Image.t

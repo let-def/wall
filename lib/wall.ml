@@ -708,6 +708,52 @@ module Image = struct
   let stroke_path o f = stroke o (Path.make f)
 end
 
+module Performance_counter : sig
+  type t
+
+  val make : unit -> t
+
+  (** Nanoseconds spent rendering *)
+  val time_spent : t -> int
+
+  (** Memory words allocated *)
+  val mem_spent : t -> int
+
+  val reset : t -> unit
+
+  val report : t -> string
+
+  val bump : t -> time:int -> mem:int -> unit
+end = struct
+  type t = {
+    mutable frames: int;
+    mutable time: int;
+    mutable mem: int;
+  }
+
+  let make () = { frames = 0; time = 0; mem = 0 }
+
+  (** Nanoseconds spent rendering *)
+  let time_spent t = t.time
+
+  (** Memory words allocated *)
+  let mem_spent t = t.mem
+
+  let reset t =
+    t.frames <- 0;
+    t.time <- 0;
+    t.mem <- 0
+
+  let report t =
+    Printf.sprintf "rendered %d frames in %d us (%d us/frame) using %d words (%d w/frame)\n"
+      t.frames t.time (t.time / max 1 t.frames) t.mem (t.mem / max 1 t.frames)
+
+  let bump t ~time ~mem =
+    t.frames <- t.frames + 1;
+    t.time <- t.time + time;
+    t.mem <- t.mem + mem
+end
+
 module Renderer = struct
   open Wall__geom
   open Image
@@ -981,16 +1027,13 @@ module Renderer = struct
     | PAlpha (n, alpha) ->
       exec t xf paint {frame with Frame.alpha} n
 
-  let render t ~width ~height node =
+  let render t ?performance_counter ~width ~height node =
     T.clear t.t;
     B.clear t.b;
     let time0 = Backend.time_spent () and mem0 = Backend.memory_spent () in
     let todo = typesetter_prepare [] 1.0 0.0 0.0 1.0 node in
-    (*let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in*)
     List.iter (fun f -> f ()) todo;
-    (*let time2 = Backend.time_spent () and mem2 = Backend.memory_spent () in*)
     let pnode = prepare t Transform.identity node in
-    let time3 = Backend.time_spent () and mem3 = Backend.memory_spent () in
     Backend.prepare t.g width height (B.sub t.b);
     xform_outofdate := true;
     counter_fill := 0;
@@ -1000,26 +1043,17 @@ module Renderer = struct
     counter_opaque := 0;
     exec t Transform.identity Paint.black Frame.default pnode;
     Backend.finish ();
-    let time4 = Backend.time_spent () and mem4 = Backend.memory_spent () in
-    let row name t0 t1 m0 m1 =
-      Printf.printf "% 9.03f us % 9d words     %s\n" (float (t1 - t0) /. 1000.0) (m1 - m0) name
-    in
-    row "ocaml" time0 time3 mem0 mem3;
-    row "driver" time3 time4 mem3 mem4;
-    row "total" time0 time4 mem0 mem4
-    (*let time4 = Backend.time_spent () and mem4 = Backend.memory_spent () in
-    Printf.printf "--- new frame: %d convex fill, %d complex fill, %d stroke, %d transparent styles, %d opaque styles\n" !counter_convex_fill !counter_fill !counter_stroke !counter_transparent !counter_opaque;
-    row "typeset preparation" time0 time1 mem0 mem1;
-    row (Printf.sprintf "typeset baking (%d jobs)" (List.length todo)) time1 time2 mem1 mem2;
-    row "command list preparation" time2 time3 mem2 mem3;
-    row "command list submission (GL driver)" time3 time4 mem3 mem4;
-    Printf.printf "%!"*)
+    let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in
+    begin match performance_counter with
+      | None -> ()
+      | Some pc ->
+        Performance_counter.bump pc ~time:(time1-time0) ~mem:(mem1-mem0)
+    end
 end
 
 type color     = Color.t
 type transform = Transform.t
 type outline   = Outline.t
-type frame     = Frame.t
 type path      = Path.t
 type texture   = Texture.t
 type image     = Image.t
