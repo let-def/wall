@@ -849,21 +849,21 @@ module Renderer = struct
     d.{c+ 8+0}<-q.x0; d.{c+ 8+1}<-q.y1; d.{c+ 8+2}<-q.u0; d.{c+ 8+3}<-q.v1;
     d.{c+12+0}<-q.x0; d.{c+12+1}<-q.y0; d.{c+12+2}<-q.u0; d.{c+12+3}<-q.v0
 
-  let prepare_path t ~quality xf path =
+  let scale_factor xf =
+    let sx = Utils.norm xf.x00 xf.x10 in
+    let sy = Utils.norm xf.x01 xf.x11 in
+    sx *. sy
+
+  let prepare_path t ~factor path =
     T.clear t;
-    let factor =
-      let sx = Utils.norm xf.x00 xf.x10 in
-      let sy = Utils.norm xf.x01 xf.x11 in
-      sx *. sy
-    in
-    T.set_tess_tol t (0.25 /. (factor *. quality));
+    T.set_tess_tol t (0.25 /. factor);
     path.Path.closure t
 
   let rec prepare t xf = function
     (* Base cases *)
     | Empty -> PEmpty
     | Fill path ->
-      prepare_path t.t ~quality:1.0 xf path;
+      prepare_path t.t ~factor:(scale_factor xf) path;
       let bounds, paths = T.flush t.t in
       let paths =
         V.fill t.t t.b
@@ -886,7 +886,8 @@ module Renderer = struct
         PFill { paths; triangle_offset; triangle_count = 4 }
       )
     | Stroke (path, {Outline. stroke_width; miter_limit; line_join; line_cap}) ->
-      prepare_path t.t ~quality:1.0 xf path;
+      let factor = scale_factor xf in
+      prepare_path t.t ~factor:factor path;
       let _bounds, paths = T.flush t.t in
       let paths =
         V.stroke t.t t.b
@@ -926,24 +927,16 @@ module Renderer = struct
 
   let xform_outofdate = ref true
 
-  let counter_fill = ref 0
-  let counter_convex_fill = ref 0
-  let counter_stroke = ref 0
-  let counter_opaque = ref 0
-  let counter_transparent = ref 0
-
   let rec exec t xf paint frame = function
     | PFill _ | PStroke _ | PString _ when
         !xform_outofdate &&
         (Backend.set_xform t.g xf; xform_outofdate := false; false) -> assert false
     | PFill { paths = [path]; triangle_offset = 0; triangle_count = 0 } ->
-      incr counter_convex_fill;
       Backend.Convex_fill.prepare t.g Texture.tex paint frame;
       Backend.Convex_fill.draw path.V.fill_first path.V.fill_count;
       if t.antialias then
         Backend.Convex_fill.draw_aa path.V.stroke_first path.V.stroke_count
     | PFill b ->
-      incr counter_fill;
       (* Render stencil *)
       Backend.Fill.prepare_stencil t.g;
       List.iter
@@ -963,7 +956,6 @@ module Renderer = struct
       Backend.Fill.finish_and_cover b.triangle_offset b.triangle_count
     | PStroke (b, width) when t.stencil_strokes ->
       (* Fill the stroke base without overlap *)
-      incr counter_stroke;
       Backend.Stencil_stroke.prepare_stencil t.g Texture.tex paint frame width;
       List.iter
         (fun {V. stroke_first; stroke_count} ->
@@ -984,7 +976,6 @@ module Renderer = struct
         b.paths;
       Backend.Stencil_stroke.finish ()
     | PStroke (b, width) ->
-      incr counter_stroke;
       (*  Draw Strokes *)
       Backend.Direct_stroke.prepare t.g Texture.tex paint frame width;
       List.iter
@@ -1002,10 +993,6 @@ module Renderer = struct
       exec t xf paint frame n;
       xform_outofdate := true
     | PPaint (n, paint) ->
-      if Color.a paint.Paint.inner < 1.0 || Color.a paint.Paint.outer < 1.0 then
-        incr counter_transparent
-      else
-        incr counter_opaque;
       exec t xf paint frame n
     | PScissor (n, xf', box, `Set) ->
       let x = Gg.Box2.minx box in
@@ -1036,11 +1023,6 @@ module Renderer = struct
     let pnode = prepare t Transform.identity node in
     Backend.prepare t.g width height (B.sub t.b);
     xform_outofdate := true;
-    counter_fill := 0;
-    counter_convex_fill := 0;
-    counter_stroke := 0;
-    counter_transparent := 0;
-    counter_opaque := 0;
     exec t Transform.identity Paint.black Frame.default pnode;
     Backend.finish ();
     let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in

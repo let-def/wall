@@ -52,8 +52,7 @@ let render context sw sh t =
                                 ~x:(-. 60.0 +. 100.0 *. sin (2.0 *. t +. pi /. 2.0))
                                 ~y:0.0
                                 ~valign:`MIDDLE
-                                (Font.make (Lazy.force font_sans)
-                                   ~size:60.0 ~placement:`Exact)
+                                (Font.make (Lazy.force font_sans) ~size:60.0)
                                 "Settings"))))
           )
         )
