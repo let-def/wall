@@ -1077,6 +1077,6 @@ module V = struct
   end
 
   let stroke t vb ~width ~line_join ~line_cap ~miter_limit paths =
-    let width = maxf 2.0 width *. 0.5 in
+    let width = width *. 0.5 in
     Stroke.expand t vb ~line_join ~line_cap ~miter_limit ~width paths
 end

@@ -889,15 +889,17 @@ module Renderer = struct
       let factor = scale_factor xf in
       prepare_path t.t ~factor:factor path;
       let _bounds, paths = T.flush t.t in
+      let ratio = stroke_width *. stroke_width /. factor in
+      let width = if ratio < 2.0 then 2.0 else stroke_width in
       let paths =
         V.stroke t.t t.b
-          ~width:stroke_width
+          ~width
           ~miter_limit
           ~line_join
           ~line_cap
           paths
       in
-      PStroke ({ paths; triangle_offset = 0; triangle_count = 6 }, stroke_width)
+      PStroke ({ paths; triangle_offset = 0; triangle_count = 6 }, sqrt ratio)
     | String (x, cls) ->
       let vbuffer = t.b in
       let offset = B.offset vbuffer in
