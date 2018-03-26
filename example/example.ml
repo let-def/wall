@@ -317,7 +317,7 @@ let draw_lines x y w _h t =
           I.paint (Paint.color (Color.v 0.0 0.75 1.0 1.0))
             (I.stroke_path
                Outline.{default with stroke_width = 1.0;
-                                     line_cap = `BUTT; line_join = `BEVEL}
+                                     line_cap = `ROUND; line_join = `MITER}
              @@ fun t ->
              P.move_to t (px 0) (py 0);
              P.line_to t (px 1) (py 1);
