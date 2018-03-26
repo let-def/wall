@@ -41,8 +41,8 @@ let render context sw sh t =
           "Settings";*)
         Image.paint Paint.white @@
         Image.transform (Transform.translation 200.0 400.0) (
-          Image.transform (Transform.rotation (t -. pi /. 4.0)) (
-            Image.stroke_path (Outline.make ~cap:`ROUND ~width:(t/.10.0) ()) @@ fun p ->
+          Image.transform (Transform.(rotation (-. pi (*/. 4.0*)))) (
+            Image.stroke_path (Outline.make ~cap:`BUTT (*~cap:`ROUND*) ~width:(1.0) ()) @@ fun p ->
             Path.move_to p 00.0 300.0;
             Path.line_to p 0.0 0.0;
             Path.line_to p 300.0 0.0;
