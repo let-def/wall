@@ -23,7 +23,7 @@ let normalize (dx, dy) =
 
 let w = 1000
 let h = 600
-let f = (try float_of_string Sys.argv.(1) with _ -> 1.0)
+let f = ignore (try float_of_string Sys.argv.(1) with _ -> 1.0); 1.0
 let fw = int_of_float (f *. float w)
 let fh = int_of_float (f *. float h)
 
@@ -39,22 +39,23 @@ let render context sw sh t =
         (*Image.simple_text ~x:10.0 ~y:0.0
           (Font.make (Lazy.force font_sans) ~size:60.0)
           "Settings";*)
-        Image.transform (Transform.translation 40.0 80.0) (
-          Image.transform (Transform.rotation (-. pi /. 4.0)) (
-            Image.impose
-              (Image.stroke_path (Outline.make ~width:10.0 ()) @@ fun p ->
-               Path.move_to p 00.0 50.0;
-               Path.line_to p 0.0 0.0;
-               Path.line_to p 50.0 0.0)
-              (Image.scissor (b2 0.0 0.0 1000.0 1000.0) (
-                 (Image.transform (Transform.rotation (pi /. 4.0))) (
-                   Wall_text.(simple_text
-                                ~x:(-. 60.0 +. 100.0 *. sin (2.0 *. t +. pi /. 2.0))
-                                ~y:0.0
-                                ~valign:`MIDDLE
-                                (Font.make (Lazy.force font_sans)
-                                   ~size:60.0 )
-                                "Settings"))))
+        Image.paint Paint.white @@
+        Image.transform (Transform.translation 200.0 400.0) (
+          Image.transform (Transform.rotation (t -. pi /. 4.0)) (
+            Image.stroke_path (Outline.make ~cap:`ROUND ~width:(t/.10.0) ()) @@ fun p ->
+            Path.move_to p 00.0 300.0;
+            Path.line_to p 0.0 0.0;
+            Path.line_to p 300.0 0.0;
+            Path.line_to p 300.0 300.0
+            (*(Image.scissor (b2 0.0 0.0 1000.0 1000.0) (
+               (Image.transform (Transform.rotation (pi /. 4.0))) (
+                 Wall_text.(simple_text
+                              ~x:(-. 60.0 +. 100.0 *. sin (2.0 *. t +. pi /. 2.0))
+                              ~y:0.0
+                              ~valign:`MIDDLE
+                              (Font.make (Lazy.force font_sans)
+                                 ~size:60.0 )
+                              "Settings"))))*)
           )
         )
       ])
@@ -83,7 +84,7 @@ let main () =
       match Sdl.gl_create_context w with
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
       | Ok ctx ->
-        let context = Renderer.create ~antialias:false ~stencil_strokes:false () in
+        let context = Renderer.create ~antialias:true ~stencil_strokes:true () in
         let quit = ref false in
         let event = Sdl.Event.create () in
         while not !quit do
@@ -93,7 +94,7 @@ let main () =
             | _ -> ()
           done;
           Gl.viewport 0 0 fw fh;
-          Gl.clear_color 0.3 0.3 0.32 1.0;
+          Gl.clear_color 0.0 0.0 0.0 1.0;
           Gl.(clear (color_buffer_bit lor depth_buffer_bit lor stencil_buffer_bit));
           Gl.enable Gl.blend;
           Gl.blend_func_separate Gl.one Gl.src_alpha Gl.one Gl.one_minus_src_alpha;
