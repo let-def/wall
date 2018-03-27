@@ -975,59 +975,73 @@ module V = struct
       dvbuffer_put vb ~u:2 ~w ~dw:0.5
         px py ~dx:(-.dlx) ~dy:(-.dly)
 
-    let buttcap_start vb t p ~dx ~dy ~w ~d ~aa =
-      (*Printf.printf "buttcap_start %f %f %f %f %f\n" dx dy w d aa;*)
-      let px = T.get_x t p -. dx *. d in
-      let py = T.get_y t p -. dy *. d in
-      let dlx = dy and dly = -.dx in
-      vbuffer_put vb ~u:0 ~v:0
-        (px +. dlx*.w) ~dx:(-. dx *. aa)
-        (py +. dly*.w) ~dy:(-. dy *. aa);
-      vbuffer_put vb ~u:2 ~v:0
-        (px -. dlx*.w) ~dx:(-. dx *. aa)
-        (py -. dly*.w) ~dy:(-. dy *. aa);
-      vbuffer_put vb ~u:0 ~v:2
-        (px +. dlx*.w) ~dx:0.0
-        (py +. dly*.w) ~dy:0.0;
-      vbuffer_put vb ~u:2 ~v:2
-        (px -. dlx*.w) ~dx:0.0
-        (py -. dly*.w) ~dy:0.0
-
-    let squarecap_start vb t p ~dx ~dy ~w ~d ~aa =
-      (*Printf.printf "squarecap_start %f %f %f %f %f\n" dx dy w d aa;*)
-      let px = T.get_x t p -. dx *. d in
-      let py = T.get_y t p -. dy *. d in
-      let dlx = dy and dly = -.dx in
-      vbuffer_put vb ~u:0 ~v:0
-        (px +. dlx*.w) ~dx:(-. dx *. aa)
-        (py +. dly*.w) ~dy:(-. dy *. aa);
-      vbuffer_put vb ~u:2 ~v:0
-        (px -. dlx*.w) ~dx:(-. dx *. aa)
-        (py -. dly*.w) ~dy:(-. dy *. aa);
-      vbuffer_put vb ~u:0 ~v:2
-        (px +. dlx*.w) ~dx:0.0
-        (py +. dly*.w) ~dy:0.0;
-      vbuffer_put vb ~u:2 ~v:2
-        (px -. dlx*.w) ~dx:0.0
-        (py -. dly*.w) ~dy:0.0
-
-    let buttcap_end vb t p ~dx ~dy ~d ~dd ~w =
-      (*Printf.printf "buttcap_end %f %f %f %f %f\n" dx dy w d aa;*)
-      let px = T.get_x t p +. dx *. d in
-      let py = T.get_y t p +. dy *. d in
+    let buttcap_start vb t p ~dx ~dy ~w =
+      let px = T.get_x t p +. dx *. 0.5 in
+      let py = T.get_y t p +. dy *. 0.5 in
       let dlx = dy *. w and dly = -.dx *. w in
-      vbuffer_put vb ~u:0
-        (px +. dlx) ~dx:(dx *. dd +. dy *. 0.5)
-        (py +. dly) ~dy:(dy *. dd -. dx *. 0.5);
-      vbuffer_put vb ~u:2
-        (px -. dlx) ~dx:(dx *. dd -. dy *. 0.5)
-        (py -. dly) ~dy:(dy *. dd +. dx *. 0.5);
       vbuffer_put vb ~u:0 ~v:0
-        (px +. dlx) ~dx:(dx *. dd +. dy *. 0.5)
-        (py +. dly) ~dy:(dy *. dd -. dx *. 0.5);
+        (px +. dlx) ~dx:(-. dx)
+        (py +. dly) ~dy:(-. dy);
       vbuffer_put vb ~u:2 ~v:0
-        (px -. dlx) ~dx:(dx *. dd -. dy *. 0.5)
-        (py -. dly) ~dy:(dy *. dd +. dx *. 0.5)
+        (px -. dlx) ~dx:(-. dx)
+        (py -. dly) ~dy:(-. dy);
+      vbuffer_put vb ~u:0 ~v:2
+        (px +. dlx) ~dx:0.0
+        (py +. dly) ~dy:0.0;
+      vbuffer_put vb ~u:2 ~v:2
+        (px -. dlx) ~dx:0.0
+        (py -. dly) ~dy:0.0
+
+    let buttcap_end vb t p ~dx ~dy ~w =
+      let px = T.get_x t p -. dx *. 0.5 in
+      let py = T.get_y t p -. dy *. 0.5 in
+      let dlx = dy *. w and dly = -.dx *. w in
+      vbuffer_put vb ~u:0 ~v:2
+        (px +. dlx) ~dx:0.0
+        (py +. dly) ~dy:0.0;
+      vbuffer_put vb ~u:2 ~v:2
+        (px -. dlx) ~dx:0.0
+        (py -. dly) ~dy:0.0;
+      vbuffer_put vb ~u:0 ~v:0
+        (px +. dlx) ~dx
+        (py +. dly) ~dy;
+      vbuffer_put vb ~u:2 ~v:0
+        (px -. dlx) ~dx
+        (py -. dly) ~dy
+
+    let squarecap_start vb t p ~dx ~dy ~w =
+      let px = T.get_x t p -. dx *. w in
+      let py = T.get_y t p -. dy *. w in
+      let dlx = dy *. w and dly = -.dx *. w in
+      vbuffer_put vb ~u:0 ~v:0
+        (px +. dlx) ~dx:0.0
+        (py +. dly) ~dy:0.0;
+      vbuffer_put vb ~u:2 ~v:0
+        (px -. dlx) ~dx:0.0
+        (py -. dly) ~dy:0.0;
+      vbuffer_put vb ~u:0 ~v:2
+        (px +. dlx) ~dx
+        (py +. dly) ~dy;
+      vbuffer_put vb ~u:2 ~v:2
+        (px -. dlx) ~dx
+        (py -. dly) ~dy
+
+    let squarecap_end vb t p ~dx ~dy ~w =
+      let px = T.get_x t p +. dx *. w in
+      let py = T.get_y t p +. dy *. w in
+      let dlx = dy *. w and dly = -.dx *. w in
+      vbuffer_put vb ~u:0 ~v:2
+        (px +. dlx) ~dx:(-. dx)
+        (py +. dly) ~dy:(-. dy);
+      vbuffer_put vb ~u:2 ~v:2
+        (px -. dlx) ~dx:(-. dx)
+        (py -. dly) ~dy:(-. dy);
+      vbuffer_put vb ~u:0 ~v:0
+        (px +. dlx) ~dx:0.0
+        (py +. dly) ~dy:0.0;
+      vbuffer_put vb ~u:2 ~v:0
+        (px -. dlx) ~dx:0.0
+        (py -. dly) ~dy:0.0
 
     let expand_path t vb ~line_join ~line_cap ~w ncap path =
       let stroke_first = B.offset vb / 4 in
@@ -1041,8 +1055,8 @@ module V = struct
         let dlen = if dlen < 1e-6 then 1. else 1. /. dlen in
         let dx = dx *. dlen and dy = dy *. dlen in
         match line_cap with
-        | `BUTT   -> buttcap_start  vb t p0 ~dx ~dy ~w ~d:(-0.5) ~aa:1.0
-        | `SQUARE -> buttcap_start  vb t p0 ~dx ~dy ~w ~d:w ~aa:(-. 1.0)
+        | `BUTT   -> buttcap_start  vb t p0 ~dx ~dy ~w
+        | `SQUARE -> squarecap_start vb t p0 ~dx ~dy ~w
         | `ROUND  -> roundcap_start vb t p0 ~dx ~dy ~w ~ncap
       end;
       let s, e =
@@ -1087,8 +1101,8 @@ module V = struct
         let dlen = if dlen < 1e-6 then 1. else 1. /. dlen in
         let dx = dx *. dlen and dy = dy *. dlen in
         match line_cap with
-        | `BUTT   -> buttcap_end  vb t p1 ~dx ~dy ~w ~d:0.0 ~dd:(-0.5)
-        | `SQUARE -> buttcap_end  vb t p1 ~dx ~dy ~w ~d:w ~dd:(-1.0)
+        | `BUTT   -> buttcap_end vb t p1 ~dx ~dy ~w
+        | `SQUARE -> squarecap_end vb t p1 ~dx ~dy ~w
         | `ROUND  -> roundcap_end vb t p1 ~dx ~dy ~w ~ncap
       end;
       { convex = false;
