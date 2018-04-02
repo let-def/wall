@@ -24,7 +24,7 @@ static const char *source_vertex_shader =
 "  if (tcoord.x < -1.0) {\n"
 "  \n"
 "    ftcoord = - floor(tcoord) / 2.0 - 1.0;\n"
-"    vec2 d = (fract(tcoord) - 0.5) * 8.0;\n"
+"    vec2 d = (fract(tcoord) - 0.5) * 1024.0;\n"
 "    if (length(d) > 0.0001)\n"
 "      fpos += normalize(mat2(viewXform[0].xy, viewXform[1].xy) * d) * length(d);\n"
 "  }\n"

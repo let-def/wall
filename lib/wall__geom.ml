@@ -565,8 +565,8 @@ module V = struct
     let data = B.data b and c = B.alloc b 4 in
     data.{c + 0} <- x;
     data.{c + 1} <- y;
-    data.{c + 2} <- dx /. 8.0 -. 1.5 -. float u;
-    data.{c + 3} <- dy /. 8.0 -. 1.5 -. float v
+    data.{c + 2} <- dx /. 1024.0 -. 1.5 -. float u;
+    data.{c + 3} <- dy /. 1024.0 -. 1.5 -. float v
 
   let dvbuffer_put ?(log=false) ?(v=2) (b : B.t) x y ~dx ~dy ~w ~dw ~u =
     if log then (
@@ -579,8 +579,8 @@ module V = struct
     let data = B.data b and c = B.alloc b 4 in
     data.{c + 0} <- x +. dx *. w;
     data.{c + 1} <- y +. dy *. w;
-    data.{c + 2} <- dx *. dw /. 8.0 -. 1.5 -. float u;
-    data.{c + 3} <- dy *. dw /. 8.0 -. 1.5 -. float v
+    data.{c + 2} <- dx *. dw /. 1024.0 -. 1.5 -. float u;
+    data.{c + 3} <- dy *. dw /. 1024.0 -. 1.5 -. float v
 
   let choose_bevel bevel ~w t p0 p1 =
     if bevel then
