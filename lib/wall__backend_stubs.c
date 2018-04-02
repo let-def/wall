@@ -71,7 +71,7 @@ static const char *source_fragment_shader =
 "#ifdef EDGE_AA\n"
 "// Stroke - from [0..1] to clipped pyramid, where the slope is 1px.\n"
 "float strokeMask() {\n"
-"  return min(1.0, (1.0-abs(ftcoord.x*2.0-1.0))*strokeMult) * min(1.0, ftcoord.y);\n"
+"  return min(1.0, (0.5-abs(ftcoord.x-0.5))*(strokeMult * ftcoord.y + 1.0));\n"
 "}\n"
 "#endif\n"
 "\n"
