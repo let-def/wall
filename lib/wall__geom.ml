@@ -554,13 +554,10 @@ module V = struct
 
   let pi = 3.14159265358979323846264338327
 
-  let vbuffer_put ?(log=false) ?(v=2) (b : B.t) x y ~dx ~dy ~u =
-    if log then (
-      Printf.eprintf "vbuffer_put %f %f ~dx:%f ~dy:%f ~u:%d ~v:%d\n%!"
-        x y dx dy u v
-    );
-    if (abs_float dx > 8.0 || abs_float dy > 8.0) then (
-      prerr_endline (Printexc.raw_backtrace_to_string (Printexc.get_callstack 30))
+  let vbuffer_put ?(v=2) (b : B.t) x y ~dx ~dy ~u =
+    if (abs_float dx > 1024.0 || abs_float dy > 1024.0) then (
+      prerr_endline ("vbuffer_put: derivative overflow " ^
+                     Printexc.raw_backtrace_to_string (Printexc.get_callstack 8))
     );
     let data = B.data b and c = B.alloc b 4 in
     data.{c + 0} <- x;
@@ -568,13 +565,10 @@ module V = struct
     data.{c + 2} <- dx /. 1024.0 -. 1.5 -. float u;
     data.{c + 3} <- dy /. 1024.0 -. 1.5 -. float v
 
-  let dvbuffer_put ?(log=false) ?(v=2) (b : B.t) x y ~dx ~dy ~w ~dw ~u =
-    if log then (
-      Printf.eprintf "vbuffer_put %f %f ~dx:%f ~dy:%f ~u:%d ~v:%d\n%!"
-        (x +. dx *. w) (y +. dy *. w) (dx *. dw) (dy *. dw) u v
-    );
-    if (abs_float dx > 8.0 || abs_float dy > 8.0) then (
-      prerr_endline (Printexc.raw_backtrace_to_string (Printexc.get_callstack 30))
+  let dvbuffer_put ?(v=2) (b : B.t) x y ~dx ~dy ~w ~dw ~u =
+    if (abs_float dx > 1024.0 || abs_float dy > 1024.0) then (
+      prerr_endline ("vbuffer_put: derivative overflow " ^
+                     Printexc.raw_backtrace_to_string (Printexc.get_callstack 8))
     );
     let data = B.data b and c = B.alloc b 4 in
     data.{c + 0} <- x +. dx *. w;
@@ -974,14 +968,14 @@ module V = struct
         let ax = cos a and ay = sin a in
         let fx = dlx *. ax +. dx *. ay in
         let fy = dly *. ax +. dy *. ay in
-        dvbuffer_put vb ~u:0 ~w ~dw:0.5 ~log:true
+        dvbuffer_put vb ~u:0 ~w ~dw:0.5
           px py ~dx:(-.fx) ~dy:(-.fy);
-        vbuffer_put vb px py  ~log:true
+        vbuffer_put vb px py
           ~dx:0.0 ~dy:0.0 ~u:1;
       done;
-      dvbuffer_put vb ~u:0 ~w ~dw:0.5 ~log:true
+      dvbuffer_put vb ~u:0 ~w ~dw:0.5
         px py ~dx:dlx ~dy:dly;
-      dvbuffer_put vb ~u:2 ~w ~dw:0.5 ~log:true
+      dvbuffer_put vb ~u:2 ~w ~dw:0.5
         px py ~dx:(-.dlx) ~dy:(-.dly)
 
     let buttcap_start vb t p ~dx ~dy ~w =
@@ -989,16 +983,16 @@ module V = struct
       let py = T.get_y t p +. dy *. 0.5 in
       let dlx = dy *. w and dly = -.dx *. w in
       (
-        vbuffer_put vb ~u:0 ~v:2 ~log:true
+        vbuffer_put vb ~u:0 ~v:2
           (px +. dlx) ~dx:0.0
           (py +. dly) ~dy:0.0;
-        vbuffer_put vb ~u:2 ~v:2 ~log:true
+        vbuffer_put vb ~u:2 ~v:2
           (px -. dlx) ~dx:0.0
           (py -. dly) ~dy:0.0;
-        vbuffer_put vb ~u:0 ~v:2 ~log:true
+        vbuffer_put vb ~u:0 ~v:2
           (px +. dlx) ~dx:(+. dy *. 0.5)
           (py +. dly) ~dy:(-. dx *. 0.5);
-        vbuffer_put vb ~u:2 ~v:2 ~log:true
+        vbuffer_put vb ~u:2 ~v:2
           (px -. dlx) ~dx:(-. dy *. 0.5)
           (py -. dly) ~dy:(+. dx *. 0.5);
       )
