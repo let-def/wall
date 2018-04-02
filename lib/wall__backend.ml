@@ -306,7 +306,7 @@ module Shader = struct
           2.0
     in
     set_4 strokemult_strokethr_textype_type
-      ((width +. fringe) *. 0.5 /. fringe)
+      (if stroke_thr = -2.0 then 0.0 else width) (*((width +. fringe) *. 0.5 /. fringe)*)
       stroke_thr
       texType (shader_type typ);
     wall_gl_bind_paint t buf
@@ -325,13 +325,13 @@ module Fill = struct
     (* Draw shapes *)
     wall_gl_fill_prepare_stencil ();
     (* set bindpoint for solid loc *)
-    Shader.set_simple t (-1.0) `SIMPLE
+    Shader.set_simple t (-2.0) `SIMPLE
 
   let draw_stencil = wall_gl_draw_triangle_fan
 
   let prepare_cover t prj paint frame =
     wall_gl_fill_prepare_cover ();
-    Shader.set_tool t prj paint frame 1.0 (-1.0)
+    Shader.set_tool t prj paint frame 1.0 (-2.0)
 
   let prepare_aa = wall_gl_prepare_aa
 
@@ -342,7 +342,7 @@ end
 
 module Convex_fill = struct
   let prepare t prj paint frame =
-    Shader.set_tool t prj paint frame 1.0 (-1.0)
+    Shader.set_tool t prj paint frame 1.0 (-2.0)
 
   let draw = wall_gl_draw_triangle_fan
 

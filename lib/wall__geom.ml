@@ -1021,10 +1021,10 @@ module V = struct
       let py = T.get_y t p -. dy *. w in
       let dlx = dy *. w and dly = -.dx *. w in
       (
-        vbuffer_put vb ~u:0 ~v:0
+        vbuffer_put vb ~u:0 ~v:2
           (px +. dlx) ~dx:0.0
           (py +. dly) ~dy:0.0;
-        vbuffer_put vb ~u:2 ~v:0
+        vbuffer_put vb ~u:2 ~v:2
           (px -. dlx) ~dx:0.0
           (py -. dly) ~dy:0.0;
         vbuffer_put vb ~u:0 ~v:2
@@ -1045,10 +1045,10 @@ module V = struct
       vbuffer_put vb ~u:2 ~v:2
         (px -. dlx) ~dx:(-. dy *. 0.5)
         (py -. dly) ~dy:(+. dx *. 0.5);
-      vbuffer_put vb ~u:0 ~v:0
+      vbuffer_put vb ~u:0 ~v:2
         (px +. dlx) ~dx:0.0
         (py +. dly) ~dy:0.0;
-      vbuffer_put vb ~u:2 ~v:0
+      vbuffer_put vb ~u:2 ~v:2
         (px -. dlx) ~dx:0.0
         (py -. dly) ~dy:0.0
 
