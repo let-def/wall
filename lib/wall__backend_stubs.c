@@ -7,12 +7,13 @@
 #include <stdio.h>
 
 typedef struct {
-  GLuint program, viewsize, viewxform, tex, frag, vert_vbo;
+  GLuint program, viewsize, viewxform, strokewidth, tex, frag, vert_vbo;
   int valid;
 } gl_state;
 
 static const char *source_vertex_shader =
 "uniform vec2 viewSize;\n"
+"uniform float strokeWidth;\n"
 "uniform vec3 viewXform[3];\n"
 "attribute vec2 vertex;\n"
 "attribute vec2 tcoord;\n"
@@ -21,12 +22,22 @@ static const char *source_vertex_shader =
 "\n"
 "void main(void) {\n"
 "  fpos = (mat3(viewXform[0], viewXform[1], viewXform[2]) * vec3(vertex,1.0)).xy;\n"
-"  if (tcoord.x < -1.0) {\n"
-"  \n"
+"  if (tcoord.x < -1.0)\n"
+"  {\n"
 "    ftcoord = - floor(tcoord) / 2.0 - 1.0;\n"
 "    vec2 d = (fract(tcoord) - 0.5) * 1024.0;\n"
-"    if (length(d) > 0.0001)\n"
-"      fpos += normalize(mat2(viewXform[0].xy, viewXform[1].xy) * d) * length(d);\n"
+"    float len = length(d);\n"
+"    if (len > 0.0001)\n"
+"    {\n"
+"      vec2 dm = mat2(viewXform[0].xy, viewXform[1].xy) * d;\n"
+"      if (strokeWidth > 0.0)\n"
+"      {\n"
+"        float lenm = length(dm);\n"
+"        ftcoord.y = (strokeWidth * lenm / len + 1.0);\n"
+"      }\n"
+"      else ftcoord.y = 2.0;\n"
+"      fpos += normalize(dm) * len;\n"
+"    }\n"
 "  }\n"
 "  else\n"
 "  {\n"
@@ -71,7 +82,7 @@ static const char *source_fragment_shader =
 "#ifdef EDGE_AA\n"
 "// Stroke - from [0..1] to clipped pyramid, where the slope is 1px.\n"
 "float strokeMask() {\n"
-"  return min(1.0, (0.5-abs(ftcoord.x-0.5))*(strokeMult * ftcoord.y + 1.0));\n"
+"  return min((0.5-abs(ftcoord.x-0.5))*ftcoord.y, 1.0);\n"
 "}\n"
 "#endif\n"
 "\n"
@@ -217,6 +228,7 @@ static int gl_state_create(int antialias, gl_state *state)
   state->program   = program;
   state->viewsize  = glGetUniformLocation(program, "viewSize");
   state->viewxform = glGetUniformLocation(program, "viewXform");
+  state->strokewidth = glGetUniformLocation(program, "strokeWidth");
   state->tex       = glGetUniformLocation(program, "tex");
   state->frag      = glGetUniformLocation(program, "frag");
   glGenBuffers(1, &state->vert_vbo);
@@ -292,6 +304,7 @@ CAMLprim value wall_gl_bind_xform(value state, value buf)
 CAMLprim value wall_gl_bind_paint(value state, value buf)
 {
   float *data = Caml_ba_data_val(buf);
+  glUniform1f(Gl_state_val(state)->strokewidth, data[40]);
   glUniform4fv(Gl_state_val(state)->frag, 11, data);
   return Val_unit;
 }
