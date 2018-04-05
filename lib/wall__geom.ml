@@ -494,7 +494,10 @@ module T = struct
     p.path_convex <- !nleft = p.path_count
 
   let calculate_joins t ~width ~line_join ~miter_limit paths =
-    let line_join = match line_join with `BEVEL | `ROUND -> true | _ -> false in
+    let line_join = match line_join with
+      | `BEVEL | `ROUND -> true
+      | `MITER -> false
+    in
     List.iter (calculate_joins t width line_join miter_limit) paths
 
   let get_x     = T.get_x
@@ -824,6 +827,18 @@ module V = struct
 
   let sum f xs = sum f 0 xs
 
+  let do_close_path vb first =
+    let data = B.data vb and c = B.alloc vb 8 in
+    (* Loop it *)
+    data.{c + 0} <- data.{first * 4 + 0};
+    data.{c + 1} <- data.{first * 4 + 1};
+    data.{c + 2} <- data.{first * 4 + 2};
+    data.{c + 3} <- data.{first * 4 + 3};
+    data.{c + 4} <- data.{first * 4 + 4};
+    data.{c + 5} <- data.{first * 4 + 5};
+    data.{c + 6} <- data.{first * 4 + 6};
+    data.{c + 7} <- data.{first * 4 + 7}
+
   module Fill = struct
 
     let count_no_fringe {T. path_count; path_nbevel} =
@@ -884,16 +899,7 @@ module V = struct
             x1 y1 ~dx:dx1 ~dy:dy1 ~w:0.0 ~dw:(-0.5);
         end
       done;
-      let data = B.data vb and c = B.alloc vb 8 in
-      (* Loop it *)
-      data.{c + 0} <- data.{stroke_first * 4 + 0};
-      data.{c + 1} <- data.{stroke_first * 4 + 1};
-      data.{c + 2} <- data.{stroke_first * 4 + 2};
-      data.{c + 3} <- data.{stroke_first * 4 + 3};
-      data.{c + 4} <- data.{stroke_first * 4 + 4};
-      data.{c + 5} <- data.{stroke_first * 4 + 5};
-      data.{c + 6} <- data.{stroke_first * 4 + 6};
-      data.{c + 7} <- data.{stroke_first * 4 + 7};
+      do_close_path vb stroke_first;
       let stroke_last = B.offset vb / 4 in
       { convex = path.T.path_convex;
         fill_first; stroke_first;
@@ -936,10 +942,10 @@ module V = struct
       count
         (match line_join with
          | `ROUND -> ncap
-         | _ -> 3)
+         | `MITER | `BEVEL -> 3)
         (match line_cap with
          | `ROUND -> ncap
-         | _ -> 2)
+         | `BUTT | `SQUARE -> 2)
 
     let roundcap_end vb t p ~dx ~dy ~w ~ncap =
       (*Printf.printf "roundcap_end %f %f %f %d\n" dx dy w ncap;*)
@@ -1077,10 +1083,9 @@ module V = struct
       for p1 = s to e do
         if T.get_flags t p1 land (T.flag_bevel lor T.flag_innerbevel) <> 0 then begin
           let p0 = if p1 = first then last else p1 - 1 in
-          if line_join = `ROUND then
-            round_join vb t p0 p1 w ncap
-          else
-            bevel_join vb t p0 p1 w 0
+          match line_join with
+          | `ROUND -> round_join vb t p0 p1 w ncap
+          | `BEVEL | `MITER -> bevel_join vb t p0 p1 w 0
         end else begin
           let x1 = T.get_x t p1 and dmx = T.get_dmx t p1 in
           let y1 = T.get_y t p1 and dmy = T.get_dmy t p1 in
@@ -1091,18 +1096,9 @@ module V = struct
         end
       done;
 
-      if path.T.path_closed then begin
-        (* Loop it *)
-        let data = B.data vb and c = B.alloc vb 8 in
-        data.{c + 0} <- data.{stroke_first * 4 + 0};
-        data.{c + 1} <- data.{stroke_first * 4 + 1};
-        data.{c + 2} <- data.{stroke_first * 4 + 2};
-        data.{c + 3} <- data.{stroke_first * 4 + 3};
-        data.{c + 4} <- data.{stroke_first * 4 + 4};
-        data.{c + 5} <- data.{stroke_first * 4 + 5};
-        data.{c + 6} <- data.{stroke_first * 4 + 6};
-        data.{c + 7} <- data.{stroke_first * 4 + 7};
-      end else begin
+      if path.T.path_closed then
+        do_close_path vb stroke_first
+      else begin
         let p0 = last - 1 and p1 = last in
         let dx = T.get_x t p1 -. T.get_x t p0 in
         let dy = T.get_y t p1 -. T.get_y t p0 in
