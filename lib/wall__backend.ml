@@ -315,6 +315,7 @@ module Shader = struct
     for i = 0 to 43 do
       buf.{i} <- 0.0;
     done;
+    buf.{strokemult_strokethr_textype_type + 0} <- 0.0;
     buf.{strokemult_strokethr_textype_type + 1} <- stroke_thr;
     buf.{strokemult_strokethr_textype_type + 3} <- shader_type typ;
     wall_gl_bind_paint t buf
@@ -325,7 +326,7 @@ module Fill = struct
     (* Draw shapes *)
     wall_gl_fill_prepare_stencil ();
     (* set bindpoint for solid loc *)
-    Shader.set_simple t (-2.0) `SIMPLE
+    Shader.set_simple t (-1.0) `SIMPLE
 
   let draw_stencil = wall_gl_draw_triangle_fan
 
@@ -379,7 +380,7 @@ end
 
 module Triangles = struct
   let prepare t prj paint frame =
-    Shader.set_tool t ~typ:`IMG prj paint frame 1.0 (-1.0)
+    Shader.set_tool t ~typ:`IMG prj paint frame 1.0 (-2.0)
 
   let draw = wall_gl_draw_triangles
 end

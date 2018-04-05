@@ -843,11 +843,11 @@ let render context sw sh t =
   let demo = draw_demo x y lw lh t in
   Renderer.render context ~width ~height
     (I.seq [
-        (*I.transform (Transform.scale (sw *. f /. 2.0) (sh *. f)) demo;
+        I.transform (Transform.scale (sw *. f /. 2.0) (sh *. f)) demo;
         I.transform (Transform.scale (sw *. f /. 1.8) (sh *. f)) demo;
         I.transform (Transform.scale (sw *. f /. 1.6) (sh *. f)) demo;
         I.transform (Transform.scale (sw *. f /. 1.4) (sh *. f)) demo;
-        I.transform (Transform.scale (sw *. f /. 1.2) (sh *. f)) demo;*)
+        I.transform (Transform.scale (sw *. f /. 1.2) (sh *. f)) demo;
         I.transform (Transform.scale (sw *. f) (sh *. f)) demo;
       ])
 
