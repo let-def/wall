@@ -23,7 +23,7 @@ let normalize (dx, dy) =
 
 let w = 1000
 let h = 600
-let f = ignore (try float_of_string Sys.argv.(1) with _ -> 1.0); 1.0
+let f = try float_of_string Sys.argv.(1) with _ -> 1.0
 let fw = int_of_float (f *. float w)
 let fh = int_of_float (f *. float h)
 
@@ -40,13 +40,14 @@ let render context sw sh t =
           (Font.make (Lazy.force font_sans) ~size:60.0)
           "Settings";*)
         Image.paint Paint.white @@
-        Image.transform (Transform.translation 400.0 400.0) (
+        Image.transform (Transform.translate 400.0 400.0 (Transform.scale 2.0 2.0)) (
           Image.transform (Transform.(rotation (-. pi (*/. 4.0*)))) (
-            Image.stroke_path (Outline.make ~cap:`SQUARE (*~cap:`ROUND*) ~width:(1.0) ()) @@ fun p ->
-            Path.move_to p 00.0 300.0;
+            Image.stroke_path (Outline.make ~join:`MITER ~cap:`BUTT (*~cap:`ROUND*) ~width:(10.0) ()) @@ fun p ->
+            Path.move_to p 300.0 30.0;
             Path.line_to p 0.0 0.0;
             Path.line_to p 300.0 0.0;
-            Path.line_to p 300.0 300.0
+            Path.line_to p 300.0 30.0;
+            Path.close p
             (*(Image.scissor (b2 0.0 0.0 1000.0 1000.0) (
                (Image.transform (Transform.rotation (pi /. 4.0))) (
                  Wall_text.(simple_text
