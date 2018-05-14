@@ -33,7 +33,7 @@ static const char *source_vertex_shader =
 "      if (strokeWidth > 0.0)\n"
 "      {\n"
 "        float lenm = length(dm);\n"
-"        ftcoord.y = (strokeWidth * lenm / len + 1.0) * 0.5;\n"
+"        ftcoord.y *= (strokeWidth * lenm / len + 1.0) * 0.5;\n"
 "      }\n"
 "      fpos += normalize(dm) * len;\n"
 "    }\n"
