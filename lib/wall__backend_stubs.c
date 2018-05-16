@@ -8,6 +8,9 @@
 
 typedef struct {
   GLuint program, viewsize, viewxform, strokewidth, tex, frag, vert_vbo;
+#ifdef GL3
+  GLuint vert_vao;
+#endif
   int valid;
 } gl_state;
 
@@ -17,14 +20,14 @@ static const char *source_vertex_shader =
 "uniform vec3 viewXform[3];\n"
 "attribute vec2 vertex;\n"
 "attribute vec2 tcoord;\n"
-"varying vec2 ftcoord;\n"
+"varying vec3 ftcoord;\n"
 "varying vec2 fpos;\n"
 "\n"
 "void main(void) {\n"
 "  fpos = (mat3(viewXform[0], viewXform[1], viewXform[2]) * vec3(vertex,1.0)).xy;\n"
 "  if (tcoord.x < -1.0)\n"
 "  {\n"
-"    ftcoord = - floor(tcoord) / 2.0 - 1.0;\n"
+"    ftcoord = vec3(- floor(tcoord) / 2.0 - 1.0, 1.0);\n"
 "    vec2 d = (fract(tcoord) - 0.5) * 1024.0;\n"
 "    float len = length(d);\n"
 "    if (len > 0.0001)\n"
@@ -33,14 +36,14 @@ static const char *source_vertex_shader =
 "      if (strokeWidth > 0.0)\n"
 "      {\n"
 "        float lenm = length(dm);\n"
-"        ftcoord.y *= (strokeWidth * lenm / len + 1.0) * 0.5;\n"
+"        ftcoord.z = (strokeWidth * lenm / len + 1.0) * 0.5;\n"
 "      }\n"
 "      fpos += normalize(dm) * len;\n"
 "    }\n"
 "  }\n"
 "  else\n"
 "  {\n"
-"    ftcoord = tcoord;\n"
+"    ftcoord = vec3(tcoord, 1.0);\n"
 "  };\n"
 "  gl_Position = vec4(2.0 * fpos.x / viewSize.x - 1.0,\n"
 "                     1.0 - 2.0 * fpos.y / viewSize.y, 0, 1);\n"
@@ -63,7 +66,7 @@ static const char *source_fragment_shader =
 "\n"
 "uniform vec4 frag[11];\n"
 "uniform sampler2D tex;\n"
-"varying vec2 ftcoord;\n"
+"varying vec3 ftcoord;\n"
 "varying vec2 fpos;\n"
 "\n"
 "float sdroundrect(vec2 pt, vec2 ext, float rad) {\n"
@@ -81,7 +84,7 @@ static const char *source_fragment_shader =
 "#ifdef EDGE_AA\n"
 "// Stroke - from [0..1] to clipped pyramid, where the slope is 1px.\n"
 "float strokeMask() {\n"
-"  return min((0.5-abs(ftcoord.x-0.5))*2.0*ftcoord.y, 1.0);\n"
+"  return clamp((0.5-abs(ftcoord.x-0.5))*2.0*ftcoord.z, 0.0, 1.0)*ftcoord.y;\n"
 "}\n"
 "#endif\n"
 "\n"
@@ -116,7 +119,7 @@ static const char *source_fragment_shader =
 "  } else if (type == 2) {    // Stencil fill\n"
 "    result = vec4(1,1,1,1);\n"
 "  } else if (type == 3) {    // Texture atlas\n"
-"    vec4 color = texture2D(tex, ftcoord, -0.66);\n"
+"    vec4 color = texture2D(tex, ftcoord.xy, -0.66);\n"
 "    if (texType == 1) color = vec4(color.xyz*color.w,color.w);\n"
 "    if (texType == 2) color = vec4(color.x);\n"
 "    color *= scissor;\n"
@@ -230,6 +233,9 @@ static int gl_state_create(int antialias, gl_state *state)
   state->strokewidth = glGetUniformLocation(program, "strokeWidth");
   state->tex       = glGetUniformLocation(program, "tex");
   state->frag      = glGetUniformLocation(program, "frag");
+#ifdef GL3
+  glGenVertexArrays(1, &state->vert_vao);
+#endif
   glGenBuffers(1, &state->vert_vbo);
 
   state->valid = 1;
@@ -242,6 +248,9 @@ static void gl_state_delete(gl_state *state)
   if (state->valid)
   {
     glDeleteProgram(state->program);
+#ifdef GL3
+    glDeleteVertexArrays(1, &state->vert_vao);
+#endif
     glDeleteBuffers(1, &state->vert_vbo);
     state->valid = 0;
   }
@@ -422,6 +431,9 @@ CAMLprim value wall_gl_frame_prepare(value t, value width, value height, value d
   glBindTexture(GL_TEXTURE_2D, 0);
 
   /* Upload vertex data */
+#ifdef GL3
+  glBindVertexArray(state->vert_vao);
+#endif
   glBindBuffer(GL_ARRAY_BUFFER, state->vert_vbo);
   glBufferData(GL_ARRAY_BUFFER,
       caml_ba_byte_size(Caml_ba_array_val(data)),
@@ -446,6 +458,9 @@ CAMLprim value wall_gl_frame_finish(value unit)
   glDisableVertexAttribArray(1);
   glDisable(GL_CULL_FACE);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
+#ifdef GL3
+  glBindVertexArray(0);
+#endif
   glUseProgram(0);
   glBindTexture(GL_TEXTURE_2D, 0);
 
