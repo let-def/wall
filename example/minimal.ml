@@ -81,6 +81,11 @@ let main () =
       let ow, oh = Sdl.gl_get_drawable_size w in
       Sdl.log "window size: %d,%d\topengl drawable size: %d,%d" fw fh ow oh;
       let sw = float ow /. float fw and sh = float oh /. float fh in
+      (* GL3 initialization:
+         ignore (Sdl.gl_set_attribute Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core);
+         ignore (Sdl.gl_set_attribute Sdl.Gl.context_major_version 3);
+         ignore (Sdl.gl_set_attribute Sdl.Gl.context_minor_version 2);
+      *)
       ignore (Sdl.gl_set_attribute Sdl.Gl.stencil_size 1);
       match Sdl.gl_create_context w with
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
