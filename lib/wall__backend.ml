@@ -269,10 +269,10 @@ module Shader = struct
     let sxform  = frame.xform in
     let alpha = frame.alpha in
     let alpha =
-      if width < 1.0 then
+      (*if width < 1.0 then
         let da = clampf 0.0 (width (*/. fringe_width*)) 1.0 in
         alpha *. da *. da
-      else alpha
+      else*) alpha
     in
     set_color inner_color alpha paint.inner;
     set_color outer_color alpha paint.outer;
