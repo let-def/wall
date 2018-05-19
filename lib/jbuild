@@ -1,4 +1,9 @@
-(jbuild_version 1)
+(* -*- tuareg -*- *)
+
+let () = 
+  Jbuild_plugin.V1.send @@
+  String.concat "\n" [
+"(jbuild_version 1)
 
 (library
  ((name wall)
@@ -8,6 +13,15 @@
   (wrapped false)
   (c_names (wall__backend_stubs))
   (c_flags (-g))
-  ;(c_flags (-I/blah/include))
-  (c_library_flags (-framework OpenGL))
-  (libraries (gg result stb_image stb_truetype grenier.binpacking))))
+  (libraries (gg result stb_image stb_truetype grenier.binpacking))"
+;
+(* (c_flags (-I/blah/include)) *)
+begin
+  match List.assoc "system" Jbuild_plugin.V1.ocamlc_config with
+  | "macosx" -> "(c_library_flags (-framework OpenGL))"
+  | _ -> ""
+  | exception Not_found -> ""
+end
+;
+"))"
+]
