@@ -8,6 +8,9 @@
 
 typedef struct {
   GLuint program, viewsize, viewxform, strokewidth, tex, frag, vert_vbo;
+#ifdef GL3
+  GLuint vert_vao;
+#endif
   int valid;
 } gl_state;
 
@@ -230,6 +233,9 @@ static int gl_state_create(int antialias, gl_state *state)
   state->strokewidth = glGetUniformLocation(program, "strokeWidth");
   state->tex       = glGetUniformLocation(program, "tex");
   state->frag      = glGetUniformLocation(program, "frag");
+#ifdef GL3
+  glGenVertexArrays(1, &state->vert_vao);
+#endif
   glGenBuffers(1, &state->vert_vbo);
 
   state->valid = 1;
@@ -242,6 +248,9 @@ static void gl_state_delete(gl_state *state)
   if (state->valid)
   {
     glDeleteProgram(state->program);
+#ifdef GL3
+    glDeleteVertexArrays(1, &state->vert_vao);
+#endif
     glDeleteBuffers(1, &state->vert_vbo);
     state->valid = 0;
   }
@@ -422,6 +431,9 @@ CAMLprim value wall_gl_frame_prepare(value t, value width, value height, value d
   glBindTexture(GL_TEXTURE_2D, 0);
 
   /* Upload vertex data */
+#ifdef GL3
+  glBindVertexArray(state->vert_vao);
+#endif
   glBindBuffer(GL_ARRAY_BUFFER, state->vert_vbo);
   glBufferData(GL_ARRAY_BUFFER,
       caml_ba_byte_size(Caml_ba_array_val(data)),
@@ -446,6 +458,9 @@ CAMLprim value wall_gl_frame_finish(value unit)
   glDisableVertexAttribArray(1);
   glDisable(GL_CULL_FACE);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
+#ifdef GL3
+  glBindVertexArray(0);
+#endif
   glUseProgram(0);
   glBindTexture(GL_TEXTURE_2D, 0);
 
