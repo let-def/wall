@@ -1,4 +1,4 @@
-opam-version: "2.0"
+opam-version: "1.2"
 maintainer: "Frederic Bour <frederic.bour@lakaban.net>"
 authors: "Frederic Bour <frederic.bour@lakaban.net>"
 homepage: "https://github.com/let-def/wall"
@@ -6,10 +6,10 @@ bug-reports: "https://github.com/let-def/wall"
 license: "BSD3"
 dev-repo: "git+https://github.com/let-def/wall.git"
 build: [
-  ["jbuilder" "build" "--only" "wall" "--root" "." "-j" jobs "@install"]
+  ["jbuilder" "build" "-p" name "-j" jobs]
 ]
 depends: [
-  "ocamlfind" {build}
+  "jbuilder" {build}
   "gg" "result" "stb_image" "grenier"
   "stb_truetype" { >= "0.5" }
 ]
