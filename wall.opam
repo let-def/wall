@@ -12,4 +12,5 @@ depends: [
   "jbuilder" {build}
   "gg" "result" "stb_image" "grenier"
   "stb_truetype" { >= "0.5" }
+  "conf-gles2"
 ]
