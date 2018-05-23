@@ -1,5 +1,19 @@
 (* -*- tuareg -*- *)
 
+let version = List.assoc "version" Jbuild_plugin.V1.ocamlc_config
+
+let at_least_4_03 =
+  let rec split s i =
+    match
+      try Some (String.index_from s i '.')
+      with Not_found -> None
+    with
+    | Some j -> String.sub s i (j - i) :: split s (j + 1)
+    | None -> [String.sub s i (String.length s - i)]
+  in
+  let v = List.map int_of_string (split version 0) in
+  v >= [4; 3]
+
 let () = 
   Jbuild_plugin.V1.send @@
   String.concat "\n" [
@@ -7,9 +21,16 @@ let () =
 
 (library
  ((name wall)
-  (flags (-w -40 -w +26))
-  (ocamlopt_flags (-unsafe -O3))
-  (public_name wall)
+  (flags (-w -40 -w +26))"
+;
+begin
+  if at_least_4_03 then
+    "(ocamlopt_flags (-unsafe -O3))"
+  else
+    "(ocamlopt_flags (-unsafe))"
+end
+;
+"  (public_name wall)
   (wrapped false)
   (c_names (wall__backend_stubs))
   (c_flags (-g))
