@@ -274,7 +274,7 @@ static void gl_state_finalize(value v)
 
 static struct custom_operations gl_state_custom_ops = {
   .identifier  = "wall_gl_state",
-  .finalize    = custom_finalize_default,
+  .finalize    = gl_state_finalize,
   .compare     = custom_compare_default,
   .hash        = custom_hash_default,
   .serialize   = custom_serialize_default,
@@ -511,7 +511,8 @@ static void *pack_image(unsigned char *data, size_t width, size_t height, size_t
   if (!buffer)
     abort();
 
-  for (size_t y = 0; y < height; ++y)
+  size_t y;
+  for (y = 0; y < height; ++y)
     memcpy(buffer + y * width, data + y * stride, width);
 
   return buffer;
