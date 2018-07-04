@@ -3,6 +3,9 @@ open Wall__geom
 
 (* utf-8 decoding dfa, from http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ *)
 
+let bufsize = 2048
+let ibufsize = 1.0 /. float bufsize
+
 let utf8d =
   "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
    \000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
@@ -228,10 +231,10 @@ let render_glyphes stash xform (font,pos,text) quad ~(push : unit -> unit) =
         quad.y0 <- y +. float (box.y0 - 2) *. factor;
         quad.x1 <- x +. float (box.x1 + 2) *. factor;
         quad.y1 <- y +. float (box.y1 + 2) *. factor;
-        quad.u0 <- float (uv.x0 - 2) /. 1024.0;
-        quad.v0 <- float (uv.y0 - 2) /. 1024.0;
-        quad.u1 <- float (uv.x1 + 2) /. 1024.0;
-        quad.v1 <- float (uv.y1 + 2) /. 1024.0;
+        quad.u0 <- float (uv.x0 - 2) *. ibufsize;
+        quad.v0 <- float (uv.y0 - 2) *. ibufsize;
+        quad.u1 <- float (uv.x1 + 2) *. ibufsize;
+        quad.v1 <- float (uv.y1 + 2) *. ibufsize;
         push ();
         xoff := !xoff + Stb_truetype.glyph_advance glyphes glyph;
       | exception Not_found ->
@@ -264,7 +267,7 @@ let bake_glyphs t =
   let buffer = match t.font_buffer with
     | Some buffer -> buffer
     | None ->
-      let buffer = new_font_buffer 1024 1024 in
+      let buffer = new_font_buffer bufsize bufsize in
       t.font_buffer <- Some buffer;
       buffer
   in
