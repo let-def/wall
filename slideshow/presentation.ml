@@ -14,6 +14,8 @@ let title_banner = Path.make (fun ctx ->
 let b2 x y w h = Gg.Box2.v (Gg.P2.v x y) (Gg.Size2.v w h)
 let body_box = b2 0.0 128.0 1024.0 640.0
 
+let light_blue = Color.lerp_rgba 0.5 Color.white Color.blue
+
 let title =
   let color = Paint.rgba 0.0 0.0 0.0 1.0 in
   let title_fg = Font.make ~size:96.0 font_sans in
@@ -95,7 +97,7 @@ let outline =
     `Problem_solved , "The problem solved";
     `Model          , "Model";
     `API            , "API";
-    `Future         , "Future work";
+    `Conclusion     , "Conclusion";
   ]
 
 let api_outline =
@@ -107,22 +109,18 @@ let api_outline =
       `Transformation , "Transformation";
       `Composition   , "Composition";
     ]
-  (*let steps = [
-    `Problem_solved , "The problem solved";
-    `Model          , "Model";
-    `API            , "API";
-    `Future         , "Future work";
-  ] in
-  fun step ->
-    let render_step i (step', title) =
-      let text = text_arrow ~x:250.0 ~y:(300.0 +. 100.0 *. float i) title in
-      if step = step' then
-        text
-      else
-        Image.alpha 0.5 text
-    in
-    let steps = List.mapi render_step steps in
-    (title "Outline" :: steps)*)
+
+let shape_slide =
+  let square = Path.make (fun ctx ->
+      Path.rect ctx (-150.0) (-50.0) 100.0 100.0
+    ) in
+  let circle = Path.make (fun ctx ->
+      Path.circle ctx 100.0 0.0 100.0
+    ) in
+  title "Shapes" [
+    Image.transform (Transform.translation 512.0 444.0)
+      (Image.seq [ Image.fill square; Image.fill circle ])
+  ]
 ;;
 
 Slideshow.set_slides Slideshow.window [
@@ -155,22 +153,30 @@ Slideshow.set_slides Slideshow.window [
       ]
   );
   (fun _ -> outline `Model);
-  (fun _ ->
-     let circle = Path.make (fun ctx ->
-         Path.circle ctx 0.0 0.0 100.0
-       ) in
-     title "Shapes" [
-       Image.transform (Transform.translation 512.0 444.0)
-         (Image.fill circle)
-     ]);
-  (fun _ ->
-     let rect = Path.make (fun ctx ->
-         Path.rect ctx 0.0 128.0 1024.0 640.0
-       ) in
-     title "Paint" [
-       Image.paint (Paint.color (Color.v_srgb 1.0 1.0 0.0))
-         (Image.fill rect)
-     ]);
+  (fun _ -> shape_slide);
+  (fun st ->
+     let paint_slide =
+       let rect = Path.make (fun ctx ->
+           Path.rect ctx 0.0 128.0 1024.0 640.0
+         ) in
+       title "Paint" [
+         Image.paint (Paint.color (Color.v_srgb 1.0 1.0 0.0))
+           (Image.fill rect)
+       ]
+     in
+     if st.time > 0.25
+     then paint_slide
+     else
+       let progress = st.time /. 0.25 in
+       [
+         Image.transform
+           (Transform.translation (-. progress *. 1024.0) 0.0)
+           (Image.seq shape_slide);
+         Image.transform
+           (Transform.translation ((1.0 -. progress) *. 1024.0) 0.0)
+           (Image.seq paint_slide);
+       ]
+     );
   (fun st ->
      let circle = Path.make (fun ctx ->
          Path.circle ctx 0.0 0.0 100.0
@@ -239,6 +245,73 @@ Slideshow.set_slides Slideshow.window [
   (fun _ ->
      let p = Path.make (fun ctx ->
          Path.move_to ctx 0.0 0.0;
+       )
+     in
+     title "Path" [
+       Image.transform
+         (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
+         (Image.stroke Outline.default p);
+       code "Path.make (fun ctx ->\n\
+            \  \n\
+            \  \n\
+            \  \n\
+            \  \n\
+             )"
+     ]);
+  (fun _ ->
+     let p = Path.make (fun ctx ->
+         Path.move_to ctx 0.0 0.0;
+       )
+     in
+     title "Path" [
+       Image.transform
+         (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
+         (Image.stroke Outline.default p);
+       code "Path.make (fun ctx ->\n\
+            \  Path.move_to ctx 0.0 0.0;\n\
+            \  \n\
+            \  \n\
+            \  \n\
+             )"
+     ]);
+  (fun _ ->
+     let p = Path.make (fun ctx ->
+         Path.move_to ctx 0.0 0.0;
+         Path.line_to ctx 50.0 0.0;
+       )
+     in
+     title "Path" [
+       Image.transform
+         (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
+         (Image.stroke Outline.default p);
+       code "Path.make (fun ctx ->\n\
+            \  Path.move_to ctx 0. 0.;\n\
+            \  Path.line_to ctx 5. 0.;\n\
+            \  \n\
+            \  \n\
+             )"
+     ]);
+  (fun _ ->
+     let p = Path.make (fun ctx ->
+         Path.move_to ctx 0.0 0.0;
+         Path.line_to ctx 50.0 0.0;
+         Path.bezier_to ctx 100.0 (-30.0) 100.0 (-90.0) 50.0 (-60.0);
+       )
+     in
+     title "Path" [
+       Image.transform
+         (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
+         (Image.stroke Outline.default p);
+       code "Path.make (fun ctx ->\n\
+            \  Path.move_to ctx 0. 0.;\n\
+            \  Path.line_to ctx 5. 0.;\n\
+            \  Path.bezier_to ctx 10.0 (-3.) 10.0 (-9.) 5.0 (-6.);\n\
+            \  \n\
+             )"
+     ]);
+  (fun _ ->
+     let p = Path.make (fun ctx ->
+         Path.move_to ctx 0.0 0.0;
          Path.line_to ctx 50.0 0.0;
          Path.bezier_to ctx 100.0 (-30.0) 100.0 (-90.0) 50.0 (-60.0);
          Path.bezier_to ctx 60.0 (-120.0) (-20.0) (-120.0) 0.0 0.0;
@@ -247,7 +320,13 @@ Slideshow.set_slides Slideshow.window [
      title "Path" [
        Image.transform
          (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
-         (Image.stroke Outline.default p)
+         (Image.stroke Outline.default p);
+       code "Path.make (fun ctx ->\n\
+            \  Path.move_to ctx 0.0 0.0;\n\
+            \  Path.line_to ctx 50.0 0.0;\n\
+            \  Path.bezier_to ctx 10.0 (-3.) 10.0 (-9.) 5.0 (-6.);\n\
+            \  Path.bezier_to ctx 6.0 (-12.0) (-2.0) (-12.0) 0. 0.;\n\
+             )"
      ]);
   (fun _ -> api_outline `Shape);
   (fun _ ->
@@ -261,9 +340,10 @@ Slideshow.set_slides Slideshow.window [
      title "Filling path" [
        Image.transform
          (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
-         (Image.fill p)
+         (Image.fill p);
+       code "Image.fill path";
      ]);
-  (fun _ ->
+  (fun st ->
      let p = Path.make (fun ctx ->
          Path.move_to ctx 0.0 0.0;
          Path.line_to ctx 50.0 0.0;
@@ -271,33 +351,42 @@ Slideshow.set_slides Slideshow.window [
          Path.bezier_to ctx 60.0 (-120.0) (-20.0) (-120.0) 0.0 0.0;
        )
      in
+     let width = (sin st.time *. sin st.time) *. 10.0 in
      title "Stroking path" [
        Image.transform
          (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
-         (Image.stroke (Outline.make ~width:4.0 ()) p)
+         (Image.stroke (Outline.make ~width ()) p);
+       code "Image.stroke (Outline.make ~width:%a ()) path" pf width;
      ]);
   (fun _ -> api_outline `Paint);
   (fun _ ->
      title "Paint: color" [
        Image.paint (Paint.color Color.red)
-         (Image.fill mediabox)
-     ]);
-  (fun _ ->
-     title "Paint: linear" [
-       Image.paint (Paint.linear_gradient 24.0 512.0 1000.0 512.0
-                      Color.red Color.blue)
-         (Image.fill mediabox)
+         (Image.fill mediabox);
+       code "Paint.color red"
      ]);
   (fun st ->
      let t = st.time /. 4.0 in
      let s = sin (t *. 2.0) and c = cos (t *. 3.0) in
-     let r = s *. 100.0 in
-     let f = c *. 200.0 in
-     title "Paint: box" [
-       Image.paint (Paint.box_gradient 120.0 248.0 784.0 400.0 r f
-                      Color.red Color.blue)
+     let sx = 24.0 +. abs_float s *. 200.0 in
+     let ex = 1000.0 -. abs_float c *. 200.0 in
+     title "Paint: linear" [
+       Image.paint (Paint.linear_gradient sx 0.0 ex 0.0
+                      Color.red light_blue)
          (Image.fill mediabox);
-       code "Paint.box_gradient left top right bottom %a %a red blu" pf r pf f
+       code "Paint.linear_gradient %a 0.0 %a 0.0" pf sx pf ex
+     ]);
+  (fun st ->
+     let t = st.time /. 4.0 in
+     let s = sin (t *. 2.0) and c = cos (t *. 3.0) in
+     let r = abs_float (s *. 100.0) in
+     let f = abs_float (c *. 50.0) in
+     title "Paint: box" [
+       Image.paint (Paint.box_gradient 160.0 228.0 704.0 360.0 r f
+                      Color.red light_blue)
+         (Image.fill mediabox);
+       code "Paint.box_gradient \n\
+            \  ~x ~y ~w ~h ~r:%a ~f:%a red light_blue" pf r pf f
      ]);
   (fun st ->
      let t = st.time /. 4.0 in
@@ -306,9 +395,10 @@ Slideshow.set_slides Slideshow.window [
      let outer = inner +. c *. c *. 100.0 in
      title "Paint: radial" [
        Image.paint (Paint.radial_gradient 512.0 444.0 inner outer
-                      Color.red Color.blue)
+                      Color.red light_blue)
          (Image.fill mediabox);
-       code "Paint.radial_gradient center_x center_y %a %a" pf inner pf outer;
+       code "Paint.radial_gradient \n\
+            \  ~cx ~cy ~inner:%a ~outer:%a" pf inner pf outer;
      ]);
   (fun _ -> api_outline `Transformation);
   (fun st ->
@@ -372,9 +462,9 @@ Slideshow.set_slides Slideshow.window [
          (Transform.translation 512.0 444.0)
          (Image.paint
             (Paint.linear_gradient (-120.0) (-120.0) 120.0 120.0
-                      Color.red Color.blue)
+                      Color.red light_blue)
             (Image.fill rect));
-       code "Image.paint linear_gradient rect";
+       code "Image.paint linear_gradient square";
      ]);
   (fun st ->
      let rect =
@@ -392,19 +482,19 @@ Slideshow.set_slides Slideshow.window [
          (Image.seq [
              Image.paint
                (Paint.linear_gradient (-120.0) (-120.0) 120.0 120.0
-                  Color.red Color.blue)
+                  Color.red light_blue)
                (Image.fill rect);
              Image.transform
                (Transform.translate 0.0 y (Transform.rotation a))
                (Image.paint
                   (Paint.radial_gradient 0.0 0.0 20.0 180.0
-                     Color.red Color.blue)
+                     Color.red light_blue)
                   (Image.fill circle));
            ]);
        code
-         "Image.superpose rect\n\
-         \  (moving_circle ~offset:%0.2f ~angle:%0.2f)"
-         y a
+         "Image.superpose square\n\
+         \  (moving_circle ~offset:%a ~angle:%a)"
+         pf y pf a
      ]);
   (fun st ->
      let circle =
@@ -423,7 +513,7 @@ Slideshow.set_slides Slideshow.window [
                      (Transform.rotation a))
                   (Image.paint
                      (Paint.radial_gradient 0.0 0.0 20.0 180.0
-                        Color.red Color.blue)
+                        Color.red light_blue)
                      (Image.fill circle)))
            ]);
        code
@@ -445,16 +535,35 @@ Slideshow.set_slides Slideshow.window [
          (Image.seq [
              Image.paint
                (Paint.linear_gradient (-120.0) (-120.0) 120.0 120.0
-                  Color.red Color.blue)
+                  Color.red light_blue)
                (Image.fill rect);
              Image.alpha v_alpha
                (Image.paint
                   (Paint.radial_gradient 0.0 0.0 20.0 180.0
-                     Color.red Color.blue)
+                     Color.red light_blue)
                   (Image.fill circle));
            ]);
        code "Image.superpose square (Image.alpha %a circle)" pf v_alpha
      ]);
-  (fun _ -> outline `Future);
-]
+  (fun _ -> outline `Conclusion);
+  (fun _ -> title "Future work"
+      [
+        text_arrow ~x:100.0 ~y:200.0 "FOO";
+        text_arrow ~x:100.0 ~y:300.0 "BAR";
+        text_arrow ~x:100.0 ~y:400.0 "BAZ";
+      ]
+  );
+  (fun _ -> title "Acknowledgements"
+      [
+        text ~x:100.0 ~y:250.0 "Thanks to Pierre Chambart,";
+        text ~x:110.0 ~y:350.0 "Sébastien Mondet and Jordan Walke.";
+        text ~x:100.0 ~y:550.0 "Thanks to Mikko Mononen for NanoVG,";
+        text ~x:110.0 ~y:650.0 "the original engine behind Wall.";
+      ]
+  );
+  (fun _ -> title "Acknowledgements"
+      [
+        text ~x:100.0 ~y:450.0 "And one last thing...";
+      ]
+  )]
 ;;
