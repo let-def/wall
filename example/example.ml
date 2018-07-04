@@ -833,6 +833,12 @@ let f = (try float_of_string Sys.argv.(1) with _ -> 1.0)
 let fw = int_of_float (f *. float w)
 let fh = int_of_float (f *. float h)
 
+let counter = Performance_counter.make ()
+
+let dump_perf () =
+  prerr_endline (Performance_counter.report counter);
+  Performance_counter.reset counter
+
 let render context sw sh t =
   let lw = float w in
   let lh = float h in
@@ -841,7 +847,7 @@ let render context sw sh t =
   let _, (x, y) = Sdl.get_mouse_state () in
   let x = float x /. f and y = float y /. f in
   let demo = draw_demo x y lw lh t in
-  Renderer.render context ~width ~height
+  Renderer.render context ~width ~height ~performance_counter:counter
     (I.seq [
         (*I.transform (Transform.scale (sw *. f /. 2.0) (sh *. f)) demo;
         I.transform (Transform.scale (sw *. f /. 1.8) (sh *. f)) demo;
@@ -849,7 +855,8 @@ let render context sw sh t =
         I.transform (Transform.scale (sw *. f /. 1.4) (sh *. f)) demo;
         I.transform (Transform.scale (sw *. f /. 1.2) (sh *. f)) demo;*)
         I.transform (Transform.scale (sw *. f) (sh *. f)) demo;
-      ])
+      ]);
+  dump_perf ()
 
 open Tgles2
 
