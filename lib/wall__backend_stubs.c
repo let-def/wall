@@ -2,13 +2,21 @@
 #include <caml/custom.h>
 #include <caml/fail.h>
 #include <caml/memory.h>
-#ifdef __APPLE__
-#include <OpenGL/gl3.h>
-#else
-#include <GLES2/gl2.h>
-#endif
+#include <time.h>
 #include <string.h>
 #include <stdio.h>
+
+#ifdef __APPLE__
+# include <OpenGL/gl3.h>
+# ifndef CLOCK_MONOTONIC
+#  define WORKAROUND_APPLE_CLOCK
+# endif
+# ifdef WORKAROUND_APPLE_CLOCK
+#  include <mach/mach_time.h>
+# endif
+#else
+# include <GLES2/gl2.h>
+#endif
 
 typedef struct {
   GLuint program, viewsize, viewxform, strokewidth, tex, frag, vert_vbo;
@@ -620,13 +628,30 @@ CAMLprim value wall_gl_texture_generate_mipmap(value t)
 
 /* Only used to measure deltas, so overflow is not a problem */
 
-#include <time.h>
+#ifdef WORKAROUND_APPLE_CLOCK
+static double microseconds_per_clockticks(void)
+{
+  static double f = 0.0;
+  if (f == 0.0)
+  {
+    mach_timebase_info_data_t timebase;
+    mach_timebase_info(&timebase);
+    f = (double)timebase.numer / timebase.denom / 1000.0;
+  }
+  return f;
+}
+#endif
+
 CAMLprim value wall_time_spent(value unit)
 {
+#ifdef WORKAROUND_APPLE_CLOCK
+  return Val_long(mach_absolute_time() * microseconds_per_clockticks());
+#else
   struct timespec tp;
   if (clock_gettime(CLOCK_MONOTONIC, &tp) == 0)
     return Val_long(tp.tv_sec * 1000000 + tp.tv_nsec / 1000);
   return Val_long(0);
+#endif
 }
 
 extern uintnat caml_allocated_words;
