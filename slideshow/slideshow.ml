@@ -22,7 +22,7 @@ type state = {
   time: float
 }
 
-type slide = state -> Wall.image
+type slide = state -> Wall.image list
 
 let ticks () =
   Int32.to_int (Sdl.get_ticks ())
@@ -154,7 +154,7 @@ let process_events t =
     | _ -> ()
   done;
   let slide = match t.next_slides with
-    | slide :: _ -> slide {time = get_time t}
+    | slide :: _ -> Wall.Image.seq (slide {time = get_time t})
     | [] -> Wall.Image.empty
   in
   match render_slide t slide with
@@ -171,8 +171,10 @@ let window =
   get_result (make_window ~w:1024 ~h:768)
 
 let unix_stat fname =
-  let stat = Unix.stat fname in
-  {stat with Unix.st_atime = stat.Unix.st_mtime}
+  match Unix.stat fname with
+  | stat -> {stat with Unix.st_atime = stat.Unix.st_mtime}
+  | exception (Unix.Unix_error (Unix.ENOENT, _, _)) ->
+    raise Not_found
 
 let auto_reload names =
   let update fname =
@@ -191,7 +193,10 @@ let auto_reload names =
   window.quit <- false;
   while not window.quit do
     process_events window;
-    stats := refresh !stats names;
+    begin try
+        stats := refresh !stats names;
+      with Not_found -> ()
+    end;
     Unix.sleepf 0.05
   done;
   Sdl.hide_window window.win

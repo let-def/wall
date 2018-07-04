@@ -4,7 +4,7 @@ let background =
   Paint.linear_gradient ~sx:0.0 ~sy:0.0 ~ex:1024.0 ~ey:0.0
      ~inner:Color.white ~outer:(Color.with_a Color.blue 0.5)
 
-let rectangle = Path.make (fun ctx -> Path.rect ctx 0.0 0.0 1024.0 768.0)
+let mediabox = Path.make (fun ctx -> Path.rect ctx 0.0 0.0 1024.0 768.0)
 
 let load_font name =
   let ic = open_in_bin name in
