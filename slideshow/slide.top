@@ -1,0 +1,3 @@
+#require "tgls.tgles2.top,tsdl.top,wall";;
+#load "mod_use.cmo";;
+#mod_use "slideshow.ml";;
