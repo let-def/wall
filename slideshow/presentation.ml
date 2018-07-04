@@ -3,7 +3,9 @@ open Wall_text
 open Pres_state
 ;;
 
-let default_font ?(size=1.0) () = Font.make ~size:(64.0 *. size) font_sans
+let default_font ?(size=1.0) () =
+  Font.make ~size:(64.0 *. size) font_sans
+    ~placement:`Subpixel
 
 let title =
   let color = Paint.rgba 0.0 0.0 0.0 1.0 in

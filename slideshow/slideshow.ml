@@ -170,15 +170,19 @@ let destroy_window { win; gl; wall } =
 let window =
   get_result (make_window ~w:1024 ~h:768)
 
+let unix_stat fname =
+  let stat = Unix.stat fname in
+  {stat with Unix.st_atime = stat.Unix.st_mtime}
+
 let auto_reload names =
   let update fname =
-    let stat' = Some (Unix.stat fname) in
+    let stat' = Some (unix_stat fname) in
     Mod_use.mod_use fname;
     stat'
   in
   let rec refresh stats names =
     match stats, names with
-    | (stat :: stats'), (name :: names') when stat = Some (Unix.stat name) ->
+    | (stat :: stats'), (name :: names') when stat = Some (unix_stat name) ->
       stat :: refresh stats' names'
     | _ -> List.map update names
   in
