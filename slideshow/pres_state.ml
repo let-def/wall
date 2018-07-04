@@ -19,3 +19,4 @@ let load_font name =
   | Some font -> font
 
 let font_sans = load_font "Roboto-Regular.ttf"
+let font_mono = load_font "RobotoMono-Regular.ttf"

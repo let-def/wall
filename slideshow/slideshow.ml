@@ -80,8 +80,7 @@ let set_slides t slides =
   in
   let prev_slides, next_slides = select_slides [] t.prev_slides slides in
   t.prev_slides <- prev_slides;
-  t.next_slides <- next_slides;
-  reset_time t
+  t.next_slides <- next_slides
 
 let render_slide t slide =
   Sdl.gl_make_current t.win t.gl >>= fun () ->
@@ -197,6 +196,6 @@ let auto_reload names =
         stats := refresh !stats names;
       with Not_found -> ()
     end;
-    Unix.sleepf 0.05
+    Unix.sleepf 0.02
   done;
   Sdl.hide_window window.win
