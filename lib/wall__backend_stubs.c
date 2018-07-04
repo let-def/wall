@@ -233,7 +233,6 @@ static int create_program(GLuint *program, const char *version, const char *pref
 
 static int gl_state_create(int antialias, gl_state *state)
 {
-  char buffer[2048];
   GLuint program;
 
   if (!create_program(&program, NULL, antialias ? "#define EDGE_AA 1\n" : NULL))
