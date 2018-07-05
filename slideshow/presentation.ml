@@ -564,6 +564,7 @@ Slideshow.set_slides Slideshow.window [
   (fun _ -> title "Acknowledgements"
       [
         text ~x:100.0 ~y:450.0 "And one last thing...";
+        text ~x:100.0 ~y:650.0 "Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn.";
       ]
   )]
 ;;
