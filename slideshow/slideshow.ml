@@ -37,11 +37,12 @@ type window = {
   mutable prev_slides : slide list;
   mutable next_slides : slide list;
   mutable time_acc: float;
+  mutable fullscreen: bool;
 }
 
 let make_window ~w ~h =
   Lazy.force initialized >>= fun () ->
-  Sdl.create_window ~w ~h "SDL OpenGL"
+  Sdl.create_window ~w ~h "Slideshow"
     Sdl.Window.(opengl + allow_highdpi + resizable + hidden)
   >>= fun win ->
   ignore (Sdl.gl_set_swap_interval (-1));
@@ -51,7 +52,7 @@ let make_window ~w ~h =
     let wall = Wall.Renderer.create ~antialias:true ~stencil_strokes:true () in
     Ok { win; gl; wall; event = Sdl.Event.create ();
          prev_slides = []; next_slides = [];
-         quit = false; running_since = None; time_acc = 0.0 }
+         quit = false; running_since = None; time_acc = 0.0; fullscreen = false }
   ) ~cleanup:(fun () -> Sdl.destroy_window win)
 
 let get_time t =
@@ -134,12 +135,21 @@ let process_events t =
           | [] -> ()
         end
       | `Pause -> set_pause t (t.running_since <> None)
+      | `Fullscreen ->
+        t.fullscreen <- not t.fullscreen;
+        ignore (Sdl.show_cursor (not t.fullscreen) : _ result);
+        ignore (Sdl.set_window_fullscreen t.win
+                  (if t.fullscreen
+                   then Sdl.Window.fullscreen_desktop
+                   else Sdl.Window.windowed)
+                  : _ result)
     in
     let bindings = [
       (Sdl.K.[q], `Quit);
       (Sdl.K.[p; space], `Pause);
       (Sdl.K.[left], `Prev);
       (Sdl.K.[right], `Next);
+      (Sdl.K.[f], `Fullscreen);
     ]
     in
     match Sdl.Event.enum (Sdl.Event.get t.event Sdl.Event.typ) with
