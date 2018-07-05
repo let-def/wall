@@ -206,6 +206,6 @@ let auto_reload names =
         stats := refresh !stats names;
       with Not_found -> ()
     end;
-    Unix.sleepf 0.02
+    (*Unix.sleepf 0.02*)
   done;
   Sdl.hide_window window.win
