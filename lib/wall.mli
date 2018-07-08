@@ -258,7 +258,7 @@ module Performance_counter : sig
 
   val make : unit -> t
 
-  (** Nanoseconds spent rendering *)
+  (** Microseconds spent rendering *)
   val time_spent : t -> int
 
   (** Memory words allocated *)

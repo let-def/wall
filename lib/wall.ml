@@ -713,7 +713,7 @@ module Performance_counter : sig
 
   val make : unit -> t
 
-  (** Nanoseconds spent rendering *)
+  (** Microseconds spent rendering *)
   val time_spent : t -> int
 
   (** Memory words allocated *)
@@ -733,7 +733,7 @@ end = struct
 
   let make () = { frames = 0; time = 0; mem = 0 }
 
-  (** Nanoseconds spent rendering *)
+  (** Microseconds spent rendering *)
   let time_spent t = t.time
 
   (** Memory words allocated *)

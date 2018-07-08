@@ -625,9 +625,8 @@ CAMLprim value wall_time_spent(value unit)
 {
   struct timespec tp;
   if (clock_gettime(CLOCK_MONOTONIC, &tp) == 0)
-    return Val_long(tp.tv_sec * 1000000000 + tp.tv_nsec);
-  else
-    return Val_long(0);
+    return Val_long(tp.tv_sec * 1000000 + tp.tv_nsec / 1000);
+  return Val_long(0);
 }
 
 extern uintnat caml_allocated_words;
