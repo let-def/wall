@@ -548,9 +548,9 @@ Slideshow.set_slides Slideshow.window [
   (fun _ -> outline `Conclusion);
   (fun _ -> title "Future work"
       [
-        text_arrow ~x:100.0 ~y:200.0 "FOO";
-        text_arrow ~x:100.0 ~y:300.0 "BAR";
-        text_arrow ~x:100.0 ~y:400.0 "BAZ";
+        text_arrow ~x:100.0 ~y:200.0 "(maybe) a video game rendering path";
+        text_arrow ~x:100.0 ~y:300.0 "Cleanup, tweak performance...";
+        text_arrow ~x:100.0 ~y:400.0 "Build the rest of a graphic stack";
       ]
   );
   (fun _ -> title "Acknowledgements"

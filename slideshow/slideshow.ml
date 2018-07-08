@@ -146,9 +146,9 @@ let process_events t =
     in
     let bindings = [
       (Sdl.K.[q], `Quit);
-      (Sdl.K.[p; space], `Pause);
-      (Sdl.K.[left], `Prev);
-      (Sdl.K.[right], `Next);
+      (Sdl.K.[p], `Pause);
+      (Sdl.K.[left; up], `Prev);
+      (Sdl.K.[right; down], `Next);
       (Sdl.K.[f], `Fullscreen);
     ]
     in
