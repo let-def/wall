@@ -15,6 +15,7 @@ let b2 x y w h = Gg.Box2.v (Gg.P2.v x y) (Gg.Size2.v w h)
 let body_box = b2 0.0 128.0 1024.0 640.0
 
 let light_blue = Color.lerp_rgba 0.5 Color.white Color.blue
+let light_yellow = Color.v 1.0 1.0 0.0 1.0
 
 let title =
   let color = Paint.rgba 0.0 0.0 0.0 1.0 in
@@ -361,9 +362,9 @@ Slideshow.set_slides Slideshow.window [
   (fun _ -> api_outline `Paint);
   (fun _ ->
      title "Paint: color" [
-       Image.paint (Paint.color Color.red)
+       Image.paint (Paint.color light_yellow)
          (Image.fill mediabox);
-       code "Paint.color red"
+       code "Paint.color light_yellowred"
      ]);
   (fun st ->
      let t = st.time /. 4.0 in
@@ -372,7 +373,7 @@ Slideshow.set_slides Slideshow.window [
      let ex = 1000.0 -. abs_float c *. 200.0 in
      title "Paint: linear" [
        Image.paint (Paint.linear_gradient sx 0.0 ex 0.0
-                      Color.red light_blue)
+                      light_yellow light_blue)
          (Image.fill mediabox);
        code "Paint.linear_gradient %a 0.0 %a 0.0" pf sx pf ex
      ]);
@@ -383,10 +384,10 @@ Slideshow.set_slides Slideshow.window [
      let f = abs_float (c *. 50.0) in
      title "Paint: box" [
        Image.paint (Paint.box_gradient 160.0 228.0 704.0 360.0 r f
-                      Color.red light_blue)
+                      light_yellow light_blue)
          (Image.fill mediabox);
        code "Paint.box_gradient \n\
-            \  ~x ~y ~w ~h ~r:%a ~f:%a red light_blue" pf r pf f
+            \  ~x ~y ~w ~h ~r:%a ~f:%a light_yellow light_blue" pf r pf f
      ]);
   (fun st ->
      let t = st.time /. 4.0 in
@@ -395,7 +396,7 @@ Slideshow.set_slides Slideshow.window [
      let outer = inner +. c *. c *. 100.0 in
      title "Paint: radial" [
        Image.paint (Paint.radial_gradient 512.0 444.0 inner outer
-                      Color.red light_blue)
+                      light_yellow light_blue)
          (Image.fill mediabox);
        code "Paint.radial_gradient \n\
             \  ~cx ~cy ~inner:%a ~outer:%a" pf inner pf outer;
@@ -462,7 +463,7 @@ Slideshow.set_slides Slideshow.window [
          (Transform.translation 512.0 444.0)
          (Image.paint
             (Paint.linear_gradient (-120.0) (-120.0) 120.0 120.0
-                      Color.red light_blue)
+                      light_yellow light_blue)
             (Image.fill rect));
        code "Image.paint linear_gradient square";
      ]);
@@ -482,13 +483,13 @@ Slideshow.set_slides Slideshow.window [
          (Image.seq [
              Image.paint
                (Paint.linear_gradient (-120.0) (-120.0) 120.0 120.0
-                  Color.red light_blue)
+                  light_yellow light_blue)
                (Image.fill rect);
              Image.transform
                (Transform.translate 0.0 y (Transform.rotation a))
                (Image.paint
                   (Paint.radial_gradient 0.0 0.0 20.0 180.0
-                     Color.red light_blue)
+                     light_yellow light_blue)
                   (Image.fill circle));
            ]);
        code
@@ -513,7 +514,7 @@ Slideshow.set_slides Slideshow.window [
                      (Transform.rotation a))
                   (Image.paint
                      (Paint.radial_gradient 0.0 0.0 20.0 180.0
-                        Color.red light_blue)
+                        light_yellow light_blue)
                      (Image.fill circle)))
            ]);
        code
@@ -535,12 +536,12 @@ Slideshow.set_slides Slideshow.window [
          (Image.seq [
              Image.paint
                (Paint.linear_gradient (-120.0) (-120.0) 120.0 120.0
-                  Color.red light_blue)
+                  light_yellow light_blue)
                (Image.fill rect);
              Image.alpha v_alpha
                (Image.paint
                   (Paint.radial_gradient 0.0 0.0 20.0 180.0
-                     Color.red light_blue)
+                     light_yellow light_blue)
                   (Image.fill circle));
            ]);
        code "Image.superpose square (Image.alpha %a circle)" pf v_alpha

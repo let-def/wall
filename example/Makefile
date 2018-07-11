@@ -1,4 +1,4 @@
-TARGETS=blemish.exe example.exe minimal.exe colorweb.exe
+TARGETS=blemish.exe example.exe example.bc minimal.exe colorweb.exe
 
 F?=1
 
