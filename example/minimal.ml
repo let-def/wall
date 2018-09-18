@@ -35,31 +35,51 @@ let render context sw sh t =
   let pw = lw *. f *. sw in
   let ph = lh *. f *. sh in
   Renderer.render context ~width:pw ~height:ph
-    (Image.seq [
-        (*Image.simple_text ~x:10.0 ~y:0.0
+    (Image.paint Paint.white @@
+     Image.seq [
+       (*Image.simple_text ~x:10.0 ~y:0.0
           (Font.make (Lazy.force font_sans) ~size:60.0)
           "Settings";*)
-        Image.paint Paint.white @@
-        Image.transform (Transform.translate 400.0 400.0 (Transform.scale 2.0 2.0)) (
-          Image.transform (Transform.(rotation (-. pi (*/. 4.0*)))) (
-            Image.stroke_path (Outline.make ~join:`MITER ~cap:`BUTT (*~cap:`ROUND*) ~width:(10.0) ()) @@ fun p ->
-            Path.move_to p 300.0 30.0;
-            Path.line_to p 0.0 0.0;
-            Path.line_to p 300.0 0.0;
-            Path.line_to p 300.0 30.0;
-            Path.close p
-            (*(Image.scissor (b2 0.0 0.0 1000.0 1000.0) (
-               (Image.transform (Transform.rotation (pi /. 4.0))) (
-                 Wall_text.(simple_text
-                              ~x:(-. 60.0 +. 100.0 *. sin (2.0 *. t +. pi /. 2.0))
-                              ~y:0.0
-                              ~valign:`MIDDLE
-                              (Font.make (Lazy.force font_sans)
-                                 ~size:60.0 )
-                              "Settings"))))*)
-          )
-        )
-      ])
+       (*Image.transform
+         (Transform.translation ~x:(t /. 10.0) ~y:0.0)
+         (Image.seq [
+             Image.fill_path (fun p ->
+                 Path.move_to p 32.0 100.0;
+                 Path.line_to p 64.0 100.0;
+                 Path.line_to p 64.0 132.0;
+                 Path.line_to p 32.0 132.0;
+                 Path.line_to p 48.0 116.0;
+                 Path.line_to p 32.0 100.0;
+               );
+             Image.fill_path (fun p ->
+                 Path.move_to p 64.0 100.0;
+                 Path.line_to p 96.0 100.0;
+                 Path.line_to p 80.0 116.0;
+                 Path.line_to p 96.0 132.0;
+                 Path.line_to p 64.0 132.0;
+                 Path.line_to p 64.0 100.0;
+               );
+           ]);*)
+
+       Image.transform (Transform.translate 10.0 10.0 (Transform.scale 5.0 5.0)) (
+         Image.stroke_path (Outline.make ~join:`MITER ~cap:`BUTT (*~cap:`ROUND*) ~width:(15.0) ()) @@ fun p ->
+         Path.move_to p 300.0 (18.0 +. 100.0 *. sin t);
+         Path.line_to p 0.0 0.0;
+         Path.line_to p 300.0 0.0;
+         Path.line_to p 300.0 (18.0 +. 100.0 *. sin t);
+         Path.close p;
+
+         (*(Image.scissor (b2 0.0 0.0 1000.0 1000.0) (
+            (Image.transform (Transform.rotation (pi /. 4.0))) (
+              Wall_text.(simple_text
+                           ~x:(-. 60.0 +. 100.0 *. sin (2.0 *. t +. pi /. 2.0))
+                           ~y:0.0
+                           ~valign:`MIDDLE
+                           (Font.make (Lazy.force font_sans)
+                              ~size:60.0 )
+                           "Settings"))))*)
+       )
+     ])
 
 open Tgles2
 
@@ -81,12 +101,12 @@ let main () =
       let ow, oh = Sdl.gl_get_drawable_size w in
       Sdl.log "window size: %d,%d\topengl drawable size: %d,%d" fw fh ow oh;
       let sw = float ow /. float fw and sh = float oh /. float fh in
-      (* GL3 initialization:
-         ignore (Sdl.gl_set_attribute Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core);
-         ignore (Sdl.gl_set_attribute Sdl.Gl.context_major_version 3);
-         ignore (Sdl.gl_set_attribute Sdl.Gl.context_minor_version 2);
-      *)
-      ignore (Sdl.gl_set_attribute Sdl.Gl.stencil_size 1);
+      (* GL3 initialization: *)
+      ignore (Sdl.gl_set_attribute Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core);
+      ignore (Sdl.gl_set_attribute Sdl.Gl.context_major_version 3);
+      ignore (Sdl.gl_set_attribute Sdl.Gl.context_minor_version 2);
+      ignore (Sdl.gl_set_attribute Sdl.Gl.depth_size 24);
+      ignore (Sdl.gl_set_attribute Sdl.Gl.stencil_size 8);
       match Sdl.gl_create_context w with
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
       | Ok ctx ->

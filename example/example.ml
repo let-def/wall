@@ -873,9 +873,9 @@ let main () =
     with
     | Error (`Msg e) -> Sdl.log "Create window error: %s" e; exit 1
     | Ok w ->
-      (*Sdl.gl_set_attribute Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core;*)
-      (*Sdl.gl_set_attribute Sdl.Gl.context_major_version 2;*)
-      (*Sdl.gl_set_attribute Sdl.Gl.context_minor_version 1;*)
+      Sdl.gl_set_attribute Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core;
+      Sdl.gl_set_attribute Sdl.Gl.context_major_version 2;
+      Sdl.gl_set_attribute Sdl.Gl.context_minor_version 1;
       ignore (Sdl.gl_set_swap_interval (-1));
       let ow, oh = Sdl.gl_get_drawable_size w in
       Sdl.log "window size: %d,%d\topengl drawable size: %d,%d" fw fh ow oh;

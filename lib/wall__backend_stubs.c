@@ -18,6 +18,8 @@
 # include <GLES2/gl2.h>
 #endif
 
+#define GL3
+
 typedef struct {
   GLuint program, viewsize, viewxform, strokewidth, tex, frag, vert_vbo;
 #ifdef GL3
@@ -48,7 +50,8 @@ static const char *source_vertex_shader =
 "      if (strokeWidth > 0.0)\n"
 "      {\n"
 "        float lenm = length(dm);\n"
-"        ftcoord.z = (strokeWidth * lenm / len + 1.0) * 0.5;\n"
+"        ftcoord.z = ((strokeWidth * lenm / len + 1.0) * 0.5) * max(ftcoord.y,1.0);\n"
+"        ftcoord.y = min(ftcoord.y,1.0);\n"
 "      }\n"
 "      fpos += normalize(dm) * len;\n"
 "    }\n"

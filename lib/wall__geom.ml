@@ -609,13 +609,17 @@ module V = struct
         x1 y1 ~dx:(-. dlx0) ~dy:(-. dly0);
 
       if flags land T.flag_bevel <> 0 then begin
-        dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
+        (*Printf.printf "p1 dmx:%f dmy:%f\n" (T.get_dmx t p1) (T.get_dmy t p1);*)
+        let dmx = T.get_dmx t p1 in
+        let dmy = T.get_dmy t p1 in
+        let v = 2 + int_of_float (sqrt (dmx *. dmx +. dmy *. dmy)) in
+        dvbuffer_put vb ~v ~u:lu ~w:lw ~dw:1.0
           x1 y1 ~dx:lx0 ~dy:ly0;
-        dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
+        dvbuffer_put vb ~v ~u:2 ~w:rw ~dw:1.0
           x1 y1 ~dx:(-.dlx0) ~dy:(-.dly0);
-        dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
+        dvbuffer_put vb ~v ~u:lu ~w:lw ~dw:1.0
           x1 y1 ~dx:lx1 ~dy:ly1;
-        dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
+        dvbuffer_put vb ~v ~u:2 ~w:rw ~dw:1.0
           x1 y1 ~dx:(-.dlx1) ~dy:(-.dly1);
       end else begin
         let rx0 = -. T.get_dmx t p1 in
