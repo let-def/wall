@@ -824,7 +824,7 @@ module V = struct
         let p0 = if p1 = first then last else p1 - 1 in
         if T.get_flags t p1 land (T.flag_bevel lor T.flag_innerbevel) <> 0
         then
-          bevel_join vb t p0 p1 0.0 0.0 lu
+          bevel_join vb t p0 p1 lw 0.5 lu
         else begin
           let x1 = T.get_x t p1 and dx1 = T.get_dmx t p1 in
           let y1 = T.get_y t p1 and dy1 = T.get_dmy t p1 in
