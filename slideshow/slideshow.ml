@@ -1,3 +1,4 @@
+[@@@ocaml.warning "-6-9-27"]
 open Tsdl
 open Tgles2
 

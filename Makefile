@@ -1,8 +1,8 @@
 all:
-	jbuilder build
+	dune build
 
 clean:
-	jbuilder clean
+	dune clean
 
 minimal.exe example.exe blemish.exe colorweb.exe example.bc:
-	jbuilder build example/$@
+	dune build example/$@

@@ -1,5 +1,0 @@
-(jbuild_version 1)
-
-(executables
- ((names (example minimal blemish colorweb))
-  (libraries (tsdl tgls.tgles2 wall))))

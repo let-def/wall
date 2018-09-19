@@ -6,10 +6,10 @@ bug-reports: "https://github.com/let-def/wall"
 license: "BSD3"
 dev-repo: "git+https://github.com/let-def/wall.git"
 build: [
-  ["jbuilder" "build" "-p" name "-j" jobs]
+  ["dune" "build" "-j" jobs]
 ]
 depends: [
-  "jbuilder" {build}
+  "dune" {build}
   "gg" "result" "stb_image" "grenier"
   "stb_truetype" { >= "0.5" }
   "conf-gles2"

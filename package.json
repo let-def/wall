@@ -13,11 +13,11 @@
     "@opam/tgls": "*",
     "@opam/tsdl": "*",
     "@opam/conf-pkg-config": "*",
-    "@opam/jbuilder": "*"
+    "@opam/dune": "*"
   },
   "esy": {
     "build": [
-      [ "jbuilder", "build"]
+      [ "dune", "build"]
     ],
     "install": [
       [ "esy-installer" ]

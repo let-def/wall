@@ -17,11 +17,9 @@ let at_least_4_03 =
 let () = 
   Jbuild_plugin.V1.send @@
   String.concat "\n" [
-"(jbuild_version 1)
-
-(library
- ((name wall)
-  (flags (-w -40 -w +26))"
+"(library
+ (name wall)
+ (flags -w -40 -w +26)"
 ;
 begin
   if at_least_4_03 then
@@ -32,17 +30,17 @@ end
 ;
 "  (public_name wall)
   (wrapped false)
-  (c_names (wall__backend_stubs))
-  (c_flags (-g))
-  (libraries (gg result stb_image stb_truetype grenier.binpacking))"
+  (c_names wall__backend_stubs)
+  (c_flags -g)
+  (libraries gg result stb_image stb_truetype grenier.binpacking)"
 ;
 (* (c_flags (-I/blah/include)) *)
 begin
   match List.assoc "system" Jbuild_plugin.V1.ocamlc_config with
-  | "macosx" -> "(c_library_flags (-framework OpenGL))"
+  | "macosx" -> "(c_library_flags -framework OpenGL)"
   | _ -> ""
   | exception Not_found -> ""
 end
 ;
-"))"
+")"
 ]
