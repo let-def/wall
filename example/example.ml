@@ -355,9 +355,9 @@ let draw_caps x y w =
   in
   I.seq [
     I.paint (Paint.color (gray ~a:0.125 1.0))
-      (I.fill_path @@ fun t ->
-       P.rect t x y w 40.0;
-       P.rect t (x-.width/.2.0) y (w+.width) 40.0);
+      (I.fill_path @@ fun t -> P.rect t x y w 40.0);
+    I.paint (Paint.color (gray ~a:0.125 1.0))
+      (I.fill_path @@ fun t -> P.rect t (x-.width/.2.0) y (w+.width) 40.0);
     f `BUTT 0;
     f `ROUND 1;
     f `SQUARE 2
@@ -393,7 +393,7 @@ let draw_window title x y w h =
     (* Window *)
     I.paint
       (Paint.color (Color.v 0.110 0.118 0.133 0.75))
-      (I.fill_path @@ fun t -> P.round_rect' t x y w h cornerRadius cornerRadius 0.0 0.0);
+      (I.fill_path @@ fun t -> P.round_rect t x y w h cornerRadius);
 
     (* Drop shadow *)
     I.paint
@@ -401,22 +401,22 @@ let draw_window title x y w h =
          (gray ~a:0.5 0.0) (gray ~a:0.0 0.0))
       (I.fill_path @@ fun t ->
        P.rect t (x -. 10.0) (y -. 10.0) (w +. 20.0) (h +. 30.0);
-       P.round_rect' t x y w h cornerRadius cornerRadius 0.0 0.0;
+       P.round_rect t x y w h cornerRadius;
        P.set_winding t `HOLE);
 
     (* Header *)
     I.paint
       (Paint.linear_gradient x y x (y+.15.0)
-         (gray ~a:0.04 1.0) (gray ~a:0.08 1.0))
+         (gray ~a:(8.0/.255.0) 1.0) (gray ~a:(16.0/.255.0) 0.0))
       (I.fill_path @@ fun t ->
-       P.round_rect' t (x+.1.0) (y+.1.0) (w-.2.0) 30.0 (cornerRadius -. 1.0) (cornerRadius -. 1.0) 0.0 0.0);
+       P.round_rect t (x+.1.0) (y+.1.0) (w-.2.0) 30.0 (cornerRadius -. 1.0));
     I.paint
       (Paint.color (gray ~a:0.125 0.0))
       (I.stroke_path Outline.default @@ fun t ->
        P.move_to t (x+.0.5) (y+.0.5+.30.0);
        P.line_to t (x+.0.5+.w-.1.0) (y+.0.5+.30.0));
 
-    I.paint (Paint.color (gray ~a:0.6 0.9))
+    I.paint (Paint.color (gray ~a:0.5 0.0))
       Text.(simple_text
                    (Font.make ~blur:2.0 ~size:18.0 font)
                    ~valign:`MIDDLE ~halign:`CENTER
@@ -651,7 +651,7 @@ let draw_slider pos x y w h =
       P.circle t (x+.floor(pos*.w)) cy (kr-.1.0)
     in
     I.seq [
-      I.paint (Paint.color (Color.v_srgbi 40 43 48)) shape;
+      I.paint (Paint.color (Color.v (40.0/.255.0) (43.0/.255.0) (48.0/.255.0) 1.0)) shape;
       I.paint (Paint.linear_gradient x (cy-.kr) x (cy+.kr)
                  (gray ~a:0.0625 1.0) (gray ~a:0.0625 0.0))
         shape;
@@ -693,7 +693,7 @@ let draw_thumbnails x y w h images t =
 
     (* Window *)
     I.paint
-      (Paint.color (gray 0.8))
+      (Paint.color (gray (200.0/.255.0)))
       (I.fill_path @@ fun t ->
        P.round_rect t x y w h cornerRadius;
        P.move_to t (x -. 10.0) (y +. arry);
@@ -802,7 +802,7 @@ let draw_demo mx my w h t = (
   let y = y +. 45.0 in
 
   (* Form *)
-  push @@ draw_label "login" x y 280.0 20.0;
+  push @@ draw_label "Login" x y 280.0 20.0;
   let y = y +. 25.0 in
   push @@ draw_editbox "Email" x y 280.0 28.0;
   let y = y +. 35.0 in
