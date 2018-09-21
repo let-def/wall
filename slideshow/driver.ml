@@ -14,9 +14,13 @@ let add_dir =
   let directories = ref [] in
   fun dir ->
     if not (List.mem dir !directories) then (
+      Printf.ksprintf prerr_endline "Loading %S" dir;
       Topdirs.dir_directory dir;
       directories := dir :: !directories
     )
+
+let () = add_dir
+    (Filename.concat (Filename.dirname Sys.executable_name) ".driver.eobjs")
 
 let rec dedup = function
   | x :: xs when List.mem x xs -> dedup xs
