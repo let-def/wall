@@ -280,8 +280,15 @@ let bake_glyphs t =
       let scale = Stb_truetype.scale_for_pixel_height ttf (float scale /. 10.0) in
       let box = Stb_truetype.get_glyph_bitmap_box ttf glyph ~scale_x:scale ~scale_y:scale in
       let {Stb_truetype. x0; y0; x1; y1} = box in
-      Maxrects.box (key, ttf, glyph, scale, box)
-        (x1 - x0 + padding + padding + blur / 10) (y1 - y0 + padding + padding + blur / 10) :: boxes
+      let blur_pad = (blur + 9) / 10 in
+      let pad = (padding + blur_pad) * 2 in
+      let box =
+        Maxrects.box
+          (key, ttf, glyph, scale, box)
+          (x1 - x0 + pad)
+          (y1 - y0 + pad)
+      in
+      box :: boxes
   in
   let todo = Hashtbl.fold add_box t.font_todo [] in
   let room, boxes = Maxrects.insert_batch buffer.room todo in
@@ -307,7 +314,7 @@ let bake_glyphs t =
       | None -> ()
       | Some {Maxrects. x; y; w; h; box; bin =_} ->
         let (key, ttf, glyph, scale, box) = box.Maxrects.tag in
-        let pad = padding + key.Glyph.blur / 20 in
+        let pad = padding + (key.Glyph.blur + 9) / 20 in
         let uv = {Stb_truetype. x0 = x + pad; x1 = x + w - pad;
                   y0 = y + pad; y1 = y + h - pad} in
         Stb_truetype.make_glyph_bitmap
@@ -320,7 +327,9 @@ let bake_glyphs t =
           uv
           glyph;
         let uv, box = if key.Glyph.blur = 0 then uv, box else (
-            let uv = box_offset uv pad and box = box_offset box pad in
+            let uv = {Stb_truetype. x0 = x; x1 = x + w - 1;
+                      y0 = y; y1 = y + h - 1} in
+            let box = box_offset box pad in
             Stb_truetype.blur_glyph_bitmap
               buffer.image.Stb_image.data
               ~width:buffer.image.Stb_image.width
