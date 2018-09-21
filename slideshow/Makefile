@@ -1,7 +1,7 @@
 all: driver
 
 driver:
-	dune build driver.bc
+	dune build driver.bc pres_state.cma
 
 clean:
 	dune clean

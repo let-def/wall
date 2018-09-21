@@ -1,3 +1,4 @@
+[@@@ocaml.warning "-6"]
 open Wall
 open Wall_text
 open Pres_state
@@ -201,7 +202,7 @@ Slideshow.set_slides Slideshow.window [
              Transform.scale (1.0 +. f /. 4.0) f)
             (Image.paint paint (Image.fill circle)))
      ]);
-  (fun st ->
+  (fun _st ->
      let outline = Outline.make ~cap:`ROUND ~width:10.0 () in
      let circle = Path.make (fun ctx ->
          Path.circle ctx 0.0 0.0 100.0
@@ -454,7 +455,7 @@ Slideshow.set_slides Slideshow.window [
        code "Image.transform (skew %a %a) rect" pf sx pf sy;
      ]);
   (fun _ -> api_outline `Composition);
-  (fun st ->
+  (fun _st ->
      let rect =
        Path.make (fun ctx -> Path.rect ctx (-120.0) (-120.0) 240.0 240.0)
      in

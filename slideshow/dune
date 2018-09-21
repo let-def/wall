@@ -1,0 +1,10 @@
+(executable
+ (name driver) 
+ (modules mod_use slideshow driver)
+ (libraries tgls.tgles2 tsdl findlib.dynload compiler-libs.toplevel wall)
+ (flags :standard -linkall))
+
+(library
+ (name pres_state)
+ (modules pres_state)
+ (libraries wall))
