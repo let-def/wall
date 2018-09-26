@@ -605,7 +605,7 @@ module V = struct
 
       dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
         x1 y1 ~dx:lx0 ~dy:ly0;
-      dvbuffer_put vb ~u:2 ~w:lw ~dw:0.5
+      dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
         x1 y1 ~dx:(-. dlx0) ~dy:(-. dly0);
 
       if flags land T.flag_bevel <> 0 then begin
