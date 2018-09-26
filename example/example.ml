@@ -835,9 +835,15 @@ let fh = int_of_float (f *. float h)
 
 let counter = Performance_counter.make ()
 
-let dump_perf () =
-  prerr_endline (Performance_counter.report counter);
-  Performance_counter.reset counter
+let dump_perf =
+  let t0 = ref 0 in
+  fun t ->
+    let t = int_of_float t in
+    if t <> !t0 then (
+      t0 := t;
+      prerr_endline (Performance_counter.report counter);
+      Performance_counter.reset counter
+    )
 
 let render context sw sh t =
   let lw = float w in
@@ -856,7 +862,7 @@ let render context sw sh t =
         I.transform (Transform.scale (sw *. f /. 1.2) (sh *. f)) demo;*)
         I.transform (Transform.scale (sw *. f) (sh *. f)) demo;
       ]);
-  dump_perf ()
+  dump_perf t
 
 open Tgles2
 
