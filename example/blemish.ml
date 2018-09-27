@@ -433,7 +433,7 @@ module Blender = struct
     let circle = Path.make @@ fun t ->
       Path.circle t ~cx:x ~cy:y ~r:Default.node_port_radius
     in
-    Image.impose
+    Image.stack
       (Image.paint (Paint.color Theme.node.wire)
          (Image.stroke (Outline.make ~width:1.0 ()) circle))
       (Image.paint
@@ -450,7 +450,7 @@ module Blender = struct
         ~c1x:(x0 +. delta) ~c1y:y0 ~c2x:(x1 -. delta) ~c2y:y1 ~x:x1 ~y:y1
     in
     let colorw = Color.with_a Theme.node.wire (minf (Color.a c0) (Color.a c1)) in
-    Image.impose
+    Image.stack
       (Image.paint (Paint.color colorw)
          (Image.stroke (Outline.make ~width:Default.node_wire_outline_width ()) path))
       (Image.paint (Paint.linear_gradient x0 y0 x1 y1 c0 c1)
@@ -535,11 +535,11 @@ module Blender = struct
     Image.paint paint shape
 
   let draw_node_icon_label box ?icon c0 c1 ~align ~font label =
-    Image.impose
+    Image.stack
       begin match font, label with
         | Some font, Some label ->
           let font' = {font with Text.Font.blur = Default.node_title_feather} in
-          Image.impose
+          Image.stack
             (Image.paint (Paint.color c1)
                (Text.simple_text font' label
                   ~halign:`LEFT ~valign:`BASELINE
@@ -711,7 +711,7 @@ module Blender = struct
         | `CENTER -> B2.midx box
         | `RIGHT -> B2.maxx box -. Default.pad_right
       in
-      Image.impose icon
+      Image.stack icon
         (Image.paint paint
            (Text.simple_text ~halign ?valign font
               ~x ~y:(y +. Default.widget_height -. Default.text_pad_down)
@@ -778,7 +778,7 @@ module Blender = struct
            Theme.(offset_color menu_item.inner_selected menu_item.shade_down),
         `ACTIVE)
     in
-    Image.impose base
+    Image.stack base
       (draw_icon_label_value box ?icon ~font ~label
          (text_color Theme.menu_item state) ~halign:`LEFT)
 

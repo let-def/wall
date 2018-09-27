@@ -245,7 +245,7 @@ module Image : sig
   val reset_scissor : t -> t
   val intersect_scissor : ?transform:Transform.t -> Gg.box2 -> t -> t
   val alpha : float -> t -> t
-  val impose : t -> t -> t
+  val stack : t -> t -> t
   val seq : t list -> t
 
   (* Convenience functions *)

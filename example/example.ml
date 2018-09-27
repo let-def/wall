@@ -143,7 +143,7 @@ let draw_graph x y w h t =
     (* Graph sample pos *)
     (let node = ref I.empty in
      for i = 0 to 5 do
-       node := I.impose !node (
+       node := I.stack !node (
            I.paint
              (Paint.radial_gradient ~cx:(sx i) ~cy:(sy i +. 2.0) ~inr:3.0 ~outr:8.0
                 ~inner:(Color.v 0.0 0.0 0.0 0.125) ~outer:(Color.v 0.0 0.0 0.0 0.0))
@@ -197,7 +197,7 @@ let draw_colorwheel x y w h t =
     let ex = cx +. cos a1 *. (r0 +. r1) *. 0.5 in
     let ey = cy +. sin a1 *. (r0 +. r1) *. 0.5 in
     (*Printf.printf "sx=%f, sy=%f, ex=%f, ey=%f\n%!" sx sy ex ey;*)
-    node := I.impose !node (
+    node := I.stack !node (
         I.paint
           (Paint.linear_gradient
              ~sx ~sy ~ex ~ey
@@ -262,7 +262,7 @@ let draw_colorwheel x y w h t =
             (* Select circle on triangle *)
             let ax = cos (120.0 /. 180.0 *. pi) *. r *. 0.3 in
             let ay = sin (120.0 /. 180.0 *. pi) *. r *. 0.4 in
-            I.impose
+            I.stack
               (I.paint (Paint.color (gray ~a:0.75 1.0))
                  (I.stroke_path Outline.{default with stroke_width = 2.0} @@ fun t ->
                   P.circle t ~cx:ax ~cy:ay ~r:5.0))
@@ -334,7 +334,7 @@ let draw_widths x y w =
   let node = ref I.empty in
   for i = 0 to 19 do
     let y' = !y in
-    node := I.impose !node
+    node := I.stack !node
         (I.paint paint
            (I.stroke_path
               Outline.{default with stroke_width = (float i +. 0.5) /. 10.0}
@@ -367,7 +367,7 @@ let draw_scissor x y t =
   let xf = Transform.(rotate (5.0 /. 180.0 *. pi) (translation ~x ~y)) in
   let shape = I.fill_path @@ fun t -> P.rect t (-20.0) (-10.0) 60.0 30.0 in
   I.transform xf (
-    I.impose
+    I.stack
       (* Draw first rect and set scissor to it's area. *)
       (I.paint
          (Paint.color (Color.v 1.0 0.0 0.0 1.0))
@@ -375,7 +375,7 @@ let draw_scissor x y t =
       (* Draw second rectangle with offset and rotation. *)
       ((*let frame = Frame.set_scissor (-20.0) (-20.0) 60.0 40.0 Transform.identity frame in*)
         let xf = Transform.(rotate t (translation 40.0 0.0)) in
-        I.impose
+        I.stack
           (* Draw the intended second rectangle without any scissoring. *)
           (I.transform xf (I.paint (Paint.color (Color.v 1.0 0.5 0.0 0.25)) shape))
           (* Draw second rectangle with combined scissoring. *)
@@ -497,7 +497,7 @@ let draw_label text x y w h =
                  ~x ~y:(y+.h*.0.5) text)
 
 let draw_editboxbase x y w h =
-  I.impose
+  I.stack
     (I.paint
        (Paint.box_gradient (x+.1.0) (y+.1.0+.1.5) (w-.2.0) (h-.2.0) 3.0 4.0
           (gray ~a:0.125 1.0) (gray ~a:0.125 0.125))
@@ -509,7 +509,7 @@ let draw_editboxbase x y w h =
         P.round_rect t (x+.0.5) (y+.0.5) (w-.1.0) (h-.1.0) (4.0-.0.5)))
 
 let draw_editbox text x y w h =
-  I.impose (draw_editboxbase x y w h)
+  I.stack (draw_editboxbase x y w h)
     (I.paint (Paint.color (gray ~a:0.25 1.0))
        Text.(simple_text
                     (Font.make ~size:20.0 (Lazy.force font_sans))
@@ -724,7 +724,7 @@ let draw_thumbnails x y w h images t =
           let a = max 0.0 (min 1.0 ((u2 -. v) /. dv)) in
 
           if a < 1.0 then
-            acc := I.impose !acc
+            acc := I.stack !acc
                 (draw_spinner (tx +. thumb /. 2.0) (ty +. thumb /. 2.0) (thumb*.0.25) t);
           acc := I.seq [
               !acc;
@@ -783,7 +783,7 @@ let images = lazy (load_demo_data ())
 
 let draw_demo mx my w h t = (
   let node = ref I.empty in
-  let push n = node := I.impose !node n in
+  let push n = node := I.stack !node n in
   push @@ draw_eyes (w -. 250.0) 50.0 150.0 100.0 mx my t;
   push @@ draw_graph 0.0 (h /. 2.0) w (h /. 2.0) t;
   push @@ draw_colorwheel (w -. 300.0) (h -. 300.0) 250.0 250.0 t;

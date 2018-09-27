@@ -675,7 +675,7 @@ module Image = struct
     | Xform (node, xf') -> Xform (node, Transform.compose xf' xf)
     | node -> Xform (node, xf)
 
-  let impose n1 n2 =
+  let stack n1 n2 =
     match n1, n2 with
     | Empty, n | n, Empty -> n
     | _ -> Seq (n1, n2)
@@ -683,7 +683,7 @@ module Image = struct
   let rec seq = function
     | [] -> Empty
     | [x] -> x
-    | x :: xs -> impose x (seq xs)
+    | x :: xs -> stack x (seq xs)
 
   let scissor ?(transform=Transform.identity) box = function
     | Empty -> Empty

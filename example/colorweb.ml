@@ -117,12 +117,12 @@ let cell x y =
     Path.line_to ctx (g_x x (y+1)) (g_y x (y+1))
   in
   let bg =
-    Image.impose
+    Image.stack
       (Image.paint (Paint.color (g_color x y)) (Image.fill path))
       (Image.paint Paint.black (Image.stroke (Outline.make ~width:0.01 ()) path))
   in
   if x > 0 && y > 0 then
-    Image.impose bg
+    Image.stack bg
       (Image.paint Paint.white
          (Image.fill_path
             (Path.circle ~cx:(g_x x y) ~cy:(g_y x y)
@@ -135,7 +135,7 @@ let frame t =
   let image = ref Image.empty in
   for x = 0 to grid_width - 2 do
     for y = 0 to grid_height - 2 do
-      image := Image.impose !image (cell x y)
+      image := Image.stack !image (cell x y)
     done
   done;
   Image.transform (Transform.scale 20.0 20.0) !image
