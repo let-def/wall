@@ -15,7 +15,7 @@ let title_banner = Path.make (fun ctx ->
 let b2 x y w h = Gg.Box2.v (Gg.P2.v x y) (Gg.Size2.v w h)
 let body_box = b2 0.0 128.0 1024.0 640.0
 
-let light_blue = Color.lerp_rgba 0.5 Color.white Color.blue
+let light_blue = Color.lerp_rgba 0.2 Color.white Color.blue
 let light_yellow = Color.v 1.0 1.0 0.0 1.0
 
 let title =
@@ -56,7 +56,7 @@ let text_arrow ~x ~y str =
 
 let make_outlines a_title steps step =
   let render_step i (step', title) =
-    let text = text_arrow ~x:250.0 ~y:(250.0 +. 100.0 *. float i) title in
+    let text = text_arrow ~x:220.0 ~y:(250.0 +. 100.0 *. float i) title in
     if step = step' then
       text
     else
@@ -94,23 +94,22 @@ let pf () f =
     Printf.sprintf "%.02f" f
 
 let outline =
-  make_outlines "Outline"
-  [
+  make_outlines "Outline" [
     `Problem_solved , "The problem solved";
     `Model          , "Model";
     `API            , "API";
+    `Performance    , "Performance";
     `Conclusion     , "Conclusion";
   ]
 
 let api_outline =
-  make_outlines "API"
-    [
-      `Path          , "Path";
-      `Shape         , "Shape";
-      `Paint         , "Paint";
-      `Transformation , "Transformation";
-      `Composition   , "Composition";
-    ]
+  make_outlines "API" [
+    `Path           , "Path ([0,1] -> Point)";
+    `Shape          , "Shape (Point -> Bool)";
+    `Paint          , "Paint (Point -> Color)";
+    `Transformation , "Transformation (Point -> Point)";
+    `Composition    , "Composition (Image* -> Image)";
+  ]
 
 let shape_slide =
   let square = Path.make (fun ctx ->
@@ -121,19 +120,29 @@ let shape_slide =
     ) in
   title "Shapes" [
     Image.transform (Transform.translation 512.0 444.0)
-      (Image.seq [ Image.fill square; Image.fill circle ])
+      (Image.seq [ Image.fill square; Image.fill circle ]);
+    code "Point = R * R\n\
+          Shape ~= Point -> Bool"
   ]
+;;
+
+let sample_path = Path.make (fun ctx ->
+    Path.move_to ctx 0.0 0.0;
+    Path.line_to ctx 50.0 0.0;
+    Path.bezier_to ctx 100.0 (-30.0) 100.0 (-90.0) 50.0 (-60.0);
+    Path.bezier_to ctx 60.0 (-120.0) (-20.0) (-120.0) 0.0 0.0;
+  )
 ;;
 
 Slideshow.set_slides Slideshow.window [
   (fun _ -> title "The Wall library"
       [
-        text ~halign:`CENTER ~x:512.0 ~y:250.0 "Frédéric Bour <def@fb.com>";
-        text ~halign:`CENTER ~x:512.0 ~y:350.0 "IRILL, Paris";
-        text ~halign:`CENTER ~x:512.0 ~y:450.0 "Thursday, July 5";
+        text ~halign:`CENTER ~x:512.0 ~y:250.0 "Frédéric Bour";
+        text ~halign:`CENTER ~x:512.0 ~y:350.0 "OCaml Workshop 2018";
+        text ~halign:`CENTER ~x:512.0 ~y:450.0 "Thursday, September 27";
         text_arrow ~x:152.0 ~y:600.0 "Graphics";
-        text_arrow ~x:412.0 ~y:600.0 "In OCaml";
-        text_arrow ~x:672.0 ~y:600.0 "Without Pain";
+        text_arrow ~x:412.0 ~y:600.0 "in OCaml";
+        text_arrow ~x:672.0 ~y:600.0 "with fun";
       ]
   );
   (fun _ -> outline `Problem_solved);
@@ -163,7 +172,9 @@ Slideshow.set_slides Slideshow.window [
          ) in
        title "Paint" [
          Image.paint (Paint.color (Color.v_srgb 1.0 1.0 0.0))
-           (Image.fill rect)
+           (Image.fill rect);
+         code "Color = [0,1]^4\n\
+               Paint ~= Point -> Color"
        ]
      in
      if st.time > 0.25
@@ -188,7 +199,11 @@ Slideshow.set_slides Slideshow.window [
        Image.transform (Transform.translation 512.0 444.0)
          (Image.transform
             (let f = max (10.0 *. (1.0 -. st.time)) 1.0 in Transform.scale f f)
-            (Image.paint paint (Image.fill circle)))
+            (Image.paint paint (Image.fill circle)));
+       code "Image ~= Point -> Color\n\
+             primitive(shape, paint) ~=\n\
+            \  fun point -> if shape point then paint point\n\
+            \                              else zero"
      ]);
   (fun st ->
      let circle = Path.make (fun ctx ->
@@ -199,8 +214,12 @@ Slideshow.set_slides Slideshow.window [
        Image.transform (Transform.translation 512.0 444.0)
          (Image.transform
             (let f = (1.0 +. min st.time 1.0) in
-             Transform.scale (1.0 +. f /. 4.0) f)
-            (Image.paint paint (Image.fill circle)))
+             Transform.rescale ~sx:(1.0 +. f /. 4.0) ~sy:f
+               (Transform.translation ~x:0.0 ~y:(f *. -30.0)))
+            (Image.paint paint (Image.fill circle)));
+       code "Transformation ~= Point -> Point\n\
+             transform(image, t) ~=\n\
+            \  fun point -> image(t(point))"
      ]);
   (fun _st ->
      let outline = Outline.make ~cap:`ROUND ~width:10.0 () in
@@ -233,14 +252,15 @@ Slideshow.set_slides Slideshow.window [
        Paint.linear_gradient (-100.0) 0.0 350.0 300.0 base Color.black
      in
      title "Repeat!" [
-       Image.transform (Transform.translation 512.0 444.0) (Image.seq [
+       Image.transform (Transform.translation 512.0 384.0) (Image.seq [
            Image.transform
              (Transform.scale 1.5 2.0)
              (Image.paint paint (Image.fill circle));
            Image.transform (Transform.translation (-60.0) (-90.0)) eye;
            Image.transform (Transform.translation (60.0) (-90.0)) eye;
            Image.transform (Transform.translation 0.0 10.0) smile;
-         ])
+         ]);
+       code "blend(image_0, image_1, ...)"
      ]);
   (fun _ -> outline `API);
   (fun _ -> api_outline `Path);
@@ -253,7 +273,7 @@ Slideshow.set_slides Slideshow.window [
        Image.transform
          (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
          (Image.stroke Outline.default p);
-       code "Path.make (fun ctx ->\n\
+       code "let path = Path.make (fun ctx ->\n\
             \  \n\
             \  \n\
             \  \n\
@@ -269,8 +289,8 @@ Slideshow.set_slides Slideshow.window [
        Image.transform
          (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
          (Image.stroke Outline.default p);
-       code "Path.make (fun ctx ->\n\
-            \  Path.move_to ctx 0.0 0.0;\n\
+       code "let path = Path.make (fun ctx ->\n\
+            \  Path.move_to ctx 0. 0.;\n\
             \  \n\
             \  \n\
             \  \n\
@@ -286,9 +306,9 @@ Slideshow.set_slides Slideshow.window [
        Image.transform
          (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
          (Image.stroke Outline.default p);
-       code "Path.make (fun ctx ->\n\
+       code "let path = Path.make (fun ctx ->\n\
             \  Path.move_to ctx 0. 0.;\n\
-            \  Path.line_to ctx 5. 0.;\n\
+            \  Path.line_to ctx 50. 0.;\n\
             \  \n\
             \  \n\
              )"
@@ -304,61 +324,51 @@ Slideshow.set_slides Slideshow.window [
        Image.transform
          (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
          (Image.stroke Outline.default p);
-       code "Path.make (fun ctx ->\n\
+       code "let path = Path.make (fun ctx ->\n\
             \  Path.move_to ctx 0. 0.;\n\
-            \  Path.line_to ctx 5. 0.;\n\
-            \  Path.bezier_to ctx 10.0 (-3.) 10.0 (-9.) 5.0 (-6.);\n\
+            \  Path.line_to ctx 50. 0.;\n\
+            \  Path.bezier_to ctx 10. (-3.) 10. (-9.) 5. (-6.);\n\
             \  \n\
              )"
      ]);
   (fun _ ->
-     let p = Path.make (fun ctx ->
-         Path.move_to ctx 0.0 0.0;
-         Path.line_to ctx 50.0 0.0;
-         Path.bezier_to ctx 100.0 (-30.0) 100.0 (-90.0) 50.0 (-60.0);
-         Path.bezier_to ctx 60.0 (-120.0) (-20.0) (-120.0) 0.0 0.0;
-       )
-     in
      title "Path" [
        Image.transform
          (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
-         (Image.stroke Outline.default p);
-       code "Path.make (fun ctx ->\n\
-            \  Path.move_to ctx 0.0 0.0;\n\
-            \  Path.line_to ctx 50.0 0.0;\n\
-            \  Path.bezier_to ctx 10.0 (-3.) 10.0 (-9.) 5.0 (-6.);\n\
-            \  Path.bezier_to ctx 6.0 (-12.0) (-2.0) (-12.0) 0. 0.;\n\
+         (Image.stroke Outline.default sample_path);
+       code "let path = Path.make (fun ctx ->\n\
+            \  Path.move_to ctx 0. 0.;\n\
+            \  Path.line_to ctx 50. 0.;\n\
+            \  Path.bezier_to ctx 10. (-3.) 10. (-9.) 5. (-6.);\n\
+            \  Path.bezier_to ctx 6. (-12.) (-2.) (-12.) 0. 0.;\n\
              )"
      ]);
   (fun _ -> api_outline `Shape);
   (fun _ ->
-     let p = Path.make (fun ctx ->
-         Path.move_to ctx 0.0 0.0;
-         Path.line_to ctx 50.0 0.0;
-         Path.bezier_to ctx 100.0 (-30.0) 100.0 (-90.0) 50.0 (-60.0);
-         Path.bezier_to ctx 60.0 (-120.0) (-20.0) (-120.0) 0.0 0.0;
-       )
-     in
      title "Filling path" [
        Image.transform
          (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
-         (Image.fill p);
+         (Image.fill sample_path);
        code "Image.fill path";
      ]);
   (fun st ->
-     let p = Path.make (fun ctx ->
-         Path.move_to ctx 0.0 0.0;
-         Path.line_to ctx 50.0 0.0;
-         Path.bezier_to ctx 100.0 (-30.0) 100.0 (-90.0) 50.0 (-60.0);
-         Path.bezier_to ctx 60.0 (-120.0) (-20.0) (-120.0) 0.0 0.0;
-       )
-     in
      let width = (sin st.time *. sin st.time) *. 10.0 in
      title "Stroking path" [
        Image.transform
          (Transform.rescale 2.0 2.0 (Transform.translation 512.0 444.0))
-         (Image.stroke (Outline.make ~width ()) p);
+         (Image.stroke (Outline.make ~width ()) sample_path);
        code "Image.stroke (Outline.make ~width:%a ()) path" pf width;
+     ]);
+  (fun _ ->
+     title "Glyphes & Masks" [
+       text_arrow ~x:100.0 ~y:200.0 "For complex or external shapes:";
+       text ~x:150.0 ~y:280.0 "use a bitmap as a discrete";
+       text ~x:150.0 ~y:340.0 "approximation of (Point -> Bool)";
+       text ~x:150.0 ~y:400.0 "([0..n] * [0..m] -> [0..255])";
+       text_arrow ~x:100.0 ~y:460.0 "Adjust resolution dynamically";
+       text_arrow ~x:100.0 ~y:540.0 "Abstraction for laying out glyphes";
+       code "type 'a typesetter\n\
+             Image.typeset : 'a typesetter -> 'a -> image";
      ]);
   (fun _ -> api_outline `Paint);
   (fun _ ->
@@ -387,8 +397,8 @@ Slideshow.set_slides Slideshow.window [
        Image.paint (Paint.box_gradient 160.0 228.0 704.0 360.0 r f
                       light_yellow light_blue)
          (Image.fill mediabox);
-       code "Paint.box_gradient \n\
-            \  ~x ~y ~w ~h ~r:%a ~f:%a light_yellow light_blue" pf r pf f
+       code "Paint.box_gradient ~x ~y ~w ~h\n\
+            \  ~r:%a ~f:%a light_yellow light_blue" pf r pf f
      ]);
   (fun st ->
      let t = st.time /. 4.0 in
@@ -399,8 +409,26 @@ Slideshow.set_slides Slideshow.window [
        Image.paint (Paint.radial_gradient 512.0 444.0 inner outer
                       light_yellow light_blue)
          (Image.fill mediabox);
-       code "Paint.radial_gradient \n\
-            \  ~cx ~cy ~inner:%a ~outer:%a" pf inner pf outer;
+       code "Paint.radial_gradient ~cx ~cy\n\
+            \  ~inner:%a ~outer:%a" pf inner pf outer;
+     ]);
+  (fun st ->
+     let angle = sin st.time /. 2.0 in
+     let alpha = 0.5 +. abs_float (sin (st.time *. 4.0)) /. 2.0 in
+     title "Paint: pixmaps" [
+       Image.paint
+         (Paint.transform
+            (Paint.image_pattern
+               (Gg.V2.v (-1146.0/.4.0) (-700.0/.4.0))
+               (Gg.V2.v (1146.0 /. 2.0) (696.0 /. 2.0))
+               ~angle
+               ~alpha
+               Pres_state.nyan_cat)
+            (Transform.translation 500.0 400.0)
+         ) (Image.fill mediabox);
+       code "Paint.image_pattern (x,y) (w,h) \n\
+            \   ~angle:%.02f ~alpha:%a nyan_cat"
+            (mod_float angle (pi *. 2.0)) pf alpha;
      ]);
   (fun _ -> api_outline `Transformation);
   (fun st ->
@@ -547,6 +575,239 @@ Slideshow.set_slides Slideshow.window [
            ]);
        code "Image.superpose square (Image.alpha %a circle)" pf v_alpha
      ]);
+  (fun _ -> outline `Performance);
+  (fun _ ->
+     let circle = Path.make (fun ctx ->
+         Path.circle ctx 0.0 0.0 100.0
+       ) in
+     let dot =
+       let dot = Path.make (fun ctx ->
+           Path.circle ctx 0.0 0.0 15.0
+         ) in
+       Image.fill dot;
+     in
+     let smile =
+       let path = Path.make (fun ctx ->
+           Path.move_to ctx (-50.0) 0.0;
+           Path.bezier_to ctx (-30.0) 30.0 30.0 30.0 50.0 0.0;
+         )
+       in
+       let outline = Outline.make ~cap:`ROUND ~width:15.0 () in
+       Image.stroke outline path
+     in
+     let base = Color.v 0.95 0.95 0.0 1.0 in
+     let node ?connect x y str =
+       Image.seq [
+         text ~halign:`CENTER ~x ~y ~size:0.6 str;
+         Image.alpha 0.5 (
+           begin match connect with
+             | None -> Image.empty
+             | Some (ox, oy) ->
+               let oy = oy -. 30.0 in
+               let y = y -. 40.0 in
+               let dx = x -. ox in
+               let dy = y -. oy in
+               let x = ox +. dx *. 0.55 in
+               let y = oy +. dy *. 0.55 in
+               Image.stroke_path (Outline.make ~width:3.0 ()) (fun p ->
+                   Path.move_to p ~x:ox ~y:oy;
+                   Path.line_to p ~x ~y;
+                 )
+           end
+         )
+       ]
+     in
+     let paint = Paint.color base in
+     title "Image representation" [
+       Image.transform (Transform.translation 812.0 384.0) (Image.seq [
+           Image.transform
+             (Transform.scale 1.5 1.5)
+             (Image.paint paint (Image.fill circle));
+           Image.transform (Transform.translation (-50.0) (-50.0)) dot;
+           Image.transform (Transform.translation (50.0) (-50.0)) dot;
+           Image.transform (Transform.translation 0.0 40.0) smile;
+         ]);
+       node 300.0 600.0 "superpose";
+       node 100.0 500.0 "paint(yellow)" ~connect:(300.0,600.0);
+       node 100.0 400.0 "Circle" ~connect:(100.0,500.0);
+       node 450.0 500.0 "paint(black)" ~connect:(300.0,600.0);
+       node 280.0 400.0 "transform" ~connect:(450.0,500.0);
+       node 280.0 300.0 "Circle" ~connect:(280.0,400.0);
+       node 430.0 400.0 "transform" ~connect:(450.0,500.0);
+       node 430.0 300.0 "Circle" ~connect:(430.0,400.0);
+       node 580.0 400.0 "transform" ~connect:(450.0,500.0);
+       node 580.0 300.0 "Smile" ~connect:(580.0,400.0);
+       Image.alpha 0.8 (Image.seq [
+           Image.transform
+             (Transform.rescale 0.4 0.4 (Transform.translation 580.0 240.0))
+             smile;
+           Image.transform
+             (Transform.rescale 0.6 0.6 (Transform.translation 430.0 240.0))
+             dot;
+           Image.transform
+             (Transform.rescale 0.6 0.6 (Transform.translation 280.0 240.0))
+             dot;
+           Image.transform
+             (Transform.rescale 0.6 0.6 (Transform.translation 100.0 340.0))
+             dot;
+         ]);
+     ]
+  );
+  (fun _ ->
+     let circle = Path.make (fun ctx ->
+         Path.circle ctx 0.0 0.0 100.0
+       ) in
+     let dot =
+       let dot = Path.make (fun ctx ->
+           Path.circle ctx 0.0 0.0 15.0
+         ) in
+       Image.fill dot;
+     in
+     let smile =
+       let path = Path.make (fun ctx ->
+           Path.move_to ctx (-50.0) 0.0;
+           Path.bezier_to ctx (-30.0) 30.0 30.0 30.0 50.0 0.0;
+         )
+       in
+       let outline = Outline.make ~cap:`ROUND ~width:15.0 () in
+       Image.stroke outline path
+     in
+     let base = Color.v 0.95 0.95 0.0 1.0 in
+     let node ?(connect=[]) x y str =
+       Image.seq [
+         text ~halign:`CENTER ~x ~y ~size:0.6 str;
+         Image.alpha 0.5 (
+           Image.seq (List.map (fun (ox, oy) ->
+               let oy = oy -. 30.0 in
+               let y = y -. 40.0 in
+               let dx = x -. ox in
+               let dy = y -. oy in
+               let ratio =
+                 let dy =abs_float dy in
+                 (dy -. 50.0) /. dy
+               in
+               let x = ox +. dx *. ratio in
+               let y = oy +. dy *. ratio in
+               Image.stroke_path
+                 (Outline.make ~cap:`ROUND ~width:3.0 ()) (fun p ->
+                     Path.move_to p ~x:ox ~y:oy;
+                     Path.line_to p ~x ~y;
+                   )
+             ) connect)
+         )
+       ]
+     in
+     let paint = Paint.color base in
+     title "With sharing" [
+       Image.transform (Transform.translation 812.0 384.0) (Image.seq [
+           Image.transform
+             (Transform.scale 1.5 1.5)
+             (Image.paint paint (Image.fill circle));
+           Image.transform (Transform.translation (-50.0) (-50.0)) dot;
+           Image.transform (Transform.translation (50.0) (-50.0)) dot;
+           Image.transform (Transform.translation 0.0 40.0) smile;
+         ]);
+       node 300.0 600.0 "superpose";
+       node 100.0 500.0 "paint(yellow)" ~connect:[300.0,600.0];
+       node 100.0 400.0 "Primitive" ~connect:[100.0,500.0];
+       node 450.0 500.0 "paint(black)" ~connect:[300.0,600.0];
+       node 280.0 400.0 "transform" ~connect:[450.0,500.0];
+       node 280.0 300.0 "Primitive" ~connect:[280.0,400.0];
+       node 430.0 400.0 "transform" ~connect:[450.0,500.0];
+       node 430.0 300.0 "Primitive" ~connect:[430.0,400.0];
+       node 580.0 400.0 "transform" ~connect:[450.0,500.0];
+       node 580.0 300.0 "Primitive" ~connect:[580.0,400.0];
+       node 330.0 200.0 "Circle" ~connect:[
+         100.0,400.0;
+         280.0,300.0;
+         430.0,300.0;
+       ];
+       node 580.0 200.0 "Smile" ~connect:[580.0,300.0];
+       Image.alpha 0.8 (Image.seq [
+           Image.transform
+             (Transform.rescale 0.4 0.4 (Transform.translation 580.0 160.0))
+             smile;
+           Image.transform
+             (Transform.rescale 0.6 0.6 (Transform.translation 330.0 160.0))
+             dot;
+         ]);
+     ]
+  );
+  (fun _ ->
+     let dot =
+       let dot = Path.make (fun ctx ->
+           Path.circle ctx 0.0 0.0 15.0
+         ) in
+       Image.fill dot;
+     in
+     let smile =
+       let path = Path.make (fun ctx ->
+           Path.move_to ctx (-50.0) 0.0;
+           Path.bezier_to ctx (-30.0) 30.0 30.0 30.0 50.0 0.0;
+         )
+       in
+       let outline = Outline.make ~cap:`ROUND ~width:15.0 () in
+       Image.stroke outline path
+     in
+     let node ?(connect=[]) x y str =
+       Image.seq [
+         text ~halign:`CENTER ~x ~y ~size:0.6 str;
+         Image.alpha 0.5 (
+           Image.seq (List.map (fun (ox, oy) ->
+               let oy = oy -. 30.0 in
+               let y = y -. 40.0 in
+               let dx = x -. ox in
+               let dy = y -. oy in
+               let ratio =
+                 let dy =abs_float dy in
+                 (dy -. 50.0) /. dy
+               in
+               let x = ox +. dx *. ratio in
+               let y = oy +. dy *. ratio in
+               Image.stroke_path
+                 (Outline.make ~cap:`ROUND ~width:3.0 ()) (fun p ->
+                     Path.move_to p ~x:ox ~y:oy;
+                     Path.line_to p ~x ~y;
+                   )
+             ) connect)
+         )
+       ]
+     in
+     title "Allocating GPU memory" [
+       text ~size:0.8 ~x:700.0 ~y:180.0 "GPU memory";
+       Image.stroke_path (Outline.make ~width:2.0 ())
+         (fun p -> Path.rect p 700.0 200.0 300.0 300.0);
+       text ~size:0.8 ~x:700.0 ~y:550.0 "GPU command";
+       Image.stroke_path (Outline.make ~width:2.0 ())
+         (fun p -> Path.rect p 700.0 200.0 300.0 300.0);
+        (* Nodes *)
+       node 300.0 600.0 "superpose";
+       node 100.0 500.0 "paint(yellow)" ~connect:[300.0,600.0];
+       node 100.0 400.0 "Primitive" ~connect:[100.0,500.0];
+       node 450.0 500.0 "paint(black)" ~connect:[300.0,600.0];
+       node 280.0 400.0 "transform" ~connect:[450.0,500.0];
+       node 280.0 300.0 "Primitive" ~connect:[280.0,400.0];
+       node 430.0 400.0 "transform" ~connect:[450.0,500.0];
+       node 430.0 300.0 "Primitive" ~connect:[430.0,400.0];
+       node 580.0 400.0 "transform" ~connect:[450.0,500.0];
+       node 580.0 300.0 "Primitive" ~connect:[580.0,400.0];
+       Image.paint (Paint.color Color.red) @@
+       node 330.0 200.0 "Circle" ~connect:[
+         100.0,400.0;
+         280.0,300.0;
+         430.0,300.0;
+       ];
+       node 580.0 200.0 "Smile" ~connect:[580.0,300.0];
+       Image.alpha 0.8 (Image.seq [
+           Image.transform
+             (Transform.rescale 0.4 0.4 (Transform.translation 580.0 160.0))
+             smile;
+           Image.transform
+             (Transform.rescale 0.6 0.6 (Transform.translation 330.0 160.0))
+             dot;
+         ]);
+     ]
+  );
   (fun _ -> outline `Conclusion);
   (fun _ -> title "Future work"
       [
@@ -566,7 +827,8 @@ Slideshow.set_slides Slideshow.window [
   (fun _ -> title "Acknowledgements"
       [
         text ~x:100.0 ~y:450.0 "And one last thing...";
-        text ~x:100.0 ~y:650.0 "Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn.";
+        text ~x:100.0 ~y:650.0 "Ph'nglui mglw'nafh";
+        text ~x:100.0 ~y:710.0 "Cthulhu R'lyeh wgah'nagl fhtagn!";
       ]
   )]
 ;;

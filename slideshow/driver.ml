@@ -44,7 +44,7 @@ let load_and_link packages =
 let () =
   Toploop.initialize_toplevel_env ();
   Findlib.init ();
-  load ["wall"; "tgls.tgles2"; "tsdl"; "findlib.dynload";
-        "compiler-libs.toplevel"; "stb_truetype"; "gg"];
+  load ["wall"; "tgls.tgles2"; "tsdl"; "findlib.dynload"; "result";
+        "compiler-libs.toplevel"; "stb_image"; "stb_truetype"; "gg"];
   load_and_link packages;
   Slideshow.auto_reload sources

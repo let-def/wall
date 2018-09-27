@@ -22,3 +22,10 @@ let load_font name =
 
 let font_sans = load_font "Roboto-Regular.ttf"
 let font_mono = load_font "RobotoMono-Regular.ttf"
+
+let nyan_cat =
+  match Stb_image.load "nyan_cat.png" with
+  | Result.Error (`Msg x) ->
+    Printf.ksprintf prerr_endline "loading nyan_cat: %s" x;
+    failwith "No image"
+  | Result.Ok img -> Wall_texture.from_image ~name:"nyan" img
