@@ -723,35 +723,52 @@ module Performance_counter : sig
 
   val report : t -> string
 
-  val bump : t -> time:int -> mem:int -> unit
+  val bump : t -> prep_time:int -> prep_mem:int
+               -> flush_time:int -> flush_mem:int -> unit
 end = struct
   type t = {
     mutable frames: int;
-    mutable time: int;
-    mutable mem: int;
+    mutable prep_time: int;
+    mutable prep_mem: int;
+    mutable flush_time: int;
+    mutable flush_mem: int;
   }
 
-  let make () = { frames = 0; time = 0; mem = 0 }
+  let make () =
+    { frames = 0; prep_time = 0; prep_mem = 0; flush_time = 0; flush_mem = 0 }
 
   (** Microseconds spent rendering *)
-  let time_spent t = t.time
+  let time_spent t = t.prep_time + t.flush_time
 
   (** Memory words allocated *)
-  let mem_spent t = t.mem
+  let mem_spent t = t.prep_mem + t.flush_mem
 
   let reset t =
     t.frames <- 0;
-    t.time <- 0;
-    t.mem <- 0
+    t.prep_time <- 0;
+    t.prep_mem <- 0;
+    t.flush_time <- 0;
+    t.flush_mem <- 0
 
   let report t =
-    Printf.sprintf "rendered %d frames in %d us (%d us/frame) using %d words (%d w/frame)\n"
-      t.frames t.time (t.time / max 1 t.frames) t.mem (t.mem / max 1 t.frames)
+    let time = time_spent t in
+    let mem = mem_spent t in
+    let d = max 1 t.frames in
+    Printf.sprintf
+      "rendered %d (total=prep+gl) frames in %d=%d+%d us (%d=%d+%d us/frame) \
+       using %d=%d+%d words (%d=%d+%d w/frame)\n"
+      t.frames
+      time t.prep_time t.flush_time
+      (time / d) (t.prep_time / d) (t.flush_time / d)
+      mem t.prep_mem t.flush_mem
+      (mem / d) (t.prep_mem / d) (t.flush_mem / d)
 
-  let bump t ~time ~mem =
+  let bump t ~prep_time ~prep_mem ~flush_time ~flush_mem =
     t.frames <- t.frames + 1;
-    t.time <- t.time + time;
-    t.mem <- t.mem + mem
+    t.prep_time <- t.prep_time + prep_time;
+    t.prep_mem <- t.prep_mem + prep_mem;
+    t.flush_time <- t.flush_time + flush_time;
+    t.flush_mem <- t.flush_mem + flush_mem
 end
 
 module Renderer = struct
@@ -1022,14 +1039,17 @@ module Renderer = struct
     List.iter (fun f -> f ()) todo;
     let pnode = prepare t Transform.identity node in
     Backend.prepare t.g width height (B.sub t.b);
+    let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in
     xform_outofdate := true;
     exec t Transform.identity Paint.black Frame.default pnode;
     Backend.finish ();
-    let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in
+    let time2 = Backend.time_spent () and mem2 = Backend.memory_spent () in
     begin match performance_counter with
       | None -> ()
       | Some pc ->
-        Performance_counter.bump pc ~time:(time1-time0) ~mem:(mem1-mem0)
+        Performance_counter.bump pc
+          ~prep_time:(time1-time0) ~prep_mem:(mem1-mem0)
+          ~flush_time:(time2-time1) ~flush_mem:(mem2-mem1)
     end
 end
 

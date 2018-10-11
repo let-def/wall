@@ -5,6 +5,7 @@
  (flags :standard -linkall))
 
 (library
- (name pres_state)
- (modules pres_state)
+ (name deps)
+ (wrapped false)
+ (modules pres_state tree_slides)
  (libraries wall))
