@@ -1,5 +1,0 @@
-version = "0.1"
-description = "Vector graphics renderer for OpenGL"
-archive(byte) = "wall.cma"
-archive(native) = "wall.cmxa"
-requires = "gg result stb_truetype stb_image grenier.binpacking"

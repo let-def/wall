@@ -19,6 +19,10 @@ Shader and renderer design are taken from it.
 
 # Changelog
 
+v0.3, Sun Oct 14 08:16:07 CEST 2018
+  Fix rendering bugs.
+  Add OCaml 2018 presentation.
+
 v0.2, Sun Jul  8 18:07:09 CEST 2018
   Measure performance in microseconds.
   Support older versions of macOS without clock\_gettime

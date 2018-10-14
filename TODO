@@ -23,6 +23,10 @@ Proper support for OSX platform is a must.
 The strategy for allocating and collecting font buffers is quite naive... It
 deserves more work.
 
+# Spatial and temporal sharing
+
+Something very naive would deliver most of the benefits...
+
 # Integration with VG and abstraction for reusing buffers.
 
 ...
