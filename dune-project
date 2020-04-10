@@ -6,6 +6,7 @@
 (license BSD3)
 (authors "Frédéric Bour")
 (maintainers "frederic.bour@lakaban.net")
+(documentation "https://let-def.github.io/wall/doc")
 
 (package
  (name wall)
