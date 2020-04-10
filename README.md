@@ -19,6 +19,9 @@ Shader and renderer design are taken from it.
 
 # Changelog
 
+v0.4, Fri Apr 10 21:12:37 CEST 2020
+  Port to OCaml 4.10
+
 v0.3, Sun Oct 14 08:16:07 CEST 2018
   Fix rendering bugs.
   Add OCaml 2018 presentation.
