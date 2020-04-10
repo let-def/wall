@@ -83,7 +83,7 @@ module Transform : sig
 end
 
 
-(** {Wall drawing model}
+(** {1 Wall drawing model}
  *
  * Drawing in wall is achieved by intersecting a simple, infinite image with a
  * shape.
