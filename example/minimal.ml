@@ -6,7 +6,10 @@ let load_font name =
   let ic = open_in_bin name in
   let dim = in_channel_length ic in
   let fd = Unix.descr_of_in_channel ic in
-  let buffer = Bigarray.Array1.map_file fd Bigarray.int8_unsigned Bigarray.c_layout false dim in
+  let buffer =
+    Unix.map_file fd Bigarray.int8_unsigned Bigarray.c_layout false [|dim|]
+    |> Bigarray.array1_of_genarray
+  in
   let offset = List.hd (Stb_truetype.enum buffer) in
   match Stb_truetype.init buffer offset with
   | None -> assert false

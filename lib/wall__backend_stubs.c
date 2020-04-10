@@ -2,9 +2,12 @@
 #include <caml/custom.h>
 #include <caml/fail.h>
 #include <caml/memory.h>
+#include <caml/version.h>
 #include <time.h>
 #include <string.h>
 #include <stdio.h>
+
+#define GL3
 
 #ifdef __APPLE__
 # include <OpenGL/gl3.h>
@@ -16,9 +19,10 @@
 # endif
 #else
 # include <GLES2/gl2.h>
+# ifdef GL3
+# include <GLES3/gl3.h>
+# endif
 #endif
-
-#define GL3
 
 typedef struct {
   GLuint program, viewsize, viewxform, strokewidth, tex, frag, vert_vbo;
@@ -656,6 +660,8 @@ CAMLprim value wall_time_spent(value unit)
 #endif
 }
 
+#if OCAML_VERSION < 41000
+
 extern uintnat caml_allocated_words;
 extern value *caml_young_alloc_end, *caml_young_ptr;
 
@@ -663,6 +669,16 @@ extern double
   caml_stat_minor_words,
   caml_stat_promoted_words,
   caml_stat_major_words;
+
+#else
+
+#define CAML_INTERNALS
+
+#include <caml/gc_ctrl.h>
+#include <caml/minor_gc.h>
+#include <caml/major_gc.h>
+
+#endif
 
 CAMLprim value wall_memory_spent(value unit)
 {
