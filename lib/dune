@@ -11,7 +11,7 @@ let at_least_4_03 =
     | Some j -> String.sub s i (j - i) :: split s (j + 1)
     | None -> [String.sub s i (String.length s - i)]
   in
-  let v = List.map int_of_string (split version 0) in
+  let v = List.map (fun v -> try int_of_string v with Failure _ -> 0) (split version 0) in
   v >= [4; 3]
 
 let () = 
