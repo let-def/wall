@@ -350,7 +350,7 @@ module Blender = struct
       end
     ]
 
-  let inner_colors {Theme. inner; inner_selected; shade_top; shade_down}
+  let inner_colors {Theme. inner; inner_selected; shade_top; shade_down; _}
       ?(flip=false) (state : widget_state) =
     match state with
     | `DEFAULT ->

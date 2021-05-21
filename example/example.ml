@@ -668,10 +668,10 @@ let draw_slider pos x y w h =
 let image_size image = Texture.width image, Texture.height image
 let image_texture image = image
 
-let load_demo_data () =
+let load_demo_data t =
   Array.init 12 (fun i ->
       let name = Printf.sprintf "images/image%d.jpg" (i+1) in
-      match Texture.load_image ~alpha:false ~name name with
+      match Texture.load_image t ~alpha:false ~name name with
       | Result.Ok image -> image
       | Result.Error (`Msg msg) ->
         Printf.eprintf "error loading %s: %s\n%!" name msg;
@@ -782,9 +782,7 @@ let draw_thumbnails x y w h images t =
          (8.-.2.) (scrollh-.2.) 2.)
   ]
 
-let images = lazy (load_demo_data ())
-
-let draw_demo mx my w h t = (
+let draw_demo mx my w h t images = (
   let node = ref I.empty in
   let push n = node := I.stack !node n in
   push @@ draw_eyes (w -. 250.0) 50.0 150.0 100.0 mx my t;
@@ -826,7 +824,7 @@ let draw_demo mx my w h t = (
   push @@ draw_button (*ICON_TRASH*)0xE729 "Delete" x y 160.0 28.0 (Color.v 0.5 0.0625 0.03125 1.0);
   push @@ draw_button 0 "Cancel" (x+.170.0) y 110.0 28.0 (gray ~a:0.0 0.0);
 
-  push @@ draw_thumbnails 365.0 (popy-.30.0) 160.0 300.0 (Lazy.force images) t;
+  push @@ draw_thumbnails 365.0 (popy-.30.0) 160.0 300.0 images t;
   !node
 )
 
@@ -848,14 +846,14 @@ let dump_perf =
       Performance_counter.reset counter
     )
 
-let render context sw sh t =
+let render context sw sh t images =
   let lw = float w in
   let lh = float h in
   let width = lw *. f *. sw in
   let height = lh *. f *. sh in
   let _, (x, y) = Sdl.get_mouse_state () in
   let x = float x /. f and y = float y /. f in
-  let demo = draw_demo x y lw lh t in
+  let demo = draw_demo x y lw lh t images in
   Renderer.render context ~width ~height ~performance_counter:counter
     (I.seq [
         (*I.transform (Transform.scale (sw *. f /. 2.0) (sh *. f)) demo;
@@ -894,6 +892,7 @@ let main () =
       | Error (`Msg e) -> Sdl.log "Create context error: %s" e; exit 1
       | Ok ctx ->
         let context = Renderer.create ~antialias:true () in
+        let images = load_demo_data context in
         let quit = ref false in
         let event = Sdl.Event.create () in
         while not !quit do
@@ -909,7 +908,7 @@ let main () =
           Gl.blend_func_separate Gl.one Gl.src_alpha Gl.one Gl.one_minus_src_alpha;
           Gl.enable Gl.cull_face_enum;
           Gl.disable Gl.depth_test;
-          render context sw sh (Int32.to_float (Sdl.get_ticks ()) /. 1000.0);
+          render context sw sh (Int32.to_float (Sdl.get_ticks ()) /. 1000.0) images;
           Sdl.gl_swap_window w;
         done;
         Sdl.gl_delete_context ctx;

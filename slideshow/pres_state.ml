@@ -28,4 +28,8 @@ let nyan_cat =
   | Result.Error (`Msg x) ->
     Printf.ksprintf prerr_endline "loading nyan_cat: %s" x;
     failwith "No image"
-  | Result.Ok img -> Wall_texture.from_image ~name:"nyan" img
+  | Result.Ok img ->
+    let t = Wall_texture.from_image ~name:"nyan" img in
+    Printf.eprintf "texture:%s width:%d height:%d\n"
+      "nyan" (Wall.Texture.width t) (Wall.Texture.height t);
+    t

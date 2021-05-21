@@ -20,6 +20,16 @@
 open Gg
 open Wall_types
 
+module Backend = Wall__backend
+
+type renderer = {
+  t : Wall__geom.T.t;
+  b : Wall__geom.B.t;
+  g : Backend.state;
+  antialias : bool;
+  stencil_strokes : bool;
+}
+
 let pi = 3.14159265358979323846264338327
 let kappa90 = 0.5522847493
 
@@ -368,7 +378,119 @@ module Frame = struct
     }
 end
 
-module Texture = Wall_texture
+module Texture = struct
+  let invalid =
+    {Backend.Texture. gl_tex = -1; channels = 0; premultiplied = false}
+
+  type t = {
+    name: string;
+    backend: Backend.state;
+    mutable tex: Backend.Texture.specification;
+    mutable width: int;
+    mutable height: int;
+  }
+
+  let release t =
+    if t.tex.gl_tex <> -1 then begin
+      Backend.Texture.delete t.backend t.tex.gl_tex;
+      t.tex <- invalid;
+    end
+
+  let finalize t =
+    if t.tex.gl_tex <> -1 then begin
+      prerr_endline
+        ("Wall_tex warning: texture " ^ t.name ^ " has not been released");
+      release t
+    end
+
+  let validate t =
+    if t.tex.gl_tex = -1 then
+      invalid_arg ("Wall_tex: " ^ t.name ^ " has been released")
+
+  let tex t = validate t; t.tex
+
+  let flip_image
+      (type a) (type b)
+      ({Stb_image. channels; width; height; data} :
+         (a, b) Bigarray.kind Stb_image.t) =
+    match Bigarray.Array1.kind data with
+    | Bigarray.Float32 ->
+      let stride = width * channels in
+      let half_height = height / 2 in
+      for row = 0 to half_height - 1 do
+        let top = stride * row in
+        let bot = stride * (height - row - 1) in
+        for col = 0 to stride - 1 do
+          let a = data.{top + col} in
+          let b = data.{bot + col} in
+          data.{top + col} <- b;
+          data.{bot + col} <- a;
+        done
+      done
+    | Bigarray.Int8_unsigned ->
+      let stride = width * channels in
+      let half_height = height / 2 in
+      for row = 0 to half_height - 1 do
+        let top = stride * row in
+        let bot = stride * (height - row - 1) in
+        for col = 0 to stride - 1 do
+          let a = data.{top + col} in
+          let b = data.{bot + col} in
+          data.{top + col} <- b;
+          data.{bot + col} <- a;
+        done
+      done
+    | _ -> invalid_arg "Wall_tex: unsupported image format"
+
+  let update t image =
+    validate t;
+    Backend.Texture.upload ~level:0 t.backend image t.tex.gl_tex;
+    Backend.Texture.generate_mipmap t.backend t.tex.gl_tex;
+    t.tex <- {t.tex with Backend.Texture.channels = image.Stb_image.channels};
+    t.width <- image.Stb_image.width;
+    t.height <- image.Stb_image.height
+
+  let sub_update st t ~x ~y image =
+    validate t;
+    Backend.Texture.update ~level:0 ~x ~y st.g image t.tex.gl_tex;
+    Backend.Texture.generate_mipmap st.g t.tex.gl_tex
+
+  let from_image st ~name image =
+    let tex = {
+      Backend.Texture.
+      gl_tex = Backend.Texture.create st.g;
+      premultiplied = true;
+      channels = 0
+    } in
+    let t = { name; backend=st.g; width = 0; height = 0; tex } in
+    Gc.finalise finalize t;
+    update t image;
+    t
+
+  let load_image st ?(float=false) ?(alpha=true) ?(flip=false) ?name s =
+    let channels = if alpha then 4 else 3 in
+    let name = match name with
+      | None -> s
+      | Some name -> name
+    in
+    let load = function
+      | Result.Error _ as error -> error
+      | Result.Ok image ->
+        if flip then flip_image image;
+        let t = from_image ~name st image in
+        Stb_image.free_unmanaged image;
+        Result.Ok t
+    in
+    if float then
+      load (Stb_image.loadf_unmanaged ~channels s)
+    else
+      load (Stb_image.load_unmanaged ~channels s)
+
+  let channels t = t.tex.Backend.Texture.channels
+  let width t = t.width
+  let height t = t.height
+end
+
 
 module Typesetter = struct
   type quadbuf = {
@@ -383,8 +505,8 @@ module Typesetter = struct
   }
 
   type 'input t = {
-    allocate : sx:float -> sy:float -> 'input -> (unit -> unit) option;
-    render   : Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t;
+    allocate : renderer -> sx:float -> sy:float -> 'input -> (unit -> unit) option;
+    render   : renderer -> Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t;
   }
 
   let make ~allocate ~render =
@@ -774,15 +896,8 @@ end
 module Renderer = struct
   open Wall__geom
   open Image
-  module Backend = Wall__backend
 
-  type t = {
-    t : T.t;
-    b : B.t;
-    g : Wall__backend.t;
-    antialias : bool;
-    stencil_strokes : bool;
-  }
+  type t = renderer
 
   let create ?(antialias=true) ?(stencil_strokes=true) () = {
     t = T.make ();
@@ -797,13 +912,13 @@ module Renderer = struct
     B.clear t.b;
     Backend.delete t.g
 
-  let rec typesetter_prepare acc xx xy yx yy = function
+  let rec typesetter_prepare t acc xx xy yx yy = function
     | Empty | Fill _ | Stroke _ -> acc
     | Paint (n, _) | Alpha (n, _) | Scissor (n, _, _, _) ->
-      typesetter_prepare acc xx xy yx yy n
+      typesetter_prepare t acc xx xy yx yy n
     | Seq (n1, n2) ->
-      let acc = typesetter_prepare acc xx xy yx yy n1 in
-      typesetter_prepare acc xx xy yx yy n2
+      let acc = typesetter_prepare t acc xx xy yx yy n1 in
+      typesetter_prepare t acc xx xy yx yy n2
     | Xform (n, xf) ->
       (*Printf.printf "(%f,%f) (%f,%f) -> " xx xy yx yy;*)
       let xx = Transform.linear_px xf xx xy
@@ -812,11 +927,11 @@ module Renderer = struct
       and yy = Transform.linear_py xf yx yy
       in
       (*Printf.printf "(%f,%f) (%f,%f)\n%!" xx xy yx yy;*)
-      typesetter_prepare acc xx xy yx yy n
+      typesetter_prepare t acc xx xy yx yy n
     | String (x, cls) ->
       let sx = sqrt (xx *. xx +. xy *. xy) in
       let sy = sqrt (yx *. yx +. yy *. yy) in
-      match cls.allocate ~sx ~sy x with
+      match cls.allocate t ~sx ~sy x with
       | None -> acc
       | Some f -> (f :: acc)
 
@@ -918,7 +1033,7 @@ module Renderer = struct
     | String (x, cls) ->
       let vbuffer = t.b in
       let offset = B.offset vbuffer in
-      begin match cls.Typesetter.render xf x quadbuf
+      begin match cls.Typesetter.render t xf x quadbuf
                     (fun () ->
                        B.reserve vbuffer (6 * 4);
                        push_quad vbuffer)
@@ -950,59 +1065,59 @@ module Renderer = struct
         (Backend.set_xform t.g xf; xform_outofdate := false; false) -> assert false
     | PFill { paths = [path]; triangle_offset = 0; triangle_count = 0 } ->
       Backend.Convex_fill.prepare t.g Texture.tex paint frame;
-      Backend.Convex_fill.draw path.V.fill_first path.V.fill_count;
+      Backend.Convex_fill.draw t.g path.V.fill_first path.V.fill_count;
       if t.antialias then
-        Backend.Convex_fill.draw_aa path.V.stroke_first path.V.stroke_count
+        Backend.Convex_fill.draw_aa t.g path.V.stroke_first path.V.stroke_count
     | PFill b ->
       (* Render stencil *)
       Backend.Fill.prepare_stencil t.g;
       List.iter
         (fun {V. fill_first; fill_count} ->
-           Backend.Fill.draw_stencil fill_first fill_count)
+           Backend.Fill.draw_stencil t.g fill_first fill_count)
         b.paths;
       Backend.Fill.prepare_cover t.g Texture.tex paint frame;
       if t.antialias then (
         (* Draw anti-aliased pixels *)
-        Backend.Fill.prepare_aa ();
+        Backend.Fill.prepare_aa t.g;
         List.iter
           (fun {V. stroke_first; stroke_count} ->
-             Backend.Fill.draw_aa stroke_first stroke_count)
+             Backend.Fill.draw_aa t.g stroke_first stroke_count)
           b.paths;
       );
       (* Cover *)
-      Backend.Fill.finish_and_cover b.triangle_offset b.triangle_count
+      Backend.Fill.finish_and_cover t.g b.triangle_offset b.triangle_count
     | PStroke (b, width) when t.stencil_strokes ->
       (* Fill the stroke base without overlap *)
       Backend.Stencil_stroke.prepare_stencil t.g Texture.tex paint frame width;
       List.iter
         (fun {V. stroke_first; stroke_count} ->
-           Backend.Stencil_stroke.draw_stencil stroke_first stroke_count)
+           Backend.Stencil_stroke.draw_stencil t.g stroke_first stroke_count)
         b.paths;
       (* Draw anti-aliased pixels. *)
       Backend.Stencil_stroke.prepare_aa
         t.g Texture.tex paint frame width;
       List.iter
         (fun {V. stroke_first; stroke_count} ->
-           Backend.Stencil_stroke.draw_aa stroke_first stroke_count)
+           Backend.Stencil_stroke.draw_aa t.g stroke_first stroke_count)
         b.paths;
       (*  Clear stencil buffer. *)
-      Backend.Stencil_stroke.prepare_clear ();
+      Backend.Stencil_stroke.prepare_clear t.g;
       List.iter
         (fun {V. stroke_first; stroke_count} ->
-           Backend.Stencil_stroke.draw_clear stroke_first stroke_count)
+           Backend.Stencil_stroke.draw_clear t.g stroke_first stroke_count)
         b.paths;
-      Backend.Stencil_stroke.finish ()
+      Backend.Stencil_stroke.finish t.g
     | PStroke (b, width) ->
       (*  Draw Strokes *)
       Backend.Direct_stroke.prepare t.g Texture.tex paint frame width;
       List.iter
         (fun {V. stroke_first; stroke_count} ->
-           Backend.Direct_stroke.draw stroke_first stroke_count)
+           Backend.Direct_stroke.draw t.g stroke_first stroke_count)
         b.paths
     | PString (b, tex) ->
       Backend.Triangles.prepare t.g Texture.tex
         {paint with texture = Some tex} frame;
-      Backend.Triangles.draw b.triangle_offset b.triangle_count
+      Backend.Triangles.draw t.g b.triangle_offset b.triangle_count
     | PEmpty -> ()
     (* Recursive cases *)
     | PXform (n, xf)    ->
@@ -1035,14 +1150,14 @@ module Renderer = struct
     T.clear t.t;
     B.clear t.b;
     let time0 = Backend.time_spent () and mem0 = Backend.memory_spent () in
-    let todo = typesetter_prepare [] 1.0 0.0 0.0 1.0 node in
+    let todo = typesetter_prepare t [] 1.0 0.0 0.0 1.0 node in
     List.iter (fun f -> f ()) todo;
     let pnode = prepare t Transform.identity node in
     Backend.prepare t.g width height (B.sub t.b);
     let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in
     xform_outofdate := true;
     exec t Transform.identity Paint.black Frame.default pnode;
-    Backend.finish ();
+    Backend.finish t.g;
     let time2 = Backend.time_spent () and mem2 = Backend.memory_spent () in
     begin match performance_counter with
       | None -> ()
@@ -1059,6 +1174,5 @@ type outline   = Outline.t
 type path      = Path.t
 type texture   = Texture.t
 type image     = Image.t
-type renderer  = Renderer.t
 type 'texture paint = 'texture Paint.t
 type 'input typesetter = 'input Typesetter.t

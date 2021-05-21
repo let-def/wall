@@ -2,106 +2,106 @@ open Wall_types
 open Gg
 open Bigarray
 
-type t
+type state
 
 external wall_gl_create
-  : antialias:bool -> t
+  : antialias:bool -> state
   = "wall_gl_create"
 
 external wall_gl_delete
-  : t -> unit
+  : state -> unit
   = "wall_gl_delete"
 
 external wall_gl_is_valid
-  : t -> bool
+  : state -> bool
   = "wall_gl_is_valid" [@@noalloc]
 
 external wall_gl_bind_xform
-  : t -> Wall__geom.B.bigarray -> unit
+  : state -> Wall__geom.B.bigarray -> unit
   = "wall_gl_bind_xform" [@@noalloc]
 
 external wall_gl_bind_paint
-  : t -> Wall__geom.B.bigarray -> unit
+  : state -> Wall__geom.B.bigarray -> unit
   = "wall_gl_bind_paint" [@@noalloc]
 
 external wall_gl_bind_texture
-  : int -> unit
+  : state -> int -> unit
   = "wall_gl_bind_texture" [@@noalloc]
 
 external wall_gl_draw_triangle_fan
-  : first:int -> count:int -> unit
+  : state -> first:int -> count:int -> unit
   = "wall_gl_draw_triangle_fan" [@@noalloc]
 
 external wall_gl_draw_triangle_strip
-  : first:int -> count:int -> unit
+  : state -> first:int -> count:int -> unit
   = "wall_gl_draw_triangle_strip" [@@noalloc]
 
 external wall_gl_draw_triangles
-  : first:int -> count:int -> unit
+  : state -> first:int -> count:int -> unit
   = "wall_gl_draw_triangles" [@@noalloc]
 
 external wall_gl_fill_prepare_stencil
-  : unit -> unit
+  : state -> unit
   = "wall_gl_fill_prepare_stencil" [@@noalloc]
 
 external wall_gl_fill_prepare_cover
-  : unit -> unit
+  : state -> unit
   = "wall_gl_fill_prepare_cover" [@@noalloc]
 
 external wall_gl_prepare_aa
-  : unit -> unit
+  : state -> unit
   = "wall_gl_prepare_aa" [@@noalloc]
 
 external wall_gl_fill_finish_and_cover
-  : first:int -> count:int -> unit
+  : state -> first:int -> count:int -> unit
   = "wall_gl_fill_finish_and_cover" [@@noalloc]
 
 external wall_gl_stencil_stroke_prepare_stencil
-  : unit -> unit
+  : state -> unit
   = "wall_gl_stencil_stroke_prepare_stencil" [@@noalloc]
 
 external wall_gl_stencil_stroke_prepare_clear
-  : unit -> unit
+  : state -> unit
   = "wall_gl_stencil_stroke_prepare_clear" [@@noalloc]
 
 external wall_gl_stencil_stroke_finish
-  : unit -> unit
+  : state -> unit
   = "wall_gl_stencil_stroke_finish" [@@noalloc]
 
 external wall_gl_set_reversed
-  : bool -> unit
+  : state -> bool -> unit
   = "wall_gl_set_reversed" [@@noalloc]
 
 external wall_gl_frame_prepare
-  : t -> width:float -> height:float -> Wall__geom.B.bigarray -> unit
+  : state -> width:float -> height:float -> Wall__geom.B.bigarray -> unit
   = "wall_gl_frame_prepare"
 
 external wall_gl_frame_finish
-  : unit -> unit
+  : state -> unit
   = "wall_gl_frame_finish"
 
 external wall_gl_texture_create
-  : unit -> int
+  : state -> int
   = "wall_gl_texture_create"
 
 external wall_gl_texture_delete
-  : int -> unit
+  : state -> int -> unit
   = "wall_gl_texture_delete"
 
 external wall_gl_texture_upload
-  : int -> level:int -> is_float:bool ->
+  : state -> int -> level:int -> is_float:bool ->
     width:int -> height:int -> channels:int ->
     ('a, 'b, c_layout) Array1.t -> offset:int -> stride:int -> unit
   = "wall_gl_texture_upload_bc" "wall_gl_texture_upload"
 
 external wall_gl_texture_update
-  : int -> level:int -> is_float:bool ->
+  : state -> int -> level:int -> is_float:bool ->
     x:int -> y:int -> width:int -> height:int -> channels:int ->
     ('a, 'b, c_layout) Array1.t -> offset:int -> stride:int -> unit
   = "wall_gl_texture_update_bc" "wall_gl_texture_update"
 
 external wall_gl_texture_generate_mipmap
-  : int -> unit
+  : state -> int -> unit
   = "wall_gl_texture_generate_mipmap"
 
 let create = wall_gl_create
@@ -134,15 +134,15 @@ module Texture = struct
     | c ->
       failwith ("wall: " ^ string_of_int c ^ " channels texture format not supported")
 
-  let upload ?(level=0) img t =
-    wall_gl_texture_upload t ~level ~is_float:(is_float img)
+  let upload ?(level=0) st img t =
+    wall_gl_texture_upload st t ~level ~is_float:(is_float img)
       ~width:(Stb_image.width img) ~height:(Stb_image.height img)
       ~channels:(channels img)
       (Stb_image.data img)
       ~offset:img.Stb_image.offset ~stride:img.Stb_image.stride
 
-  let update ?(level=0) ~x ~y img t =
-    wall_gl_texture_update t ~level ~is_float:(is_float img)
+  let update ?(level=0) st ~x ~y img t =
+    wall_gl_texture_update st t ~level ~is_float:(is_float img)
       ~x ~y ~width:(Stb_image.width img) ~height:(Stb_image.height img)
       ~channels:(channels img)
       (Stb_image.data img)
@@ -299,7 +299,7 @@ module Shader = struct
       | None -> 2.0
       | Some tex ->
         let {Texture. premultiplied; channels; gl_tex} = prj tex in
-        wall_gl_bind_texture gl_tex;
+        wall_gl_bind_texture t gl_tex;
         if channels >= 3 then
           if premultiplied then 0.0 else 1.0
         else
@@ -324,14 +324,14 @@ end
 module Fill = struct
   let prepare_stencil t =
     (* Draw shapes *)
-    wall_gl_fill_prepare_stencil ();
+    wall_gl_fill_prepare_stencil t;
     (* set bindpoint for solid loc *)
     Shader.set_simple t (-1.0) `SIMPLE
 
   let draw_stencil = wall_gl_draw_triangle_fan
 
   let prepare_cover t prj paint frame =
-    wall_gl_fill_prepare_cover ();
+    wall_gl_fill_prepare_cover t;
     Shader.set_tool t prj paint frame 1.0 (-2.0)
 
   let prepare_aa = wall_gl_prepare_aa
@@ -353,14 +353,14 @@ end
 module Stencil_stroke = struct
   let prepare_stencil t prj paint frame width =
     (*  Fill the stroke base without overlap *)
-    wall_gl_stencil_stroke_prepare_stencil ();
+    wall_gl_stencil_stroke_prepare_stencil t;
     Shader.set_tool t prj paint frame width (1.0 -. 0.5 /. 255.0)
 
   let draw_stencil = wall_gl_draw_triangle_strip
 
   let prepare_aa t prj paint frame width =
     Shader.set_tool t prj paint frame width (-1.0);
-    wall_gl_prepare_aa ()
+    wall_gl_prepare_aa t
 
   let draw_aa = wall_gl_draw_triangle_strip
 
@@ -387,18 +387,18 @@ end
 
 let gl_reversed = ref false
 
-let force_set_reversed flag =
-  wall_gl_set_reversed flag;
+let force_set_reversed t flag =
+  wall_gl_set_reversed t flag;
   gl_reversed := flag
 
-let set_reversed xf =
+let set_reversed t xf =
   let reversing = xf.x00 *. xf.x11 < xf.x01 *. xf.x10 in
   if reversing <> !gl_reversed then
-    force_set_reversed reversing
+    force_set_reversed t reversing
 
 let set_xform t xf =
   Shader.set_xform t xf;
-  set_reversed xf
+  set_reversed t xf
 
 let prepare t ~width ~height data =
   gl_reversed       := false;

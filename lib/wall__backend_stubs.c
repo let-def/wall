@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <SDL2/SDL.h>
 #define GL3
 
 #ifdef __APPLE__
@@ -25,6 +26,58 @@
 #endif
 
 typedef struct {
+  void (*glActiveTexture) (GLenum texture);
+  void (*glAttachShader) (GLuint program, GLuint shader);
+  void (*glBindAttribLocation) (GLuint program, GLuint index, const GLchar *name);
+  void (*glBindBuffer) (GLenum target, GLuint buffer);
+  void (*glBindTexture) (GLenum target, GLuint texture);
+  void (*glBindVertexArray) (GLuint array);
+  void (*glBlendFunc) (GLenum sfactor, GLenum dfactor);
+  void (*glBufferData) (GLenum target, GLsizeiptr size, const void *data, GLenum usage);
+  void (*glColorMask) (GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
+  void (*glCompileShader) (GLuint shader);
+  GLuint (*glCreateProgram) (void);
+  GLuint (*glCreateShader) (GLenum type);
+  void (*glCullFace) (GLenum mode);
+  void (*glDeleteBuffers) (GLsizei n, const GLuint *buffers);
+  void (*glDeleteProgram) (GLuint program);
+  void (*glDeleteShader) (GLuint shader);
+  void (*glDeleteTextures) (GLsizei n, const GLuint *textures);
+  void (*glDeleteVertexArrays) (GLsizei n, const GLuint *arrays);
+  void (*glDisable) (GLenum cap);
+  void (*glDisableVertexAttribArray) (GLuint index);
+  void (*glDrawArrays) (GLenum mode, GLint first, GLsizei count);
+  void (*glEnable) (GLenum cap);
+  void (*glEnableVertexAttribArray) (GLuint index);
+  void (*glFrontFace) (GLenum mode);
+  void (*glGenBuffers) (GLsizei n, GLuint *buffers);
+  void (*glGenerateMipmap) (GLenum target);
+  void (*glGenTextures) (GLsizei n, GLuint *textures);
+  void (*glGenVertexArrays) (GLsizei n, GLuint *arrays);
+  void (*glGetProgramInfoLog) (GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
+  void (*glGetProgramiv) (GLuint program, GLenum pname, GLint *params);
+  void (*glGetShaderInfoLog) (GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
+  void (*glGetShaderiv) (GLuint shader, GLenum pname, GLint *params);
+  GLint (*glGetUniformLocation) (GLuint program, const GLchar *name);
+  void (*glLinkProgram) (GLuint program);
+  void (*glPixelStorei) (GLenum pname, GLint param);
+  void (*glShaderSource) (GLuint shader, GLsizei count, const GLchar *const*string, const GLint *length);
+  void (*glStencilFunc) (GLenum func, GLint ref, GLuint mask);
+  void (*glStencilMask) (GLuint mask);
+  void (*glStencilOp) (GLenum fail, GLenum zfail, GLenum zpass);
+  void (*glStencilOpSeparate) (GLenum face, GLenum sfail, GLenum dpfail, GLenum dppass);
+  void (*glTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels);
+  void (*glTexParameteri) (GLenum target, GLenum pname, GLint param);
+  void (*glUseProgram) (GLuint program);
+  void (*glValidateProgram) (GLuint program);
+  void (*glVertexAttribPointer) (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer);
+  void (*glUniform1i) (GLint location, GLint v0);
+  void (*glUniform2f) (GLint location, GLfloat v0, GLfloat v1);
+  void (*glTexImage2D) (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void *pixels);
+  void (*glUniform3fv) (GLint location, GLsizei count, const GLfloat *value);
+  void (*glUniform1f) (GLint location, GLfloat v0);
+  void (*glUniform4fv) (GLint location, GLsizei count, const GLfloat *value);
+
   GLuint program, viewsize, viewxform, strokewidth, tex, frag, vert_vbo;
 #ifdef GL3
   GLuint vert_vao;
@@ -147,42 +200,42 @@ static const char *source_fragment_shader =
 "  gl_FragColor = result;\n"
 "}\n";
 
-static const char *shader_info_log(GLuint shader)
+static const char *shader_info_log(gl_state *state, GLuint shader)
 {
   char *buffer = calloc(2048, sizeof(char));
   GLsizei length;
-  glGetShaderInfoLog(shader, 2048, &length, buffer);
+  state->glGetShaderInfoLog(shader, 2048, &length, buffer);
   if (length >= 2048) length = 2047;
   buffer[length] = '\0';
   return buffer;
 }
 
-static const char *program_info_log(GLuint program)
+static const char *program_info_log(gl_state *state, GLuint program)
 {
   char *buffer = calloc(2048, sizeof(char));
   GLsizei length;
-  glGetProgramInfoLog(program, 2048, &length, buffer);
+  state->glGetProgramInfoLog(program, 2048, &length, buffer);
   if (length >= 2048) length = 2047;
   buffer[length] = '\0';
   return buffer;
 }
 
-static GLuint create_shader(const char *version, const char *prefix, const char *source, GLenum kind)
+static GLuint create_shader(gl_state *state, const char *version, const char *prefix, const char *source, GLenum kind)
 {
   const char *buffer[3];
   buffer[0] = version ? version : "";
   buffer[1] = prefix ? prefix : "";
   buffer[2] = source ? source : "";
 
-  GLuint shader = glCreateShader(kind);
-  glShaderSource(shader, 3, buffer, 0);
-  glCompileShader(shader);
+  GLuint shader = state->glCreateShader(kind);
+  state->glShaderSource(shader, 3, buffer, 0);
+  state->glCompileShader(shader);
 
   GLint result = GL_FALSE;
-  glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
+  state->glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
 
   if (result != GL_TRUE) {
-    const char *log = shader_info_log(shader);
+    const char *log = shader_info_log(state, shader);
     fprintf(stderr, "ERROR: GL shader %d did not compile\n%s\n", shader, log);
     free((void*)log);
   }
@@ -190,15 +243,15 @@ static GLuint create_shader(const char *version, const char *prefix, const char 
   return shader;
 }
 
-static int validate_program(GLuint program)
+static int validate_program(gl_state *state, GLuint program)
 {
-  glValidateProgram(program);
+  state->glValidateProgram(program);
   GLint result = GL_FALSE;
-  glGetProgramiv(program, GL_VALIDATE_STATUS, &result);
+  state->glGetProgramiv(program, GL_VALIDATE_STATUS, &result);
 
   if (result != GL_TRUE)
   {
-    const char *log = program_info_log(program);
+    const char *log = program_info_log(state, program);
     fprintf(stderr, "ERROR: GL program %d did not compile\n%s\n", program, log);
     free((void*)log);
 
@@ -208,53 +261,109 @@ static int validate_program(GLuint program)
   return 1;
 }
 
-static int create_program(GLuint *program, const char *version, const char *prefix)
+static int create_program(gl_state *state, GLuint *program, const char *version, const char *prefix)
 {
   GLuint vs, fs, ps;
-  vs = create_shader(version, prefix, source_vertex_shader, GL_VERTEX_SHADER),
-  fs = create_shader(version, prefix, source_fragment_shader, GL_FRAGMENT_SHADER),
-  ps = glCreateProgram();
+  vs = create_shader(state, version, prefix, source_vertex_shader, GL_VERTEX_SHADER),
+  fs = create_shader(state, version, prefix, source_fragment_shader, GL_FRAGMENT_SHADER),
+  ps = state->glCreateProgram();
 
-  glAttachShader(ps, vs);
-  glAttachShader(ps, fs);
-  glBindAttribLocation(ps, 0, "vertex");
-  glBindAttribLocation(ps, 1, "tcoord");
+  state->glAttachShader(ps, vs);
+  state->glAttachShader(ps, fs);
+  state->glBindAttribLocation(ps, 0, "vertex");
+  state->glBindAttribLocation(ps, 1, "tcoord");
 
-  glLinkProgram(ps);
+  state->glLinkProgram(ps);
   GLint result = GL_FALSE;
-  glGetProgramiv(ps, GL_LINK_STATUS, &result);
+  state->glGetProgramiv(ps, GL_LINK_STATUS, &result);
 
   if (result != GL_TRUE)
   {
-    const char *log = program_info_log(ps);
+    const char *log = program_info_log(state, ps);
     fprintf(stderr, "ERROR: could not link GL program %d\n%s\n", ps, log);
     free((void*)log);
     return 0;
   }
-  if (!validate_program(ps)) abort();
-  glDeleteShader(vs);
-  glDeleteShader(fs);
+  if (!validate_program(state, ps)) abort();
+  state->glDeleteShader(vs);
+  state->glDeleteShader(fs);
   *program = ps;
   return 1;
 }
 
-static int gl_state_create(int antialias, gl_state *state)
+static void gl_state_initialize(gl_state *state)
+{
+  *(void**)&state->glActiveTexture = SDL_GL_GetProcAddress("glActiveTexture");
+  *(void**)&state->glAttachShader = SDL_GL_GetProcAddress("glAttachShader");
+  *(void**)&state->glBindAttribLocation = SDL_GL_GetProcAddress("glBindAttribLocation");
+  *(void**)&state->glBindBuffer = SDL_GL_GetProcAddress("glBindBuffer");
+  *(void**)&state->glBindTexture = SDL_GL_GetProcAddress("glBindTexture");
+  *(void**)&state->glBindVertexArray = SDL_GL_GetProcAddress("glBindVertexArray");
+  *(void**)&state->glBlendFunc = SDL_GL_GetProcAddress("glBlendFunc");
+  *(void**)&state->glBufferData = SDL_GL_GetProcAddress("glBufferData");
+  *(void**)&state->glColorMask = SDL_GL_GetProcAddress("glColorMask");
+  *(void**)&state->glCompileShader = SDL_GL_GetProcAddress("glCompileShader");
+  *(void**)&state->glCreateProgram = SDL_GL_GetProcAddress("glCreateProgram");
+  *(void**)&state->glCreateShader = SDL_GL_GetProcAddress("glCreateShader");
+  *(void**)&state->glCullFace = SDL_GL_GetProcAddress("glCullFace");
+  *(void**)&state->glDeleteBuffers = SDL_GL_GetProcAddress("glDeleteBuffers");
+  *(void**)&state->glDeleteProgram = SDL_GL_GetProcAddress("glDeleteProgram");
+  *(void**)&state->glDeleteShader = SDL_GL_GetProcAddress("glDeleteShader");
+  *(void**)&state->glDeleteTextures = SDL_GL_GetProcAddress("glDeleteTextures");
+  *(void**)&state->glDeleteVertexArrays = SDL_GL_GetProcAddress("glDeleteVertexArrays");
+  *(void**)&state->glDisable = SDL_GL_GetProcAddress("glDisable");
+  *(void**)&state->glDisableVertexAttribArray = SDL_GL_GetProcAddress("glDisableVertexAttribArray");
+  *(void**)&state->glDrawArrays = SDL_GL_GetProcAddress("glDrawArrays");
+  *(void**)&state->glEnable = SDL_GL_GetProcAddress("glEnable");
+  *(void**)&state->glEnableVertexAttribArray = SDL_GL_GetProcAddress("glEnableVertexAttribArray");
+  *(void**)&state->glFrontFace = SDL_GL_GetProcAddress("glFrontFace");
+  *(void**)&state->glGenBuffers = SDL_GL_GetProcAddress("glGenBuffers");
+  *(void**)&state->glGenerateMipmap = SDL_GL_GetProcAddress("glGenerateMipmap");
+  *(void**)&state->glGenTextures = SDL_GL_GetProcAddress("glGenTextures");
+  *(void**)&state->glGenVertexArrays = SDL_GL_GetProcAddress("glGenVertexArrays");
+  *(void**)&state->glGetProgramInfoLog = SDL_GL_GetProcAddress("glGetProgramInfoLog");
+  *(void**)&state->glGetProgramiv = SDL_GL_GetProcAddress("glGetProgramiv");
+  *(void**)&state->glGetShaderInfoLog = SDL_GL_GetProcAddress("glGetShaderInfoLog");
+  *(void**)&state->glGetShaderiv = SDL_GL_GetProcAddress("glGetShaderiv");
+  *(void**)&state->glGetUniformLocation = SDL_GL_GetProcAddress("glGetUniformLocation");
+  *(void**)&state->glLinkProgram = SDL_GL_GetProcAddress("glLinkProgram");
+  *(void**)&state->glPixelStorei = SDL_GL_GetProcAddress("glPixelStorei");
+  *(void**)&state->glShaderSource = SDL_GL_GetProcAddress("glShaderSource");
+  *(void**)&state->glStencilFunc = SDL_GL_GetProcAddress("glStencilFunc");
+  *(void**)&state->glStencilMask = SDL_GL_GetProcAddress("glStencilMask");
+  *(void**)&state->glStencilOp = SDL_GL_GetProcAddress("glStencilOp");
+  *(void**)&state->glStencilOpSeparate = SDL_GL_GetProcAddress("glStencilOpSeparate");
+  *(void**)&state->glTexSubImage2D = SDL_GL_GetProcAddress("glTexSubImage2D");
+  *(void**)&state->glTexParameteri = SDL_GL_GetProcAddress("glTexParameteri");
+  *(void**)&state->glUseProgram = SDL_GL_GetProcAddress("glUseProgram");
+  *(void**)&state->glValidateProgram = SDL_GL_GetProcAddress("glValidateProgram");
+  *(void**)&state->glVertexAttribPointer = SDL_GL_GetProcAddress("glVertexAttribPointer");
+  *(void**)&state->glUniform1i = SDL_GL_GetProcAddress("glUniform1i");
+  *(void**)&state->glUniform2f = SDL_GL_GetProcAddress("glUniform2f");
+  *(void**)&state->glTexImage2D = SDL_GL_GetProcAddress("glTexImage2D");
+  *(void**)&state->glUniform3fv = SDL_GL_GetProcAddress("glUniform3fv");
+  *(void**)&state->glUniform1f = SDL_GL_GetProcAddress("glUniform1f");
+  *(void**)&state->glUniform4fv = SDL_GL_GetProcAddress("glUniform4fv");
+}
+
+static int gl_state_create(gl_state *state, int antialias)
 {
   GLuint program;
 
-  if (!create_program(&program, NULL, antialias ? "#define EDGE_AA 1\n" : NULL))
+  gl_state_initialize(state);
+  if (!create_program(state, &program, NULL, antialias ? "#define EDGE_AA 1\n" : NULL))
     return 0;
 
   state->program   = program;
-  state->viewsize  = glGetUniformLocation(program, "viewSize");
-  state->viewxform = glGetUniformLocation(program, "viewXform");
-  state->strokewidth = glGetUniformLocation(program, "strokeWidth");
-  state->tex       = glGetUniformLocation(program, "tex");
-  state->frag      = glGetUniformLocation(program, "frag");
+  state->viewsize  = state->glGetUniformLocation(program, "viewSize");
+  state->viewxform = state->glGetUniformLocation(program, "viewXform");
+  state->strokewidth = state->glGetUniformLocation(program, "strokeWidth");
+  state->tex       = state->glGetUniformLocation(program, "tex");
+  state->frag      = state->glGetUniformLocation(program, "frag");
 #ifdef GL3
-  glGenVertexArrays(1, &state->vert_vao);
+  state->glGenVertexArrays(1, &state->vert_vao);
 #endif
-  glGenBuffers(1, &state->vert_vbo);
+  state->glGenBuffers(1, &state->vert_vbo);
 
   state->valid = 1;
 
@@ -265,11 +374,11 @@ static void gl_state_delete(gl_state *state)
 {
   if (state->valid)
   {
-    glDeleteProgram(state->program);
+    state->glDeleteProgram(state->program);
 #ifdef GL3
-    glDeleteVertexArrays(1, &state->vert_vao);
+    state->glDeleteVertexArrays(1, &state->vert_vao);
 #endif
-    glDeleteBuffers(1, &state->vert_vbo);
+    state->glDeleteBuffers(1, &state->vert_vbo);
     state->valid = 0;
   }
 }
@@ -300,7 +409,7 @@ CAMLprim value wall_gl_create(value antialias)
 {
   gl_state result;
 
-  if (!gl_state_create(Long_val(antialias), &result))
+  if (!gl_state_create(&result, Long_val(antialias)))
     caml_failwith("wall: cannot initialize OpenGL");
 
   value v = caml_alloc_custom(&gl_state_custom_ops, sizeof(gl_state), 0, 1);
@@ -320,108 +429,122 @@ CAMLprim value wall_gl_is_valid(value v)
   return Val_bool(Gl_state_val(v));
 }
 
-CAMLprim value wall_gl_bind_xform(value state, value buf)
+CAMLprim value wall_gl_bind_xform(value t, value buf)
 {
+  gl_state *state = Gl_state_val(t);
   float *data = Caml_ba_data_val(buf);
-  glUniform3fv(Gl_state_val(state)->viewxform, 3, data);
+  state->glUniform3fv(state->viewxform, 3, data);
   return Val_unit;
 }
 
-CAMLprim value wall_gl_bind_paint(value state, value buf)
+CAMLprim value wall_gl_bind_paint(value t, value buf)
 {
+  gl_state *state = Gl_state_val(t);
   float *data = Caml_ba_data_val(buf);
-  glUniform1f(Gl_state_val(state)->strokewidth, data[40]);
-  glUniform4fv(Gl_state_val(state)->frag, 11, data);
+  state->glUniform1f(state->strokewidth, data[40]);
+  state->glUniform4fv(state->frag, 11, data);
   return Val_unit;
 }
 
-CAMLprim value wall_gl_bind_texture(value texture)
+CAMLprim value wall_gl_bind_texture(value t, value texture)
 {
-  glBindTexture(GL_TEXTURE_2D, Long_val(texture));
+  gl_state *state = Gl_state_val(t);
+  state->glBindTexture(GL_TEXTURE_2D, Long_val(texture));
   return Val_unit;
 }
 
 
-CAMLprim value wall_gl_draw_triangle_fan(value first, value count)
+CAMLprim value wall_gl_draw_triangle_fan(value t, value first, value count)
 {
-  glDrawArrays(GL_TRIANGLE_FAN, Long_val(first), Long_val(count));
+  gl_state *state = Gl_state_val(t);
+  state->glDrawArrays(GL_TRIANGLE_FAN, Long_val(first), Long_val(count));
   return Val_unit;
 }
 
-CAMLprim value wall_gl_draw_triangle_strip(value first, value count)
+CAMLprim value wall_gl_draw_triangle_strip(value t, value first, value count)
 {
-  glDrawArrays(GL_TRIANGLE_STRIP, Long_val(first), Long_val(count));
+  gl_state *state = Gl_state_val(t);
+  state->glDrawArrays(GL_TRIANGLE_STRIP, Long_val(first), Long_val(count));
   return Val_unit;
 }
 
-CAMLprim value wall_gl_draw_triangles(value first, value count)
+CAMLprim value wall_gl_draw_triangles(value t, value first, value count)
 {
-  glDrawArrays(GL_TRIANGLES, Long_val(first), Long_val(count));
+  gl_state *state = Gl_state_val(t);
+  state->glDrawArrays(GL_TRIANGLES, Long_val(first), Long_val(count));
   return Val_unit;
 }
 
-CAMLprim value wall_gl_fill_prepare_stencil(value unit)
+CAMLprim value wall_gl_fill_prepare_stencil(value t)
 {
-  glEnable(GL_STENCIL_TEST);
-  glStencilMask(0xFF);
-  glStencilFunc(GL_ALWAYS, 0x00, 0xFF);
-  glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-  glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-  glStencilOpSeparate(GL_BACK,  GL_KEEP, GL_KEEP, GL_DECR_WRAP);
-  glDisable(GL_CULL_FACE);
+  gl_state *state = Gl_state_val(t);
+  state->glEnable(GL_STENCIL_TEST);
+  state->glStencilMask(0xFF);
+  state->glStencilFunc(GL_ALWAYS, 0x00, 0xFF);
+  state->glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+  state->glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+  state->glStencilOpSeparate(GL_BACK,  GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+  state->glDisable(GL_CULL_FACE);
   return Val_unit;
 }
 
-CAMLprim value wall_gl_fill_prepare_cover(value unit)
+CAMLprim value wall_gl_fill_prepare_cover(value t)
 {
-  glEnable(GL_CULL_FACE);
-  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  gl_state *state = Gl_state_val(t);
+  state->glEnable(GL_CULL_FACE);
+  state->glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   return Val_unit;
 }
 
-CAMLprim value wall_gl_prepare_aa(value unit)
+CAMLprim value wall_gl_prepare_aa(value t)
 {
-  glStencilFunc(GL_EQUAL, 0x00, 0xFF);
-  glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+  gl_state *state = Gl_state_val(t);
+  state->glStencilFunc(GL_EQUAL, 0x00, 0xFF);
+  state->glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
   return Val_unit;
 }
 
-CAMLprim value wall_gl_fill_finish_and_cover(value first, value count)
+CAMLprim value wall_gl_fill_finish_and_cover(value t, value first, value count)
 {
-  glStencilFunc(GL_NOTEQUAL, 0x00, 0xff);
-  glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
-  (void)wall_gl_draw_triangle_strip(first, count);
-  glDisable(GL_STENCIL_TEST);
+  gl_state *state = Gl_state_val(t);
+  state->glStencilFunc(GL_NOTEQUAL, 0x00, 0xff);
+  state->glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
+  (void)wall_gl_draw_triangle_strip(t, first, count);
+  state->glDisable(GL_STENCIL_TEST);
   return Val_unit;
 }
 
-CAMLprim value wall_gl_stencil_stroke_prepare_stencil(value unit)
+CAMLprim value wall_gl_stencil_stroke_prepare_stencil(value t)
 {
-  glEnable(GL_STENCIL_TEST);
-  glStencilMask(0xff);
-  glStencilFunc(GL_EQUAL, 0x0, 0xff);
-  glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+  gl_state *state = Gl_state_val(t);
+  state->glEnable(GL_STENCIL_TEST);
+  state->glStencilMask(0xff);
+  state->glStencilFunc(GL_EQUAL, 0x0, 0xff);
+  state->glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
   return Val_unit;
 }
 
-CAMLprim value wall_gl_stencil_stroke_prepare_clear(value unit)
+CAMLprim value wall_gl_stencil_stroke_prepare_clear(value t)
 {
-  glStencilFunc(GL_ALWAYS, 0x00, 0xFF);
-  glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-  glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
+  gl_state *state = Gl_state_val(t);
+  state->glStencilFunc(GL_ALWAYS, 0x00, 0xFF);
+  state->glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+  state->glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
   return Val_unit;
 }
 
-CAMLprim value wall_gl_stencil_stroke_finish(value unit)
+CAMLprim value wall_gl_stencil_stroke_finish(value t)
 {
-  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-  glDisable(GL_STENCIL_TEST);
+  gl_state *state = Gl_state_val(t);
+  state->glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  state->glDisable(GL_STENCIL_TEST);
   return Val_unit;
 }
 
-CAMLprim value wall_gl_set_reversed(value b)
+CAMLprim value wall_gl_set_reversed(value t, value b)
 {
-  glFrontFace(Long_val(b) ? GL_CW : GL_CCW);
+  gl_state *state = Gl_state_val(t);
+  state->glFrontFace(Long_val(b) ? GL_CW : GL_CCW);
   return Val_unit;
 }
 
@@ -433,71 +556,74 @@ CAMLprim value wall_gl_frame_prepare(value t, value width, value height, value d
   if (!state->valid)
     caml_failwith("wall: use of gl context after delete");
 
-  glUseProgram(state->program);
-  glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-  glEnable(GL_CULL_FACE);
-  glCullFace(GL_BACK);
-  glFrontFace(GL_CCW);
-  glEnable(GL_BLEND);
-  glDisable(GL_DEPTH_TEST);
-  glDisable(GL_SCISSOR_TEST);
-  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-  glStencilMask(0XFFFFFFFF);
-  glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-  glStencilFunc(GL_ALWAYS, 0, 0xFFFFFFFF);
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, 0);
+  state->glUseProgram(state->program);
+  state->glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+  state->glEnable(GL_CULL_FACE);
+  state->glCullFace(GL_BACK);
+  state->glFrontFace(GL_CCW);
+  state->glEnable(GL_BLEND);
+  state->glDisable(GL_DEPTH_TEST);
+  state->glDisable(GL_SCISSOR_TEST);
+  state->glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  state->glStencilMask(0XFFFFFFFF);
+  state->glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+  state->glStencilFunc(GL_ALWAYS, 0, 0xFFFFFFFF);
+  state->glActiveTexture(GL_TEXTURE0);
+  state->glBindTexture(GL_TEXTURE_2D, 0);
 
   /* Upload vertex data */
 #ifdef GL3
-  glBindVertexArray(state->vert_vao);
+  state->glBindVertexArray(state->vert_vao);
 #endif
-  glBindBuffer(GL_ARRAY_BUFFER, state->vert_vbo);
-  glBufferData(GL_ARRAY_BUFFER,
+  state->glBindBuffer(GL_ARRAY_BUFFER, state->vert_vbo);
+  state->glBufferData(GL_ARRAY_BUFFER,
       caml_ba_byte_size(Caml_ba_array_val(data)),
       Caml_ba_data_val(data),
       GL_STREAM_DRAW);
 
-  glEnableVertexAttribArray(0);
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * 4, (void*)0);
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * 4, (void*)(2 * 4));
+  state->glEnableVertexAttribArray(0);
+  state->glEnableVertexAttribArray(1);
+  state->glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * 4, (void*)0);
+  state->glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * 4, (void*)(2 * 4));
 
   /* Set view and texture just once per frame. */
-  glUniform1i(state->tex, 0);
-  glUniform2f(state->viewsize, Double_val(width), Double_val(height));
+  state->glUniform1i(state->tex, 0);
+  state->glUniform2f(state->viewsize, Double_val(width), Double_val(height));
 
   CAMLreturn(Val_unit);
 }
 
-CAMLprim value wall_gl_frame_finish(value unit)
+CAMLprim value wall_gl_frame_finish(value t)
 {
-  glDisableVertexAttribArray(0);
-  glDisableVertexAttribArray(1);
-  glDisable(GL_CULL_FACE);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  gl_state *state = Gl_state_val(t);
+  state->glDisableVertexAttribArray(0);
+  state->glDisableVertexAttribArray(1);
+  state->glDisable(GL_CULL_FACE);
+  state->glBindBuffer(GL_ARRAY_BUFFER, 0);
 #ifdef GL3
-  glBindVertexArray(0);
+  state->glBindVertexArray(0);
 #endif
-  glUseProgram(0);
-  glBindTexture(GL_TEXTURE_2D, 0);
+  state->glUseProgram(0);
+  state->glBindTexture(GL_TEXTURE_2D, 0);
 
   return Val_unit;
 }
 
 /* Texture */
 
-CAMLprim value wall_gl_texture_create(value unit)
+CAMLprim value wall_gl_texture_create(value t)
 {
+  gl_state *state = Gl_state_val(t);
   GLuint result = 0;
-  glGenTextures(1, &result);
+  state->glGenTextures(1, &result);
   return Val_long(result);
 }
 
 CAMLprim value wall_gl_texture_delete(value t)
 {
+  gl_state *state = Gl_state_val(t);
   GLuint tex = Long_val(t);
-  glDeleteTextures(1, &tex);
+  state->glDeleteTextures(1, &tex);
   return Val_unit;
 }
 
@@ -556,31 +682,33 @@ static GLenum gl_type(value is_float)
   return Bool_val(is_float) ? GL_FLOAT : GL_UNSIGNED_BYTE;
 }
 
-static void gl_tex_param(void)
+static void gl_tex_param(gl_state *state)
 {
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  state->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  state->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  state->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  state->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 }
 
-CAMLprim value wall_gl_texture_upload(value t, value level, value is_float,
+CAMLprim value wall_gl_texture_upload(value st,
+    value t, value level, value is_float,
     value width, value height, value channels,
     value data, value offset, value stride)
 {
+  gl_state *state = Gl_state_val(st);
   int elem_size = Bool_val(is_float) ? 4 : 1;
   void *ptr = pack_image(Caml_ba_data_val(data),
       Long_val(width) * Long_val(channels) * elem_size,
       Long_val(height), Long_val(stride) * elem_size);
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, Long_val(t));
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  glTexImage2D(GL_TEXTURE_2D, Long_val(level),
+  state->glActiveTexture(GL_TEXTURE0);
+  state->glBindTexture(GL_TEXTURE_2D, Long_val(t));
+  state->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  state->glTexImage2D(GL_TEXTURE_2D, Long_val(level),
       Long_val(channels), Long_val(width), Long_val(height), 0,
       gl_format_from_channels(channels), gl_type(is_float), ptr
       );
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-  gl_tex_param();
+  state->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+  gl_tex_param(state);
   pack_image(NULL, 0, 0, 0);
   return Val_unit;
 }
@@ -589,28 +717,30 @@ CAMLprim value wall_gl_texture_upload_bc(value *argv, int argn)
 {
   return wall_gl_texture_upload(
       argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
-      argv[6], argv[7], argv[8]
+      argv[6], argv[7], argv[8], argv[9]
       );
 }
 
-CAMLprim value wall_gl_texture_update(value t, value level, value is_float,
+CAMLprim value wall_gl_texture_update(value st,
+    value t, value level, value is_float,
     value x, value y, value width, value height, value channels,
     value data, value offset, value stride)
 {
+  gl_state *state = Gl_state_val(st);
   int elem_size = Bool_val(is_float) ? 4 : 1;
   void *ptr = pack_image(Caml_ba_data_val(data),
       Long_val(width) * Long_val(channels) * elem_size,
       Long_val(height), Long_val(stride) * elem_size);
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, Long_val(t));
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  glTexSubImage2D(GL_TEXTURE_2D, Long_val(level),
+  state->glActiveTexture(GL_TEXTURE0);
+  state->glBindTexture(GL_TEXTURE_2D, Long_val(t));
+  state->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  state->glTexSubImage2D(GL_TEXTURE_2D, Long_val(level),
       Long_val(x), Long_val(y),
       Long_val(width), Long_val(height),
       gl_format_from_channels(channels), gl_type(is_float), ptr
       );
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-  gl_tex_param();
+  state->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+  gl_tex_param(state);
   pack_image(NULL, 0, 0, 0);
   return Val_unit;
 }
@@ -619,16 +749,17 @@ CAMLprim value wall_gl_texture_update_bc(value *argv, int argn)
 {
   return wall_gl_texture_update(
       argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
-      argv[6], argv[7], argv[8], argv[9], argv[10]
+      argv[6], argv[7], argv[8], argv[9], argv[10], argv[11]
       );
 }
 
-CAMLprim value wall_gl_texture_generate_mipmap(value t)
+CAMLprim value wall_gl_texture_generate_mipmap(value st, value t)
 {
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, Long_val(t));
-  glGenerateMipmap(GL_TEXTURE_2D);
-  glBindTexture(GL_TEXTURE_2D, 0);
+  gl_state *state = Gl_state_val(st);
+  state->glActiveTexture(GL_TEXTURE0);
+  state->glBindTexture(GL_TEXTURE_2D, Long_val(t));
+  state->glGenerateMipmap(GL_TEXTURE_2D);
+  state->glBindTexture(GL_TEXTURE_2D, 0);
   return Val_unit;
 }
 

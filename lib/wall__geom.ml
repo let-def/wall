@@ -18,6 +18,8 @@
 
 [@@@landmark "auto"]
 module BA = Bigarray.Array1
+let ba_make k l n v =
+  let ba = BA.create k l n in BA.fill ba v; ba
 let ba_empty = BA.create Bigarray.float32 Bigarray.c_layout 0
 
 (* Algorithms from
@@ -120,8 +122,8 @@ module T = struct
       tess_tol = 0.25;
       paths = [];
       point = 0;
-      points = BA.create Bigarray.float32 Bigarray.c_layout 1024;
-      points_flags = BA.create Bigarray.int8_unsigned Bigarray.c_layout 512;
+      points = ba_make Bigarray.float32 Bigarray.c_layout 1024 0.0;
+      points_flags = ba_make Bigarray.int8_unsigned Bigarray.c_layout 512 0;
       points_aux = ba_empty;
       observed_tol = false;
     }
@@ -152,8 +154,8 @@ module T = struct
       let d0 = BA.dim t.points_flags in
       let d = d0 * 3 / 2 in
       (*Printf.printf "grow: allocating %d points\n%!" d;*)
-      let points = BA.create Bigarray.float32 Bigarray.c_layout (d * 2) in
-      let points_flags = BA.create Bigarray.int8_unsigned Bigarray.c_layout d in
+      let points = ba_make Bigarray.float32 Bigarray.c_layout (d * 2) 0.0 in
+      let points_flags = ba_make Bigarray.int8_unsigned Bigarray.c_layout d 0 in
       BA.blit t.points (BA.sub points 0 (d0 * 2));
       BA.blit t.points_flags (BA.sub points_flags 0 d0);
       t.points <- points;
@@ -244,7 +246,7 @@ module T = struct
       if BA.dim t.points_aux < t.point * 5 then
         let count = BA.dim t.points * 5 / 2 in
         (*Printf.printf "prepare_aux: allocating %d points\n%!" count;*)
-        t.points_aux <- BA.create Bigarray.float32 Bigarray.c_layout count
+        t.points_aux <- ba_make Bigarray.float32 Bigarray.c_layout count 0.0
 
     let aux_set_d {points_aux} pt dx dy dlen =
       (*Printf.printf "set_d: %f %f %f\n" dx dy dlen;*)
@@ -362,7 +364,7 @@ module T = struct
   let line_to t x y =
     T.add_point t x y flag_corner
 
-  let bezier_buf = Bigarray.Array1.create Bigarray.Float32 Bigarray.c_layout 80
+  let bezier_buf = ba_make Bigarray.Float32 Bigarray.c_layout 80 0.0
 
   let bezier_loop t =
     let level = ref 0 in
@@ -533,8 +535,8 @@ module B = struct
   let reserve t size =
     let total = t.cursor + size in
     if BA.dim t.data < total then
-      let data' = BA.create Bigarray.float32 Bigarray.c_layout
-          (total * 3 / 2)
+      let data' = ba_make Bigarray.float32 Bigarray.c_layout
+          (total * 3 / 2) 0.0
       in
       BA.blit t.data (BA.sub data' 0 (BA.dim t.data));
       t.data <- data'

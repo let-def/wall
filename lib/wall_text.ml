@@ -195,7 +195,7 @@ let place factor = function
   | `Subpixel -> (fun x -> x)
   | `Aligned -> align_place factor
 
-let render_glyphes stash xform (font,pos,text) quad ~(push : unit -> unit) =
+let render_glyphes stash _ xform (font,pos,text) quad ~(push : unit -> unit) =
   let x = Gg.P2.x pos and y = Gg.P2.y pos in
   let glyphes = font.Font.glyphes in
   let scale = Stb_truetype.scale_for_pixel_height glyphes font.Font.size in
@@ -248,11 +248,11 @@ let ok = function
   | Result.Ok x -> x
   | Result.Error (`Msg msg) -> failwith msg
 
-let new_font_buffer width height =
+let new_font_buffer renderer width height =
   let data = Bigarray.(Array1.create int8_unsigned c_layout (width * height)) in
   Bigarray.Array1.fill data 0;
   let image = ok (Stb_image.image ~width ~height ~channels:1 data) in
-  let texture = Texture.from_image ~name:"font atlas" image in
+  let texture = Texture.from_image renderer ~name:"font atlas" image in
   let room = Maxrects.add_bin () width height Maxrects.empty in
   { image; texture; room }
 
@@ -263,11 +263,11 @@ let frame_nr = ref 0
 
 let padding = 3
 
-let bake_glyphs t =
+let bake_glyphs renderer t =
   let buffer = match t.font_buffer with
     | Some buffer -> buffer
     | None ->
-      let buffer = new_font_buffer bufsize bufsize in
+      let buffer = new_font_buffer renderer bufsize bufsize in
       t.font_buffer <- Some buffer;
       buffer
   in
@@ -347,7 +347,7 @@ let bake_glyphs t =
 
 let has_todo stash = Hashtbl.length stash.font_todo > 0
 
-let allocate_glyphes stash ~sx ~sy (font,_pos,text) =
+let allocate_glyphes stash renderer ~sx ~sy (font,_pos,text) =
   let _, key = Glyph.key sx sy font in
   let r = ref 0 in
   let len = String.length text in
@@ -366,7 +366,7 @@ let allocate_glyphes stash ~sx ~sy (font,_pos,text) =
           (Hashtbl.add stash.font_todo key ())
   done;
   if not has_todo0 && (has_todo stash) then
-    Some (fun () -> bake_glyphs stash)
+    Some (fun () -> bake_glyphs renderer stash)
   else
     None
 

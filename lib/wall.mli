@@ -19,6 +19,8 @@
 open Gg
 open Wall_types
 
+type renderer
+
 (** Definition of colors, taken from Gg *)
 module Color : sig
   include module type of struct include Color end
@@ -204,7 +206,23 @@ module Path : sig
   val make : (ctx -> unit) -> t
 end
 
-module Texture = Wall_texture
+module Texture : sig
+  type t
+  val release : t -> unit
+
+  val flip_image : 'a Stb_image.t -> unit
+  val from_image : renderer -> name:string -> 'a Stb_image.t -> t
+  val load_image :
+    renderer ->
+    ?float:bool -> ?alpha:bool -> ?flip:bool -> ?name:string -> string ->
+    (t, [`Msg of string]) Result.result
+
+  val channels : t -> int
+  val width : t -> int
+  val height : t -> int
+
+  val update : t -> 'a Stb_image.t -> unit
+end
 
 module Typesetter : sig
   type quadbuf = {
@@ -219,13 +237,13 @@ module Typesetter : sig
   }
 
   type 'input t = {
-    allocate : sx:float -> sy:float -> 'input -> (unit -> unit) option;
-    render   : Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t;
+    allocate : renderer -> sx:float -> sy:float -> 'input -> (unit -> unit) option;
+    render   : renderer -> Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t;
   }
 
   val make
-    :  allocate:(sx:float -> sy:float -> 'input -> (unit -> unit) option)
-    -> render:(Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t)
+    :  allocate:(renderer -> sx:float -> sy:float -> 'input -> (unit -> unit) option)
+    -> render:(renderer -> Transform.t -> 'input -> quadbuf -> push:(unit -> unit) -> Texture.t)
     -> 'input t
 end
 
@@ -272,7 +290,7 @@ end
 module Renderer : sig
   (** A renderer allocates the OpenGL resources that are necessary to
       render contents.  *)
-  type t
+  type t = renderer
 
   (** [create ~antialias] creates a new drawing context.
       [antialias] determines whether antialiasing is on or off, though it is
@@ -296,7 +314,6 @@ type outline   = Outline.t
 type path      = Path.t
 type texture   = Texture.t
 type image     = Image.t
-type renderer  = Renderer.t
 type 'texture paint = 'texture Paint.t
 type 'input typesetter = 'input Typesetter.t
 
