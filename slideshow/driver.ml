@@ -20,7 +20,7 @@ let add_dir =
     )
 
 let () = add_dir
-    (Filename.concat (Filename.dirname Sys.executable_name) ".driver.eobjs")
+    (Filename.concat (Filename.dirname Sys.executable_name) ".driver.eobjs/byte")
 
 let rec dedup = function
   | x :: xs when List.mem x xs -> dedup xs

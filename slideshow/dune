@@ -2,6 +2,7 @@
  (name driver) 
  (modules mod_use slideshow driver)
  (libraries tgls.tgles2 tsdl stb_image findlib.dynload compiler-libs.toplevel wall)
+ (modes byte)
  (flags :standard -linkall))
 
 (library
