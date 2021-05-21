@@ -617,3 +617,5 @@ Slideshow.set_slides Slideshow.window ([
   )]
   )
 ;;
+
+let () = print_endline "foo"

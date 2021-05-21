@@ -187,7 +187,7 @@ let unix_stat fname =
     raise Not_found
 
 let auto_reload names =
-  let update fname =
+  (*let update fname =
     let stat' = Some (unix_stat fname) in
     Mod_use.mod_use fname;
     stat'
@@ -198,13 +198,13 @@ let auto_reload names =
       stat :: refresh stats' names'
     | _ -> List.map update names
   in
-  let stats = ref [] in
+  let stats = ref [] in*)
   Sdl.show_window window.win;
   window.quit <- false;
   while not window.quit do
     process_events window;
-    begin try
-        stats := refresh !stats names;
+    begin try ()
+        (*stats := refresh !stats names;*)
       with Not_found -> ()
     end;
     (*Unix.sleepf 0.02*)
