@@ -24,12 +24,16 @@ let font_sans = load_font "Roboto-Regular.ttf"
 let font_mono = load_font "RobotoMono-Regular.ttf"
 
 let nyan_cat =
-  match Stb_image.load "nyan_cat.png" with
-  | Result.Error (`Msg x) ->
-    Printf.ksprintf prerr_endline "loading nyan_cat: %s" x;
-    failwith "No image"
-  | Result.Ok img ->
-    let t = Wall_texture.from_image ~name:"nyan" img in
-    Printf.eprintf "texture:%s width:%d height:%d\n"
-      "nyan" (Wall.Texture.width t) (Wall.Texture.height t);
-    t
+  let last = ref None in
+  fun t ->
+  match !last with
+    | Some (t', tex) when t == t' -> tex
+    | _ ->
+      let result = match Stb_image.load "nyan_cat.png" with
+        | Result.Error (`Msg x) ->
+          Printf.ksprintf prerr_endline "loading nyan_cat: %s" x;
+          failwith "No image"
+        | Result.Ok img -> Wall.Texture.from_image t ~name:"nyan" img
+      in
+      last := Some (t, result);
+      result

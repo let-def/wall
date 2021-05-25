@@ -21,13 +21,13 @@ let () =
  (name wall)
  (flags -w -40 -w +26)"
 ;
-begin
+(*begin
   if at_least_4_03 then
     "(ocamlopt_flags (-unsafe -O3))"
   else
     "(ocamlopt_flags (-unsafe))"
 end
-;
+;*)
 "  (public_name wall)
   (wrapped false)
   (c_names wall__backend_stubs)

@@ -424,7 +424,7 @@ Slideshow.set_slides Slideshow.window ([
                (Gg.V2.v (1146.0 /. 2.0) (696.0 /. 2.0))
                ~angle
                ~alpha
-               Pres_state.nyan_cat)
+               (Pres_state.nyan_cat st.wall))
             (Transform.translation 500.0 400.0)
          ) (Image.fill mediabox);
        code "Paint.image_pattern (x,y) (w,h) \n\

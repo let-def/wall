@@ -20,7 +20,8 @@ let get_result = function
 let initialized = lazy (Sdl.init Sdl.Init.video)
 
 type state = {
-  time: float
+  time: float;
+  wall: Wall.renderer;
 }
 
 type slide = state -> Wall.image list
@@ -164,7 +165,7 @@ let process_events t =
     | _ -> ()
   done;
   let slide = match t.next_slides with
-    | slide :: _ -> Wall.Image.seq (slide {time = get_time t})
+    | slide :: _ -> Wall.Image.seq (slide {time = get_time t; wall = t.wall})
     | [] -> Wall.Image.empty
   in
   match render_slide t slide with
@@ -186,27 +187,14 @@ let unix_stat fname =
   | exception (Unix.Unix_error (Unix.ENOENT, _, _)) ->
     raise Not_found
 
-let auto_reload names =
-  (*let update fname =
-    let stat' = Some (unix_stat fname) in
-    Mod_use.mod_use fname;
-    stat'
-  in
-  let rec refresh stats names =
-    match stats, names with
-    | (stat :: stats'), (name :: names') when stat = Some (unix_stat name) ->
-      stat :: refresh stats' names'
-    | _ -> List.map update names
-  in
-  let stats = ref [] in*)
+let rec main () =
   Sdl.show_window window.win;
-  window.quit <- false;
-  while not window.quit do
+  if window.quit then (
+    Sdl.hide_window window.win;
+    Lwt.return_unit
+  ) else (
     process_events window;
-    begin try ()
-        (*stats := refresh !stats names;*)
-      with Not_found -> ()
-    end;
-    (*Unix.sleepf 0.02*)
-  done;
-  Sdl.hide_window window.win
+    Lwt.bind (Lwt_unix.sleep 0.01) main
+  )
+
+let () = Lwt.async main

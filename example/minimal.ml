@@ -116,6 +116,16 @@ let main () =
         let context = Renderer.create ~antialias:true ~stencil_strokes:true () in
         let quit = ref false in
         let event = Sdl.Event.create () in
+        Gl.viewport 0 0 fw fh;
+        Gl.clear_color 0.0 0.0 0.0 1.0;
+        Gl.(clear (color_buffer_bit lor depth_buffer_bit lor stencil_buffer_bit));
+        Gl.enable Gl.blend;
+        Gl.blend_func_separate Gl.one Gl.src_alpha Gl.one Gl.one_minus_src_alpha;
+        Gl.enable Gl.cull_face_enum;
+        Gl.disable Gl.depth_test;
+        Renderer.render context ~width:sw ~height:sh
+          (Image.stroke_path Outline.default (fun ctx -> Path.rect ctx 0. 0. 50. 50.));
+        Sdl.gl_swap_window w;
         while not !quit do
           while Sdl.poll_event (Some event) do
             match Sdl.Event.enum (Sdl.Event.get event Sdl.Event.typ) with
