@@ -32,56 +32,53 @@ let fh = int_of_float (f *. float h)
 
 let b2 x y w h = Gg.Box2.v (Gg.P2.v x y) (Gg.Size2.v w h)
 
+let draw_arrow ~x ~y ~size color =
+  Image.paint (Paint.color color)
+    (Image.fill_path @@ fun t ->
+     Path.move_to t x y;
+     Path.line_to t (x-.size) (y+.size);
+     Path.line_to t (x-.size) (y-.size);
+     Path.close t;
+    )
+
+let draw_arrow' ~x ~y ~size color =
+  Image.paint (Paint.color color)
+    (Image.fill_path @@ fun t ->
+     Path.move_to t x y;
+     Path.line_to t (x-.size) (y-.size);
+     Path.line_to t (x-.size/.2.0) y;
+     Path.line_to t (x-.size) (y+.size);
+     Path.close t;
+    )
+
+let text_arrow ?(size=16.0) ~x ~y () =
+  Image.alpha 0.5 (draw_arrow ~x ~y ~size Color.blue)
+
+let text_arrow' ?(size=16.0) ~x ~y () =
+  Image.alpha 0.5 (draw_arrow' ~x ~y ~size Color.blue)
+
 let render context sw sh t =
   let lw = float w in
   let lh = float h in
   let pw = lw *. f *. sw in
   let ph = lh *. f *. sh in
   Renderer.render context ~width:pw ~height:ph
-    (Image.paint Paint.white @@
+    (Image.paint Paint.black @@
      Image.seq [
-       (*Image.simple_text ~x:10.0 ~y:0.0
-          (Font.make (Lazy.force font_sans) ~size:60.0)
-          "Settings";*)
-       (*Image.transform
-         (Transform.translation ~x:(t /. 10.0) ~y:0.0)
-         (Image.seq [
-             Image.fill_path (fun p ->
-                 Path.move_to p 32.0 100.0;
-                 Path.line_to p 64.0 100.0;
-                 Path.line_to p 64.0 132.0;
-                 Path.line_to p 32.0 132.0;
-                 Path.line_to p 48.0 116.0;
-                 Path.line_to p 32.0 100.0;
-               );
-             Image.fill_path (fun p ->
-                 Path.move_to p 64.0 100.0;
-                 Path.line_to p 96.0 100.0;
-                 Path.line_to p 80.0 116.0;
-                 Path.line_to p 96.0 132.0;
-                 Path.line_to p 64.0 132.0;
-                 Path.line_to p 64.0 100.0;
-               );
-           ]);*)
-
-       Image.transform (Transform.translate 10.0 10.0 (Transform.scale 5.0 5.0)) (
-         Image.stroke_path (Outline.make ~join:`MITER ~cap:`BUTT (*~cap:`ROUND*) ~width:(15.0) ()) @@ fun p ->
-         Path.move_to p 300.0 (18.0 +. 100.0 *. sin t);
-         Path.line_to p 0.0 0.0;
-         Path.line_to p 300.0 0.0;
-         Path.line_to p 300.0 (18.0 +. 100.0 *. sin t);
-         Path.close p;
-
-         (*(Image.scissor (b2 0.0 0.0 1000.0 1000.0) (
-            (Image.transform (Transform.rotation (pi /. 4.0))) (
-              Wall_text.(simple_text
-                           ~x:(-. 60.0 +. 100.0 *. sin (2.0 *. t +. pi /. 2.0))
-                           ~y:0.0
-                           ~valign:`MIDDLE
-                           (Font.make (Lazy.force font_sans)
-                              ~size:60.0 )
-                           "Settings"))))*)
-       )
+       (*text_arrow ~x:400.0 ~y:300.0 ~size:200.0 ();*)
+       text_arrow' ~x:300.0 ~y:300.0 ~size:200.0 ();
+       (*Image.transform (Transform.translate 10.0 10.0 (Transform.scale 5.0 5.0)) (
+         Image.seq [
+           (*text_arrow ~x:50.0 ~y:50.0 ();
+           text_arrow' ~x:50.0 ~y:60.0 ();*)
+           Image.stroke_path (Outline.make ~join:`MITER ~cap:`BUTT (*~cap:`ROUND*) ~width:(15.0) ()) @@ fun p ->
+           Path.move_to p 300.0 (18.0 +. 100.0 *. sin t);
+           Path.line_to p 0.0 0.0;
+           Path.line_to p 300.0 0.0;
+           Path.line_to p 300.0 (18.0 +. 100.0 *. sin t);
+           Path.close p;
+         ]
+       )*)
      ])
 
 open Tgles2
@@ -133,7 +130,7 @@ let main () =
             | _ -> ()
           done;
           Gl.viewport 0 0 fw fh;
-          Gl.clear_color 0.0 0.0 0.0 1.0;
+          Gl.clear_color 1.0 1.0 1.0 1.0;
           Gl.(clear (color_buffer_bit lor depth_buffer_bit lor stencil_buffer_bit));
           Gl.enable Gl.blend;
           Gl.blend_func_separate Gl.one Gl.src_alpha Gl.one Gl.one_minus_src_alpha;

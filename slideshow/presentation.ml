@@ -602,15 +602,16 @@ Slideshow.set_slides Slideshow.window ([
         text ~x:110.0 ~y:650.0 "the original engine behind Wall.";
       ]
   );
-  (fun _ -> title "Acknowledgements"
+  (fun st -> title "Acknowledgements"
       [
         text ~x:100.0 ~y:450.0 "And one last thing...";
+        Image.transform (Transform.rotate st.time (Transform.translation 100.0 250.0)) (
         Image.seq (
-          if false then [
-            text ~x:100.0 ~y:525.0 "Thanks for your attention";
-            text ~x:100.0 ~y:575.0 "Live coding is cool";
+          if true then [
+            text ~x:0.0 ~y:(-20.0) "Thanks for your attention";
+            text ~x:0.0 ~y:(20.0) "Live coding is cool";
           ] else []
-        );
+        ));
         text ~x:100.0 ~y:650.0 "Ph'nglui mglw'nafh";
         text ~x:100.0 ~y:710.0 "Cthulhu R'lyeh wgah'nagl fhtagn!";
       ]

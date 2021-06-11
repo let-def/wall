@@ -171,7 +171,7 @@ let process_events t =
   match render_slide t slide with
   | Result.Ok () -> ()
   | Result.Error (`Msg msg) ->
-    prerr_endline ("Render error: " ^ msg)
+    prerr_endline ("Render error?: " ^ msg)
 
 let destroy_window { win; gl; wall } =
   Wall.Renderer.delete wall;
@@ -180,6 +180,8 @@ let destroy_window { win; gl; wall } =
 
 let window =
   get_result (make_window ~w:1024 ~h:768)
+
+let () = Hotlink.on_unload (fun () -> window.quit <- true)
 
 let unix_stat fname =
   match Unix.stat fname with

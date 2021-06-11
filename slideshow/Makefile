@@ -1,12 +1,2 @@
-all: driver
-
-driver:
-	dune build driver.exe deps.cma
-
-clean:
-	dune clean
-
-slideshow: driver
-	dune exec ./driver.exe pres_state.ml tree_slides.ml presentation.ml
-
-.PHONY: all driver clean slideshow
+slideshow: 
+	hotcaml-lwt -package lwt.unix -package lwt -package tsdl -package tgls.tgles2 -package wall presentation.ml

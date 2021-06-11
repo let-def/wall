@@ -18,8 +18,7 @@
 
 [@@@landmark "auto"]
 module BA = Bigarray.Array1
-let ba_make k l n v =
-  let ba = BA.create k l n in BA.fill ba v; ba
+let ba_make k l n = BA.create k l n
 let ba_empty = BA.create Bigarray.float32 Bigarray.c_layout 0
 
 (* Algorithms from
@@ -116,14 +115,13 @@ module T = struct
       mutable points_aux: fbuffer;
     }
 
-
     let make () = {
       dist_tol = 0.01;
       tess_tol = 0.25;
       paths = [];
       point = 0;
-      points = ba_make Bigarray.float32 Bigarray.c_layout 1024 0.0;
-      points_flags = ba_make Bigarray.int8_unsigned Bigarray.c_layout 512 0;
+      points = ba_make Bigarray.float32 Bigarray.c_layout 1024;
+      points_flags = ba_make Bigarray.int8_unsigned Bigarray.c_layout 512;
       points_aux = ba_empty;
       observed_tol = false;
     }
@@ -154,8 +152,8 @@ module T = struct
       let d0 = BA.dim t.points_flags in
       let d = d0 * 3 / 2 in
       (*Printf.printf "grow: allocating %d points\n%!" d;*)
-      let points = ba_make Bigarray.float32 Bigarray.c_layout (d * 2) 0.0 in
-      let points_flags = ba_make Bigarray.int8_unsigned Bigarray.c_layout d 0 in
+      let points = ba_make Bigarray.float32 Bigarray.c_layout (d * 2) in
+      let points_flags = ba_make Bigarray.int8_unsigned Bigarray.c_layout d in
       BA.blit t.points (BA.sub points 0 (d0 * 2));
       BA.blit t.points_flags (BA.sub points_flags 0 d0);
       t.points <- points;
@@ -209,12 +207,12 @@ module T = struct
     let add_path t =
       freeze_path t t.paths;
       let p = {
-        path_first = t.point;
-        path_count = -1;
-        path_closed = false;
+        path_first   = t.point;
+        path_count   = -1;
+        path_closed  = false;
         path_winding = CCW;
-        path_convex = false;
-        path_nbevel = 0;
+        path_convex  = false;
+        path_nbevel  = 0;
       } in
       t.paths <- p :: t.paths
 
@@ -246,7 +244,7 @@ module T = struct
       if BA.dim t.points_aux < t.point * 5 then
         let count = BA.dim t.points * 5 / 2 in
         (*Printf.printf "prepare_aux: allocating %d points\n%!" count;*)
-        t.points_aux <- ba_make Bigarray.float32 Bigarray.c_layout count 0.0
+        t.points_aux <- ba_make Bigarray.float32 Bigarray.c_layout count
 
     let aux_set_d {points_aux} pt dx dy dlen =
       (*Printf.printf "set_d: %f %f %f\n" dx dy dlen;*)
@@ -364,7 +362,7 @@ module T = struct
   let line_to t x y =
     T.add_point t x y flag_corner
 
-  let bezier_buf = ba_make Bigarray.Float32 Bigarray.c_layout 80 0.0
+  let bezier_buf = ba_make Bigarray.Float32 Bigarray.c_layout 80
 
   let bezier_loop t =
     let level = ref 0 in
@@ -536,7 +534,7 @@ module B = struct
     let total = t.cursor + size in
     if BA.dim t.data < total then
       let data' = ba_make Bigarray.float32 Bigarray.c_layout
-          (total * 3 / 2) 0.0
+          (total * 3 / 2)
       in
       BA.blit t.data (BA.sub data' 0 (BA.dim t.data));
       t.data <- data'
@@ -593,7 +591,7 @@ module V = struct
        T.get_dmx t p1,
        T.get_dmy t p1)
 
-  let bevel_join vb t p0 p1 lw rw lu =
+  let bevel_join_fill vb t p0 p1 lw lu =
     let x1 = T.get_x t p1 in
     let y1 = T.get_y t p1 in
     let dlx0 = +. T.get_dy t p0 in
@@ -605,84 +603,134 @@ module V = struct
       let lx0, ly0, lx1, ly1 =
         choose_bevel (flags land T.flag_innerbevel <> 0) t p0 p1 in
 
-      dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
-        x1 y1 ~dx:lx0 ~dy:ly0;
-      dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
-        x1 y1 ~dx:(-. dlx0) ~dy:(-. dly0);
+      dvbuffer_put vb ~u:lu ~w:0.0 ~dw:lw x1 y1 ~dx:lx0 ~dy:ly0;
+      dvbuffer_put vb ~u:2  ~w:0.0 ~dw:0.5 x1 y1 ~dx:(-.dlx0) ~dy:(-.dly0);
 
       if flags land T.flag_bevel <> 0 then begin
         (*Printf.printf "p1 dmx:%f dmy:%f\n" (T.get_dmx t p1) (T.get_dmy t p1);*)
-        let dmx = T.get_dmx t p1 in
-        let dmy = T.get_dmy t p1 in
-        let v = 2 + int_of_float (sqrt (dmx *. dmx +. dmy *. dmy)) in
-        dvbuffer_put vb ~v ~u:lu ~w:lw ~dw:1.0
+        (*let dmx = T.get_dmx t p1 in*)
+        (*let dmy = T.get_dmy t p1 in*)
+        dvbuffer_put vb ~u:lu ~w:0.0 ~dw:lw x1 y1 ~dx:lx0 ~dy:ly0;
+        dvbuffer_put vb ~u:2  ~w:0.0 ~dw:0.5 x1 y1 ~dx:(-.dlx0) ~dy:(-.dly0);
+        dvbuffer_put vb ~u:lu ~w:0.0 ~dw:lw x1 y1 ~dx:lx1 ~dy:ly1;
+        dvbuffer_put vb ~u:2  ~w:0.0 ~dw:0.5 x1 y1 ~dx:(-.dlx1) ~dy:(-.dly1);
+      end else begin
+        let rx0 = -. T.get_dmx t p1 in
+        let ry0 = -. T.get_dmy t p1 in
+        vbuffer_put  vb ~u:1 x1 y1 ~dx:0.0 ~dy:0.0;
+        dvbuffer_put vb ~u:2 x1 y1 ~w:0.0 ~dw:0.5 ~dx:(-.dlx0) ~dy:(-.dly0);
+        dvbuffer_put vb ~u:2 x1 y1 ~w:0.0 ~dw:0.5 ~dx:rx0 ~dy:ry0;
+        dvbuffer_put vb ~u:2 x1 y1 ~w:0.0 ~dw:0.5 ~dx:rx0 ~dy:ry0;
+        vbuffer_put  vb ~u:1 x1 y1 ~dx:0.0 ~dy:0.0;
+        dvbuffer_put vb ~u:2 x1 y1 ~w:0.0 ~dw:0.5 ~dx:(-.dlx1) ~dy:(-.dly1);
+      end;
+
+      dvbuffer_put vb ~u:lu ~w:0.0 ~dw:lw x1 y1 ~dx:lx1 ~dy:ly1;
+      dvbuffer_put vb ~u:2 ~w:0.0 ~dw:0.5 x1 y1 ~dx:(-.dlx1) ~dy:(-.dly1)
+    end else begin
+      let rx0, ry0, rx1, ry1 =
+        choose_bevel (flags land T.flag_innerbevel <> 0) t p0 p1 in
+
+      dvbuffer_put vb ~u:lu ~w:0.0 ~dw:lw x1 y1 ~dx:dlx0 ~dy:dly0;
+      dvbuffer_put vb ~u:2  ~w:0.0 ~dw:0.5 x1 y1 ~dx:(-.rx0) ~dy:(-.ry0);
+      dvbuffer_put vb ~u:lu ~w:0.0 ~dw:lw x1 y1 ~dx:dlx0 ~dy:dly0;
+
+      if flags land T.flag_bevel <> 0 then begin
+        dvbuffer_put vb ~u:2  ~w:0.0 ~dw:0.5 x1 y1 ~dx:(-.rx0) ~dy:(-.ry0);
+        dvbuffer_put vb ~u:lu ~w:0.0 ~dw:lw x1 y1 ~dx:dlx1 ~dy:dly1;
+        dvbuffer_put vb ~u:2  ~w:0.0 ~dw:0.5 x1 y1 ~dx:(-.rx1) ~dy:(-.ry1);
+      end else begin
+        let lx0 = T.get_dmx t p1 in
+        let ly0 = T.get_dmy t p1 in
+        vbuffer_put vb ~u:1 x1 y1 ~dx:0.0 ~dy:0.0;
+        dvbuffer_put vb ~u:lu ~w:0.0 ~dw:lw x1 y1 ~dx:lx0 ~dy:ly0;
+        dvbuffer_put vb ~u:lu ~w:0.0 ~dw:lw x1 y1 ~dx:lx0 ~dy:ly0;
+        dvbuffer_put vb ~u:lu ~w:0.0 ~dw:lw x1 y1 ~dx:dlx1 ~dy:dly1;
+        vbuffer_put vb ~u:1 x1 y1 ~dx:0.0 ~dy:0.0;
+      end;
+
+      dvbuffer_put vb ~u:lu ~w:0.0 ~dw:lw x1 y1 ~dx:dlx1 ~dy:dly1;
+      dvbuffer_put vb ~u:2 ~w:0.0 ~dw:0.5 x1 y1 ~dx:(-.rx1) ~dy:(-.ry1);
+    end
+
+  let bevel_join_stroke vb t p0 p1 w lu =
+    let x1 = T.get_x t p1 in
+    let y1 = T.get_y t p1 in
+    let dlx0 = +. T.get_dy t p0 in
+    let dly0 = -. T.get_dx t p0 in
+    let dlx1 = +. T.get_dy t p1 in
+    let dly1 = -. T.get_dx t p1 in
+    let flags = T.get_flags t p1 in
+    if flags land T.flag_left <> 0 then begin
+      let lx0, ly0, lx1, ly1 =
+        choose_bevel (flags land T.flag_innerbevel <> 0) t p0 p1 in
+
+      dvbuffer_put vb ~u:lu ~w ~dw:0.5 x1 y1 ~dx:lx0 ~dy:ly0;
+      dvbuffer_put vb ~u:2 ~w ~dw:0.5 x1 y1 ~dx:(-. dlx0) ~dy:(-. dly0);
+
+      if flags land T.flag_bevel <> 0 then begin
+        (*Printf.printf "p1 dmx:%f dmy:%f\n" (T.get_dmx t p1) (T.get_dmy t p1);*)
+        (*let dmx = T.get_dmx t p1 in*)
+        (*let dmy = T.get_dmy t p1 in*)
+        dvbuffer_put vb ~u:lu ~w ~dw:1.0
           x1 y1 ~dx:lx0 ~dy:ly0;
-        dvbuffer_put vb ~v ~u:2 ~w:rw ~dw:1.0
+        dvbuffer_put vb ~u:2 ~w ~dw:1.0
           x1 y1 ~dx:(-.dlx0) ~dy:(-.dly0);
-        dvbuffer_put vb ~v ~u:lu ~w:lw ~dw:1.0
+        dvbuffer_put vb ~u:lu ~w ~dw:1.0
           x1 y1 ~dx:lx1 ~dy:ly1;
-        dvbuffer_put vb ~v ~u:2 ~w:rw ~dw:1.0
+        dvbuffer_put vb ~u:2 ~w ~dw:1.0
           x1 y1 ~dx:(-.dlx1) ~dy:(-.dly1);
       end else begin
         let rx0 = -. T.get_dmx t p1 in
         let ry0 = -. T.get_dmy t p1 in
         vbuffer_put vb ~u:1
           x1 y1 ~dx:0.0 ~dy:0.0;
-        dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
+        dvbuffer_put vb ~u:2 ~w ~dw:0.5
           x1 y1 ~dx:(-.dlx0) ~dy:(-.dly0);
-        dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
+        dvbuffer_put vb ~u:2 ~w ~dw:0.5
           x1 y1 ~dx:rx0 ~dy:ry0;
-        dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
+        dvbuffer_put vb ~u:2 ~w ~dw:0.5
           x1 y1 ~dx:rx0 ~dy:ry0;
         vbuffer_put vb ~u:1
           x1 y1 ~dx:0.0 ~dy:0.0;
-        dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
+        dvbuffer_put vb ~u:2 ~w ~dw:0.5
           x1 y1 ~dx:(-.dlx1) ~dy:(-.dly1);
       end;
 
-      dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
+      dvbuffer_put vb ~u:lu ~w ~dw:0.5
         x1 y1 ~dx:lx1 ~dy:ly1;
-      dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
+      dvbuffer_put vb ~u:2 ~w ~dw:0.5
         x1 y1 ~dx:(-.dlx1) ~dy:(-.dly1)
     end else begin
       let rx0, ry0, rx1, ry1 =
         choose_bevel (flags land T.flag_innerbevel <> 0) t p0 p1 in
 
-      dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
+      dvbuffer_put vb ~u:lu ~w ~dw:0.5
         x1 y1 ~dx:dlx0 ~dy:dly0;
-      dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
+      dvbuffer_put vb ~u:2 ~w ~dw:0.5
         x1 y1 ~dx:(-.rx0) ~dy:(-.ry0);
-      dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
+      dvbuffer_put vb ~u:lu ~w ~dw:0.5
         x1 y1 ~dx:dlx0 ~dy:dly0;
 
       if flags land T.flag_bevel <> 0 then begin
-        dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
+        dvbuffer_put vb ~u:2 ~w ~dw:0.5
           x1 y1 ~dx:(-.rx0) ~dy:(-.ry0);
 
-        dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
+        dvbuffer_put vb ~u:lu ~w ~dw:0.5
           x1 y1 ~dx:dlx1 ~dy:dly1;
-        dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
+        dvbuffer_put vb ~u:2 ~w ~dw:0.5
           x1 y1 ~dx:(-.rx1) ~dy:(-.ry1);
       end else begin
         let lx0 = T.get_dmx t p1 in
         let ly0 = T.get_dmy t p1 in
-        vbuffer_put vb ~u:1
-          x1 y1 ~dx:0.0 ~dy:0.0;
-        dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
-          x1 y1 ~dx:lx0 ~dy:ly0;
-        dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
-          x1 y1 ~dx:lx0 ~dy:ly0;
-
-        dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
-          x1 y1 ~dx:dlx1 ~dy:dly1;
-        vbuffer_put vb ~u:1
-          x1 y1 ~dx:0.0 ~dy:0.0;
+        vbuffer_put  vb ~u:1  x1 y1 ~dx:0.0  ~dy:0.0;
+        dvbuffer_put vb ~u:lu x1 y1 ~dx:lx0  ~dy:ly0  ~w ~dw:0.5;
+        dvbuffer_put vb ~u:lu x1 y1 ~dx:lx0  ~dy:ly0  ~w ~dw:0.5;
+        dvbuffer_put vb ~u:lu x1 y1 ~dx:dlx1 ~dy:dly1 ~w ~dw:0.5;
+        vbuffer_put  vb ~u:1  x1 y1 ~dx:0.0  ~dy:0.0;
       end;
-
-      dvbuffer_put vb ~u:lu ~w:lw ~dw:0.5
-        x1 y1 ~dx:dlx1 ~dy:dly1;
-      dvbuffer_put vb ~u:2 ~w:rw ~dw:0.5
-        x1 y1 ~dx:(-.rx1) ~dy:(-.ry1);
+      dvbuffer_put vb ~u:lu ~w ~dw:0.5 x1 y1 ~dx:dlx1 ~dy:dly1;
+      dvbuffer_put vb ~u:2 ~w ~dw:0.5 x1 y1 ~dx:(-.rx1) ~dy:(-.ry1);
     end
 
   let round_join vb t p0 p1 w ncap =
@@ -830,7 +878,7 @@ module V = struct
         let p0 = if p1 = first then last else p1 - 1 in
         if T.get_flags t p1 land (T.flag_bevel lor T.flag_innerbevel) <> 0
         then
-          bevel_join vb t p0 p1 lw 0.5 lu
+          bevel_join_fill vb t p0 p1 lw lu
         else begin
           let x1 = T.get_x t p1 and dx1 = T.get_dmx t p1 in
           let y1 = T.get_y t p1 and dy1 = T.get_dmy t p1 in
@@ -1030,7 +1078,7 @@ module V = struct
           let p0 = if p1 = first then last else p1 - 1 in
           match line_join with
           | `ROUND -> round_join vb t p0 p1 w ncap
-          | `BEVEL | `MITER -> bevel_join vb t p0 p1 w w 0
+          | `BEVEL | `MITER -> bevel_join_stroke vb t p0 p1 w 0
         end else begin
           let x1 = T.get_x t p1 and dmx = T.get_dmx t p1 in
           let y1 = T.get_y t p1 and dmy = T.get_dmy t p1 in
