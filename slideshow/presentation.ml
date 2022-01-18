@@ -93,7 +93,23 @@ let pf () f =
   else
     Printf.sprintf "%.02f" f
 
-let outline =
+type outline = [
+  | `Problem_solved
+  | `Model
+  | `API
+  | `Execution
+  | `Conclusion
+]
+
+type api_outline = [
+  | `Path
+  | `Shape
+  | `Paint
+  | `Transformation
+  | `Composition
+]
+
+let outline : outline -> _ =
   make_outlines "Outline" [
     `Problem_solved , "The problem solved";
     `Model          , "Model";
@@ -102,7 +118,7 @@ let outline =
     `Conclusion     , "Conclusion";
   ]
 
-let api_outline =
+let api_outline : api_outline -> _ =
   make_outlines "API" [
     `Path           , "Path ([0,1] -> Point)";
     `Shape          , "Shape (Point -> Bool)";
