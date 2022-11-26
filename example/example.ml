@@ -30,10 +30,10 @@ let load_font name =
   | None -> assert false
   | Some font -> font
 
-let font_icons = lazy (load_font "entypo.ttf")
-let font_sans = lazy (load_font "Roboto-Regular.ttf")
-let font_sans_bold = lazy (load_font "Roboto-Bold.ttf")
-let font_emoji = lazy (load_font "NotoEmoji-Regular.ttf")
+let font_icons = lazy (load_font "fonts/entypo.ttf")
+let font_sans = lazy (load_font "fonts/Roboto-Regular.ttf")
+let font_sans_bold = lazy (load_font "fonts/Roboto-Bold.ttf")
+let font_emoji = lazy (load_font "fonts/NotoEmoji-Regular.ttf")
 
 let draw_eyes x y w h mx my t =
   let ex = w *. 0.23 in
@@ -127,7 +127,7 @@ let draw_graph x y w h t =
     (* Graph line *)
     I.paint (Paint.color (Color.v 0.0 0.0 0.0 0.125))
       (I.stroke_path Outline.{default with stroke_width = 3.0} @@ fun t ->
-       P.move_to t (sx 0) (sy 0 +. 2.0);
+       P.move_to t ~x:(sx 0) ~y:(sy 0 +. 2.0);
        for i = 1 to 5 do
          P.bezier_to t
            ~c1x:(sx (i - 1) +. dx *. 0.5) ~c1y:(sy (i - 1) +. 2.0)
@@ -136,7 +136,7 @@ let draw_graph x y w h t =
        done);
     I.paint (Paint.color (Color.v 0.0 0.60 0.75 1.0))
       (I.stroke_path Outline.{default with stroke_width = 3.0} @@ fun t ->
-       P.move_to t (sx 0) (sy 0);
+       P.move_to t ~x:(sx 0) ~y:(sy 0);
        for i = 1 to 5 do
          P.bezier_to t
            ~c1x:(sx (i - 1) +. dx *. 0.5) ~c1y:(sy (i - 1))
@@ -204,8 +204,8 @@ let draw_colorwheel x y w h t =
         I.paint
           (Paint.linear_gradient
              ~sx ~sy ~ex ~ey
-             ~inner:(Color.hsl (a0 /. (2.0 *. pi)) 1.0 0.55)
-             ~outer:(Color.hsl (a1 /. (2.0 *. pi)) 1.0 0.55))
+             ~inner:(Color.hsl ~h:(a0 /. (2.0 *. pi)) ~s:1.0 ~l:0.55)
+             ~outer:(Color.hsl ~h:(a1 /. (2.0 *. pi)) ~s:1.0 ~l:0.55))
           (I.fill_path @@ fun t ->
            P.arc t ~cx ~cy ~r:r0 ~a0:a0 ~a1:a1 `CW;
            P.arc t ~cx ~cy ~r:r1 ~a0:a1 ~a1:a0 `CCW;
@@ -225,7 +225,7 @@ let draw_colorwheel x y w h t =
       (I.seq [
           I.paint (Paint.color (gray ~a:0.75 1.0))
             (I.stroke_path Outline.{default with stroke_width = 2.0} @@ fun t ->
-             P.rect t (r0 -. 1.0) (-3.0) (r1-.r0+.2.) 6.0);
+             P.rect t ~x:(r0 -. 1.0) ~y:(-3.0) ~w:(r1-.r0+.2.) ~h:6.0);
           I.paint
             (Paint.box_gradient ~x:(r0-.3.0) ~y:(-5.0)
                ~w:(r1-.r0+.6.0) ~h:10.0 ~r:2.0 ~f:4.0
@@ -242,9 +242,9 @@ let draw_colorwheel x y w h t =
           let bx = cos (-.120.0/.180.0 *. pi) *. r in
           let by = sin (-.120.0/.180.0 *. pi) *. r in
           let path = Path.make @@ fun t ->
-            P.move_to t r 0.0;
-            P.line_to t ax ay;
-            P.line_to t bx by;
+            P.move_to t ~x:r ~y:0.0;
+            P.line_to t ~x:ax ~y:ay;
+            P.line_to t ~x:bx ~y:by;
             P.close t
           in
           (*Printf.printf "sx=%f, sy=%f, ex=%f, ey=%f\n%!" r 0.0 ax ay;*)
@@ -252,7 +252,7 @@ let draw_colorwheel x y w h t =
           I.seq [
             I.paint
               (Paint.linear_gradient ~sx:r ~sy:0.0 ~ex:ax ~ey:ay
-                 ~inner:(Color.hsl hue 1.0 0.5) ~outer:Color.white)
+                 ~inner:(Color.hsl ~h:hue ~s:1.0 ~l:0.5) ~outer:Color.white)
               fill;
             I.paint
               (Paint.linear_gradient ~sx:((r+.ax)*.0.5) ~sy:((0.0+.ay)*.0.5)
@@ -313,19 +313,19 @@ let draw_lines x y w _h t =
                Outline.{default with stroke_width = s *. 0.3;
                                      line_cap = caps.(i); line_join = joins.(j) }
              @@ fun t ->
-             P.move_to t (px 0) (py 0);
-             P.line_to t (px 1) (py 1);
-             P.line_to t (px 2) (py 2);
-             P.line_to t (px 3) (py 3));
+             P.move_to t ~x:(px 0) ~y:(py 0);
+             P.line_to t ~x:(px 1) ~y:(py 1);
+             P.line_to t ~x:(px 2) ~y:(py 2);
+             P.line_to t ~x:(px 3) ~y:(py 3));
           I.paint (Paint.color (Color.v 0.0 0.75 1.0 1.0))
             (I.stroke_path
                Outline.{default with stroke_width = 1.0;
                                      line_cap = `BUTT; line_join = joins.(j)}
              @@ fun t ->
-             P.move_to t (px 0) (py 0);
-             P.line_to t (px 1) (py 1);
-             P.line_to t (px 2) (py 2);
-             P.line_to t (px 3) (py 3))
+             P.move_to t ~x:(px 0) ~y:(py 0);
+             P.line_to t ~x:(px 1) ~y:(py 1);
+             P.line_to t ~x:(px 2) ~y:(py 2);
+             P.line_to t ~x:(px 3) ~y:(py 3))
         ]
     done
   done;
@@ -342,8 +342,8 @@ let draw_widths x y w =
            (I.stroke_path
               Outline.{default with stroke_width = (float i +. 0.5) /. 10.0}
             @@ fun t ->
-            P.move_to t x y';
-            P.line_to t (x+.w) (y'+.w*.0.3)));
+            P.move_to t ~x ~y:y';
+            P.line_to t ~x:(x+.w) ~y:(y'+.w*.0.3)));
     y := !y +. 10.0;
   done;
   !node
@@ -353,14 +353,14 @@ let draw_caps x y w =
   let f cap i =
     I.paint Paint.black
       (I.stroke_path (Outline.make ~width ~cap ()) @@ fun t ->
-       P.move_to t x (y +. float (i * 10 + 5));
-       P.line_to t (x +. w) (y +. float (i * 10 + 5)))
+       P.move_to t ~x ~y:(y +. float (i * 10 + 5));
+       P.line_to t ~x:(x +. w) ~y:(y +. float (i * 10 + 5)))
   in
   I.seq [
     I.paint (Paint.color (gray ~a:0.125 1.0))
-      (I.fill_path @@ fun t -> P.rect t x y w 40.0);
+      (I.fill_path @@ fun t -> P.rect t ~x ~y ~w ~h:40.0);
     I.paint (Paint.color (gray ~a:0.125 1.0))
-      (I.fill_path @@ fun t -> P.rect t (x-.width/.2.0) y (w+.width) 40.0);
+      (I.fill_path @@ fun t -> P.rect t ~x:(x-.width/.2.0) ~y ~w:(w+.width) ~h:40.0);
     f `BUTT 0;
     f `ROUND 1;
     f `SQUARE 2
@@ -368,16 +368,16 @@ let draw_caps x y w =
 
 let draw_scissor x y t =
   let xf = Transform.(rotate (5.0 /. 180.0 *. pi) (translation ~x ~y)) in
-  let shape = I.fill_path @@ fun t -> P.rect t (-20.0) (-10.0) 60.0 30.0 in
+  let shape = I.fill_path @@ fun t -> P.rect t ~x:(-20.0) ~y:(-10.0) ~w:60.0 ~h:30.0 in
   I.transform xf (
     I.stack
       (* Draw first rect and set scissor to it's area. *)
       (I.paint
          (Paint.color (Color.v 1.0 0.0 0.0 1.0))
-         (I.fill_path @@ fun t -> P.rect t (-20.0) (-20.0) (60.0) (40.0)))
+         (I.fill_path @@ fun t -> P.rect t ~x:(-20.0) ~y:(-20.0) ~w:(60.0) ~h:(40.0)))
       (* Draw second rectangle with offset and rotation. *)
       ((*let frame = Frame.set_scissor (-20.0) (-20.0) 60.0 40.0 Transform.identity frame in*)
-        let xf = Transform.(rotate t (translation 40.0 0.0)) in
+        let xf = Transform.(rotate t (translation ~x:40.0 ~y:0.0)) in
         I.stack
           (* Draw the intended second rectangle without any scissoring. *)
           (I.transform xf (I.paint (Paint.color (Color.v 1.0 0.5 0.0 0.25)) shape))
@@ -396,28 +396,28 @@ let draw_window title x y w h =
     (* Window *)
     I.paint
       (Paint.color (Color.v 0.110 0.118 0.133 0.75))
-      (I.fill_path @@ fun t -> P.round_rect t x y w h cornerRadius);
+      (I.fill_path @@ fun t -> P.round_rect t ~x ~y ~w ~h ~r:cornerRadius);
 
     (* Drop shadow *)
     I.paint
-      (Paint.box_gradient x (y+.2.0) w h (cornerRadius*.2.0) 10.0
-         (gray ~a:0.5 0.0) (gray ~a:0.0 0.0))
+      (Paint.box_gradient ~x ~y:(y+.2.0) ~w ~h ~r:(cornerRadius*.2.0) ~f:10.0
+         ~inner:(gray ~a:0.5 0.0) ~outer:(gray ~a:0.0 0.0))
       (I.fill_path @@ fun t ->
-       P.rect t (x -. 10.0) (y -. 10.0) (w +. 20.0) (h +. 30.0);
-       P.round_rect t x y w h cornerRadius;
+       P.rect t ~x:(x -. 10.0) ~y:(y -. 10.0) ~w:(w +. 20.0) ~h:(h +. 30.0);
+       P.round_rect t ~x ~y ~w ~h ~r:cornerRadius;
        P.set_winding t `HOLE);
 
     (* Header *)
     I.paint
-      (Paint.linear_gradient x y x (y+.15.0)
-         (gray ~a:(8.0/.255.0) 1.0) (gray ~a:(16.0/.255.0) 0.0))
+      (Paint.linear_gradient ~sx:x ~sy:y ~ex:x ~ey:(y+.15.0)
+         ~inner:(gray ~a:(8.0/.255.0) 1.0) ~outer:(gray ~a:(16.0/.255.0) 0.0))
       (I.fill_path @@ fun t ->
-       P.round_rect t (x+.1.0) (y+.1.0) (w-.2.0) 30.0 (cornerRadius -. 1.0));
+       P.round_rect t ~x:(x+.1.0) ~y:(y+.1.0) ~w:(w-.2.0) ~h:30.0 ~r:(cornerRadius -. 1.0));
     I.paint
       (Paint.color (gray ~a:0.125 0.0))
       (I.stroke_path Outline.default @@ fun t ->
-       P.move_to t (x+.0.5) (y+.0.5+.30.0);
-       P.line_to t (x+.0.5+.w-.1.0) (y+.0.5+.30.0));
+       P.move_to t ~x:(x+.0.5) ~y:(y+.0.5+.30.0);
+       P.line_to t ~x:(x+.0.5+.w-.1.0) ~y:(y+.0.5+.30.0));
 
     I.paint (Paint.color (gray ~a:0.5 0.0))
       Text.(simple_text
@@ -437,14 +437,14 @@ let draw_searchbox text x y w h =
   (* Edit *)
   I.seq [
     I.paint
-      (Paint.box_gradient x (y +. 1.5) w h (h /. 2.0) 5.0
-         (gray ~a:0.08 0.0) (gray ~a:0.375 0.0))
-      (I.fill_path @@ fun t -> P.round_rect t x y w h cornerRadius);
+      (Paint.box_gradient ~x ~y:(y +. 1.5) ~w ~h ~r:(h /. 2.0) ~f:5.0
+         ~inner:(gray ~a:0.08 0.0) ~outer:(gray ~a:0.375 0.0))
+      (I.fill_path @@ fun t -> P.round_rect t ~x ~y ~w ~h ~r:cornerRadius);
 
     I.paint
       (Paint.color (gray ~a:0.2 0.0))
       (I.stroke_path Outline.default @@ fun t ->
-       P.round_rect t (x+.0.5) (y+.0.5) (w-.1.0) (h-.1.0) (cornerRadius-.0.5));
+       P.round_rect t ~x:(x+.0.5) ~y:(y+.0.5) ~w:(w-.1.0) ~h:(h-.1.0) ~r:(cornerRadius-.0.5));
 
     I.paint (Paint.color (gray ~a:0.25 1.0))
       Text.(simple_text
@@ -469,15 +469,15 @@ let draw_dropdown text x y w h =
   let cornerRadius = 4.0 in
   I.seq [
     I.paint
-      (Paint.linear_gradient x y x (y+.h)
-         (gray ~a:0.08 1.0) (gray ~a:0.08 0.0))
+      (Paint.linear_gradient ~sx:x ~sy:y ~ex:x ~ey:(y+.h)
+         ~inner:(gray ~a:0.08 1.0) ~outer:(gray ~a:0.08 0.0))
       (I.fill_path @@ fun t ->
-       P.round_rect t (x+.1.0) (y+.1.0) (w-.2.0) (h-.2.0) (cornerRadius-.1.0));
+       P.round_rect t ~x:(x+.1.0) ~y:(y+.1.0) ~w:(w-.2.0) ~h:(h-.2.0) ~r:(cornerRadius-.1.0));
 
     I.paint
       (Paint.color (gray ~a:0.1875 0.0))
       (I.stroke_path Outline.default @@ fun t ->
-       P.round_rect t (x+.0.5) (y+.0.5) (w-.1.0) (h-.1.0) (cornerRadius-.0.5));
+       P.round_rect t ~x:(x+.0.5) ~y:(y+.0.5) ~w:(w-.1.0) ~h:(h-.1.0) ~r:(cornerRadius-.0.5));
 
     I.paint (Paint.color (gray ~a:0.8 1.0))
       Text.(simple_text
@@ -492,38 +492,38 @@ let draw_dropdown text x y w h =
                    ~x:(x+.w-.h*.0.5) ~y:(y+.h*.0.5) " ")
   ]
 
-let draw_label text x y w h =
+let draw_label text ~x ~y ~w:_ ~h =
   I.paint (Paint.color (gray ~a:0.5 1.0))
     Text.(simple_text
                  (Font.make ~size:18.0 (Lazy.force font_sans))
                  ~valign:`MIDDLE ~halign:`LEFT
                  ~x ~y:(y+.h*.0.5) text)
 
-let draw_editboxbase x y w h =
+let draw_editboxbase ~x ~y ~w ~h =
   I.stack
     (I.paint
-       (Paint.box_gradient (x+.1.0) (y+.1.0+.1.5) (w-.2.0) (h-.2.0) 3.0 4.0
-          (gray ~a:0.125 1.0) (gray ~a:0.125 0.125))
+       (Paint.box_gradient ~x:(x+.1.0) ~y:(y+.1.0+.1.5) ~w:(w-.2.0) ~h:(h-.2.0) ~r:3.0 ~f:4.0
+          ~inner:(gray ~a:0.125 1.0) ~outer:(gray ~a:0.125 0.125))
        (I.fill_path @@ fun t ->
-        P.round_rect t (x+.1.0) (y+.1.0) (w-.2.0) (h-.2.0) (4.0-.1.0)))
+        P.round_rect t ~x:(x+.1.0) ~y:(y+.1.0) ~w:(w-.2.0) ~h:(h-.2.0) ~r:(4.0-.1.0)))
     (I.paint
        (Paint.color (gray ~a:0.1875 0.0))
        (I.stroke_path Outline.default @@ fun t ->
-        P.round_rect t (x+.0.5) (y+.0.5) (w-.1.0) (h-.1.0) (4.0-.0.5)))
+        P.round_rect t ~x:(x+.0.5) ~y:(y+.0.5) ~w:(w-.1.0) ~h:(h-.1.0) ~r:(4.0-.0.5)))
 
-let draw_editbox text x y w h =
-  I.stack (draw_editboxbase x y w h)
+let draw_editbox text ~x ~y ~w ~h =
+  I.stack (draw_editboxbase ~x ~y ~w ~h)
     (I.paint (Paint.color (gray ~a:0.25 1.0))
        Text.(simple_text
                     (Font.make ~size:20.0 (Lazy.force font_sans))
                     ~valign:`MIDDLE ~halign:`LEFT
                     ~x:(x+.h*.0.3) ~y:(y+.h*.0.5) text))
 
-let draw_editboxnum text units x y w h =
+let draw_editboxnum text units ~x ~y ~w ~h =
   let ufont = Text.Font.make ~size:18.0 (Lazy.force font_sans) in
   let uw = Text.Font.text_width ufont units in
   I.seq [
-    draw_editboxbase x y w h;
+    draw_editboxbase ~x ~y ~w ~h;
     I.paint (Paint.color (gray ~a:0.25 1.0))
       Text.(simple_text
                    ~valign:`MIDDLE ufont ~halign:`RIGHT
@@ -535,7 +535,7 @@ let draw_editboxnum text units x y w h =
                    ~x:(x+.w-.uw-.h*.0.5) ~y:(y+.h*.0.5) text)
   ]
 
-let draw_checkbox text x y w h =
+let draw_checkbox text ~x ~y ~w:_ ~h =
   I.seq [
     I.paint (Paint.color (gray ~a:0.66 1.0))
       Text.(simple_text
@@ -543,11 +543,11 @@ let draw_checkbox text x y w h =
                    ~valign:`MIDDLE
                    ~x:(x+.28.) ~y:(y+.h*.0.5) text);
     I.paint
-      (Paint.box_gradient (x+.1.0) (y+.floor(h/.2.0)-.9.0+.1.0)
-         18.0 18.0 3.0 3.0
-         (gray ~a:0.125 0.0) (gray ~a:0.375 0.0))
+      (Paint.box_gradient ~x:(x+.1.0) ~y:(y+.floor(h/.2.0)-.9.0+.1.0)
+         ~w:18.0 ~h:18.0 ~r:3.0 ~f:3.0
+         ~inner:(gray ~a:0.125 0.0) ~outer:(gray ~a:0.375 0.0))
       (I.fill_path @@ fun t ->
-       P.round_rect t (x+.1.0) (y+.floor(h/.2.0)-.9.0) 18.0 18.0 3.0);
+       P.round_rect t ~x:(x+.1.0) ~y:(y+.floor(h/.2.0)-.9.0) ~w:18.0 ~h:18.0 ~r:3.0);
     I.paint (Paint.color (gray ~a:0.5 1.0))
       Text.(simple_text
                    (Font.make ~size:40.0 (Lazy.force font_icons))
@@ -568,17 +568,17 @@ let cp_to_utf8 cp =
   let str= Bytes.create n in
   let cp = ref cp in
   begin try
-      if n > 5 then (str.[5] <- Char.chr (0x80 lor (!cp land 0x3f));
+      if n > 5 then (Bytes.set str 5 (Char.chr (0x80 lor (!cp land 0x3f)));
                      cp := (!cp lsr 6) lor 0x4000000);
-      if n > 4 then (str.[4] <- Char.chr (0x80 lor (!cp land 0x3f));
+      if n > 4 then (Bytes.set str 4 (Char.chr (0x80 lor (!cp land 0x3f)));
                      cp := (!cp lsr 6) lor 0x200000);
-      if n > 3 then (str.[3] <- Char.chr (0x80 lor (!cp land 0x3f));
+      if n > 3 then (Bytes.set str 3 (Char.chr (0x80 lor (!cp land 0x3f)));
                      cp := (!cp lsr 6) lor 0x10000);
-      if n > 2 then (str.[2] <- Char.chr (0x80 lor (!cp land 0x3f));
+      if n > 2 then (Bytes.set str 2 (Char.chr (0x80 lor (!cp land 0x3f)));
                      cp := (!cp lsr 6) lor 0x800);
-      if n > 1 then (str.[1] <- Char.chr (0x80 lor (!cp land 0x3f));
+      if n > 1 then (Bytes.set str 1 (Char.chr (0x80 lor (!cp land 0x3f)));
                      cp := (!cp lsr 6) lor 0xc0);
-      str.[0] <- Char.chr !cp;
+      (Bytes.set str 0 (Char.chr !cp));
     with exn ->
       prerr_endline ("cp: " ^ string_of_int !cp);
       raise exn
@@ -586,23 +586,23 @@ let cp_to_utf8 cp =
   Bytes.to_string str
 
 
-let draw_button preicon text x y w h col =
+let draw_button preicon text ~x ~y ~w ~h ~color:col =
   let is_black = Color.a col > 0.0 in
   let cornerRadius = 4.0 in
   let shape = I.fill_path @@ fun t ->
-    P.round_rect t (x+.1.0) (y+.1.0) (w-.2.0) (h-.2.0) (cornerRadius-.1.0)
+    P.round_rect t ~x:(x+.1.0) ~y:(y+.1.0) ~w:(w-.2.0) ~h:(h-.2.0) ~r:(cornerRadius-.1.0)
   in
   I.seq [
     if is_black then I.paint (Paint.color col) shape else I.empty;
     I.paint
-      (Paint.linear_gradient x y x (y+.h)
-         (gray 1.0 ~a:(if is_black then 0.125 else 0.25))
-         (gray 0.0 ~a:(if is_black then 0.125 else 0.25)))
+      (Paint.linear_gradient ~sx:x ~sy:y ~ex:x ~ey:(y+.h)
+         ~inner:(gray 1.0 ~a:(if is_black then 0.125 else 0.25))
+         ~outer:(gray 0.0 ~a:(if is_black then 0.125 else 0.25)))
       shape;
     I.paint
       (Paint.color (gray ~a:0.375 0.0))
       (I.stroke_path Outline.default @@ fun t ->
-       P.round_rect t (x+.0.5) (y+.0.5) (w-.1.0) (h-.1.0) (cornerRadius-.0.5));
+       P.round_rect t ~x:(x+.0.5) ~y:(y+.0.5) ~w:(w-.1.0) ~h:(h-.1.0) ~r:(cornerRadius-.0.5));
     let font = Text.Font.make ~size:20.0 (Lazy.force font_sans_bold) in
     let tw = Text.Font.text_width font text in
     let base, iw = if preicon = 0 then I.empty, 0.0 else
@@ -628,57 +628,57 @@ let draw_button preicon text x y w h col =
     ]
   ]
 
-let draw_slider pos x y w h =
+let draw_slider pos ~x ~y ~w ~h =
   let cy = y +. floor (h*.0.5) in
   let kr = floor (h*.0.25) in
   I.seq [
     (* Slot *)
     I.paint
-      (Paint.box_gradient x (cy-.2.0+.1.0) w 4.0 2.0 2.0
-         (gray ~a:0.125 0.0) (gray ~a:0.5 0.0))
+      (Paint.box_gradient ~x ~y:(cy-.2.0+.1.0) ~w ~h:4.0 ~r:2.0 ~f:2.0
+         ~inner:(gray ~a:0.125 0.0) ~outer:(gray ~a:0.5 0.0))
       (I.fill_path @@ fun t ->
-       P.round_rect t x (cy-.2.) w 4.0 2.0);
+       P.round_rect t ~x ~y:(cy-.2.) ~w ~h:4.0 ~r:2.0);
 
     (* Knob Shadow *)
     I.paint
-      (Paint.radial_gradient (x+.floor(pos*.w)) (cy+.1.0) (kr-.3.0) (kr+.3.0)
-         (gray ~a:0.25 0.0) (gray ~a:0.0 0.0))
+      (Paint.radial_gradient ~cx:(x+.floor(pos*.w)) ~cy:(cy+.1.0) ~inr:(kr-.3.0) ~outr:(kr+.3.0)
+         ~inner:(gray ~a:0.25 0.0) ~outer:(gray ~a:0.0 0.0))
       (I.fill_path @@ fun t ->
-       P.rect t (x+.floor(pos*.w)-.kr-.5.0) (cy-.kr-.5.0)
-         (kr*.2.0+.5.0+.5.0) (kr*.2.0+.5.0+.5.0+.3.0);
-       P.circle t (x+.floor(pos*.w)) cy kr;
+       P.rect t ~x:(x+.floor(pos*.w)-.kr-.5.0) ~y:(cy-.kr-.5.0)
+         ~w:(kr*.2.0+.5.0+.5.0) ~h:(kr*.2.0+.5.0+.5.0+.3.0);
+       P.circle t ~cx:(x+.floor(pos*.w)) ~cy ~r:kr;
        P.set_winding t `HOLE);
 
     (* Knob *)
     let shape = I.fill_path @@ fun t ->
-      P.circle t (x+.floor(pos*.w)) cy (kr-.1.0)
+      P.circle t ~cx:(x+.floor(pos*.w)) ~cy ~r:(kr-.1.0)
     in
     I.seq [
       I.paint (Paint.color (Color.v (40.0/.255.0) (43.0/.255.0) (48.0/.255.0) 1.0)) shape;
-      I.paint (Paint.linear_gradient x (cy-.kr) x (cy+.kr)
-                 (gray ~a:0.0625 1.0) (gray ~a:0.0625 0.0))
+      I.paint (Paint.linear_gradient ~sx:x ~sy:(cy-.kr) ~ex:x ~ey:(cy+.kr)
+                 ~inner:(gray ~a:0.0625 1.0) ~outer:(gray ~a:0.0625 0.0))
         shape;
       I.paint
         (Paint.color (gray ~a:0.375 0.0))
         (I.stroke_path Outline.default @@ fun t ->
-         P.circle t (x+.floor(pos*.w)) cy (kr-.0.5))
+         P.circle t ~cx:(x+.floor(pos*.w)) ~cy ~r:(kr-.0.5))
     ]
   ]
 
 let image_size image = Texture.width image, Texture.height image
 let image_texture image = image
 
-let load_demo_data t =
+let load_demo_data _t =
   Array.init 12 (fun i ->
       let name = Printf.sprintf "images/image%d.jpg" (i+1) in
-      match Texture.load_image t ~alpha:false ~name name with
+      match Texture.load_image ~alpha:false ~name name with
       | Result.Ok image -> image
       | Result.Error (`Msg msg) ->
         Printf.eprintf "error loading %s: %s\n%!" name msg;
         exit 1
     )
 
-let draw_thumbnails x y w h images t =
+let draw_thumbnails ~x ~y ~w ~h images t =
   let cornerRadius = 3.0 and thumb = 60.0 and arry = 30.5 in
   let stackh = float (Array.length images / 2) *. (thumb +. 10.0) +. 10.0 in
   let u = (1.0 +. cos (t*.0.5)) *. 0.5 in
@@ -687,24 +687,24 @@ let draw_thumbnails x y w h images t =
   I.seq [
     (* Drop shadow *)
     I.paint
-      (Paint.box_gradient x (y+.4.0) w h (cornerRadius*.2.0) 20.0
-         (gray ~a:0.5 0.0) (gray ~a:0.0 0.0))
+      (Paint.box_gradient ~x ~y:(y+.4.0) ~w ~h ~r:(cornerRadius*.2.0) ~f:20.0
+         ~inner:(gray ~a:0.5 0.0) ~outer:(gray ~a:0.0 0.0))
       (I.fill_path @@ fun t ->
-       P.rect t (x-.10.0) (y-.10.0) (w+.20.0) (h+.30.0);
-       P.round_rect t x y w h cornerRadius;
+       P.rect t ~x:(x-.10.0) ~y:(y-.10.0) ~w:(w+.20.0) ~h:(h+.30.0);
+       P.round_rect t ~x ~y ~w ~h ~r:cornerRadius;
        P.set_winding t `HOLE);
 
     (* Window *)
     I.paint
       (Paint.color (gray (200.0/.255.0)))
       (I.fill_path @@ fun t ->
-       P.round_rect t x y w h cornerRadius;
-       P.move_to t (x -. 10.0) (y +. arry);
-       P.line_to t (x +. 1.0) (y +. arry -. 11.0);
-       P.line_to t (x +. 1.0) (y +. arry +. 11.0));
+       P.round_rect t ~x ~y ~w ~h ~r:cornerRadius;
+       P.move_to t ~x:(x -. 10.0) ~y:(y +. arry);
+       P.line_to t ~x:(x +. 1.0) ~y:(y +. arry -. 11.0);
+       P.line_to t ~x:(x +. 1.0) ~y:(y +. arry +. 11.0));
 
     begin
-      let xf' = Transform.translation 0.0 (-. (stackh -. h) *. u) in
+      let xf' = Transform.translation ~x:0.0 ~y:(-. (stackh -. h) *. u) in
       let dv = 1.0 /. float (Array.length images - 1) in
       let acc = ref I.empty in
       Array.iteri (fun i image ->
@@ -734,20 +734,20 @@ let draw_thumbnails x y w h images t =
               I.paint
                 (Paint.image_pattern
                    (Gg.P2.v (tx+.ix) (ty+.iy)) (Gg.Size2.v iw ih)
-                   0.0 a (image_texture image))
+                   ~angle:0.0 ~alpha:a (image_texture image))
                 (I.fill_path @@ fun t ->
-                 P.round_rect t tx ty thumb thumb 5.0);
+                 P.round_rect t ~x:tx ~y:ty ~w:thumb ~h:thumb ~r:5.0);
               I.paint
-                (Paint.box_gradient (tx-.1.0) ty (thumb+.2.0) (thumb+.2.0) 5.0 3.0
-                   (gray ~a:0.5 0.0) (gray ~a:0.0 0.0))
+                (Paint.box_gradient ~x:(tx-.1.0) ~y:ty ~w:(thumb+.2.0) ~h:(thumb+.2.0) ~r:5.0 ~f:3.0
+                   ~inner:(gray ~a:0.5 0.0) ~outer:(gray ~a:0.0 0.0))
                 (I.fill_path @@ fun t ->
-                 P.rect t (tx-.5.0) (ty-.5.0) (thumb+.10.0) (thumb+.10.0);
-                 P.round_rect t tx ty thumb thumb 6.0;
+                 P.rect t ~x:(tx-.5.0) ~y:(ty-.5.0) ~w:(thumb+.10.0) ~h:(thumb+.10.0);
+                 P.round_rect t ~x:tx ~y:ty ~w:thumb ~h:thumb ~r:6.0;
                  P.set_winding t `HOLE);
               I.paint
                 (Paint.color (gray ~a:0.75 1.0))
                 (I.stroke_path Outline.{default with stroke_width = 1.0} @@ fun t ->
-                 P.round_rect t (tx+.0.5) (ty+.0.5) (thumb-.1.0) (thumb-.1.0) (4.0-.0.5))
+                 P.round_rect t ~x:(tx+.0.5) ~y:(ty+.0.5) ~w:(thumb-.1.0) ~h:(thumb-.1.0) ~r:(4.0-.0.5))
             ]
         ) images;
       I.scissor (b2 x y w h) (I.transform xf' !acc)
@@ -755,31 +755,31 @@ let draw_thumbnails x y w h images t =
 
     (* Hide fades *)
     I.paint
-      (Paint.linear_gradient x y x (y+.6.0)
-         (gray ~a:1.0 0.8) (gray ~a:0.0 0.8))
+      (Paint.linear_gradient ~sx:x ~sy:y ~ex:x ~ey:(y+.6.0)
+         ~inner:(gray ~a:1.0 0.8) ~outer:(gray ~a:0.0 0.8))
       (I.fill_path @@ fun t ->
-       P.rect t (x+.4.0) y (w-.8.0) 6.0);
+       P.rect t ~x:(x+.4.0) ~y ~w:(w-.8.0) ~h:6.0);
     I.paint
-      (Paint.linear_gradient x (y+.h) x (y+.h-.6.0)
-         (gray ~a:1.0 0.8) (gray ~a:0.0 0.8))
+      (Paint.linear_gradient ~sx:x ~sy:(y+.h) ~ex:x ~ey:(y+.h-.6.0)
+         ~inner:(gray ~a:1.0 0.8) ~outer:(gray ~a:0.0 0.8))
       (I.fill_path @@ fun t ->
-       P.rect t (x+.4.0) (y+.h-.6.0) (w-.8.0) 6.0);
+       P.rect t ~x:(x+.4.0) ~y:(y+.h-.6.0) ~w:(w-.8.0) ~h:6.0);
 
     (* Scroll bar *)
     I.paint
-      (Paint.box_gradient (x+.w-.12.0+.1.0) (y+.4.0+.1.0) 8.0 (h-.8.0)
-         3.0 4.0 (gray ~a:0.125 0.0) (gray ~a:0.375 0.0))
+      (Paint.box_gradient ~x:(x+.w-.12.0+.1.0) ~y:(y+.4.0+.1.0) ~w:8.0 ~h:(h-.8.0)
+         ~r:3.0 ~f:4.0 ~inner:(gray ~a:0.125 0.0) ~outer:(gray ~a:0.375 0.0))
       (I.fill_path @@ fun t ->
-       P.round_rect t (x+.w-.12.0) (y+.4.0) 8.0 (h-.8.0) 3.0);
+       P.round_rect t ~x:(x+.w-.12.0) ~y:(y+.4.0) ~w:8.0 ~h:(h-.8.0) ~r:3.0);
 
     let scrollh = (h/.stackh) *. (h-.8.0) in
     I.paint
-      (Paint.box_gradient (x+.w-.12.-.1.) (y+.4.+.(h-.8.-.scrollh)*.u-.1.)
-         8. scrollh 3. 4.
-         (gray ~a:0.9 1.0) (gray ~a:0.5 1.0))
+      (Paint.box_gradient ~x:(x+.w-.12.-.1.) ~y:(y+.4.+.(h-.8.-.scrollh)*.u-.1.)
+         ~w:8. ~h:scrollh ~r:3. ~f:4.
+         ~inner:(gray ~a:0.9 1.0) ~outer:(gray ~a:0.5 1.0))
       (I.fill_path @@ fun t ->
-       P.round_rect t (x+.w-.12.+.1.) (y+.4.+.1. +. (h-.8.-.scrollh)*.u)
-         (8.-.2.) (scrollh-.2.) 2.)
+       P.round_rect t ~x:(x+.w-.12.+.1.) ~y:(y+.4.+.1. +. (h-.8.-.scrollh)*.u)
+         ~w:(8.-.2.) ~h:(scrollh-.2.) ~r:2.)
   ]
 
 let draw_demo mx my w h t images = (
@@ -803,28 +803,28 @@ let draw_demo mx my w h t images = (
   let y = y +. 45.0 in
 
   (* Form *)
-  push @@ draw_label "Login" x y 280.0 20.0;
+  push @@ draw_label "Login" ~x ~y ~w:280.0 ~h:20.0;
   let y = y +. 25.0 in
-  push @@ draw_editbox "Email" x y 280.0 28.0;
+  push @@ draw_editbox "Email" ~x ~y ~w:280.0 ~h:28.0;
   let y = y +. 35.0 in
-  push @@ draw_editbox "Password" x y 280.0 28.0;
+  push @@ draw_editbox "Password" ~x ~y ~w:280.0 ~h:28.0;
   let y = y +. 38.0 in
-  push @@ draw_checkbox "Remember me" x y 140.0 28.0;
-  push @@ draw_button (*ICON_LOGIN*)0xE740 "Sign in" (x+.138.0) y 140.0 28.0
-    (Color.v 0.0 0.375 0.5 1.0);
+  push @@ draw_checkbox "Remember me" ~x ~y ~w:140.0 ~h:28.0;
+  push @@ draw_button (*ICON_LOGIN*)0xE740 "Sign in" ~x:(x+.138.0) ~y ~w:140.0 ~h:28.0
+    ~color:(Color.v 0.0 0.375 0.5 1.0);
   let y = y +. 45.0 in
 
   (* Slider *)
-  push @@ draw_label "Diameter" x y 280.0 20.0;
+  push @@ draw_label "Diameter" ~x ~y ~w:280.0 ~h:20.0;
   let y = y +. 25.0 in
-  push @@ draw_editboxnum "123.00" "px" (x+.180.0) y 100.0 28.0;
-  push @@ draw_slider 0.4 x y 170.0 28.0;
+  push @@ draw_editboxnum "123.00" "px" ~x:(x+.180.0) ~y ~w:100.0 ~h:28.0;
+  push @@ draw_slider 0.4 ~x ~y ~w:170.0 ~h:28.0;
   let y = y +. 55.0 in
 
-  push @@ draw_button (*ICON_TRASH*)0xE729 "Delete" x y 160.0 28.0 (Color.v 0.5 0.0625 0.03125 1.0);
-  push @@ draw_button 0 "Cancel" (x+.170.0) y 110.0 28.0 (gray ~a:0.0 0.0);
+  push @@ draw_button (*ICON_TRASH*)0xE729 "Delete" ~x ~y ~w:160.0 ~h:28.0 ~color:(Color.v 0.5 0.0625 0.03125 1.0);
+  push @@ draw_button 0 "Cancel" ~x:(x+.170.0) ~y ~w:110.0 ~h:28.0 ~color:(gray ~a:0.0 0.0);
 
-  push @@ draw_thumbnails 365.0 (popy-.30.0) 160.0 300.0 images t;
+  push @@ draw_thumbnails ~x:365.0 ~y:(popy-.30.0) ~w:160.0 ~h:300.0 images t;
   !node
 )
 
@@ -861,7 +861,7 @@ let render context sw sh t images =
         I.transform (Transform.scale (sw *. f /. 1.6) (sh *. f)) demo;
         I.transform (Transform.scale (sw *. f /. 1.4) (sh *. f)) demo;
         I.transform (Transform.scale (sw *. f /. 1.2) (sh *. f)) demo;*)
-        I.transform (Transform.scale (sw *. f) (sh *. f)) demo;
+        I.transform (Transform.scale ~sx:(sw *. f) ~sy:(sh *. f)) demo;
       ]);
   dump_perf t
 
