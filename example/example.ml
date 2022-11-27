@@ -30,10 +30,10 @@ let load_font name =
   | None -> assert false
   | Some font -> font
 
-let font_icons = lazy (load_font "fonts/entypo.ttf")
-let font_sans = lazy (load_font "fonts/Roboto-Regular.ttf")
-let font_sans_bold = lazy (load_font "fonts/Roboto-Bold.ttf")
-let font_emoji = lazy (load_font "fonts/NotoEmoji-Regular.ttf")
+let font_icons = lazy (load_font "entypo.ttf")
+let font_sans = lazy (load_font "Roboto-Regular.ttf")
+let font_sans_bold = lazy (load_font "Roboto-Bold.ttf")
+let font_emoji = lazy (load_font "NotoEmoji-Regular.ttf")
 
 let draw_eyes x y w h mx my t =
   let ex = w *. 0.23 in
