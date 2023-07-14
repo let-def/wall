@@ -668,10 +668,10 @@ let draw_slider pos ~x ~y ~w ~h =
 let image_size image = Texture.width image, Texture.height image
 let image_texture image = image
 
-let load_demo_data _t =
+let load_demo_data t =
   Array.init 12 (fun i ->
       let name = Printf.sprintf "images/image%d.jpg" (i+1) in
-      match Texture.load_image ~alpha:false ~name name with
+      match Texture.load_image t ~alpha:false ~name name with
       | Result.Ok image -> image
       | Result.Error (`Msg msg) ->
         Printf.eprintf "error loading %s: %s\n%!" name msg;

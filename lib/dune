@@ -1,46 +1,15 @@
-(* -*- tuareg -*- *)
-
-let version = List.assoc "version" Jbuild_plugin.V1.ocamlc_config
-
-let at_least_4_03 =
-  let rec split s i =
-    match
-      try Some (String.index_from s i '.')
-      with Not_found -> None
-    with
-    | Some j -> String.sub s i (j - i) :: split s (j + 1)
-    | None -> [String.sub s i (String.length s - i)]
-  in
-  let v = List.map (fun v -> try int_of_string v with Failure _ -> 0) (split version 0) in
-  v >= [4; 3]
-
-let () = 
-  Jbuild_plugin.V1.send @@
-  String.concat "\n" [
-"(library
+(library
  (name wall)
- (flags -w -40 -w +26)"
-;
-(*begin
-  if at_least_4_03 then
-    "(ocamlopt_flags (-unsafe -O3))"
-  else
-    "(ocamlopt_flags (-unsafe))"
-end
-;*)
-"  (public_name wall)
-  (wrapped false)
-  (c_names wall__backend_stubs)
-  (c_flags -g)
-  (libraries gg result stb_image stb_truetype grenier.binpacking)"
-;
-(* (c_flags (-I/blah/include)) *)
-begin
-  match List.assoc "system" Jbuild_plugin.V1.ocamlc_config with
-  | "macosx" -> "(c_library_flags -framework OpenGL)"
-  | _ -> ""
-  | exception Not_found -> ""
-end
-;
-")"
-]
+ (flags -w -40 -w +26)
+ (public_name wall)
+ (wrapped false)
+ (foreign_stubs
+  (language c)
+  (names wall__backend_stubs)
+  (flags -g -O2 (:include c_flags.sexp)))
+ (c_library_flags (:include c_library_flags.sexp))
+ (libraries gg result stb_image stb_truetype grenier.binpacking))
+
+(rule
+ (targets c_flags.sexp c_library_flags.sexp)
+ (action  (run ./config/discover.exe)))
