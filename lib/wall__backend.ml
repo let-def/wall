@@ -385,6 +385,8 @@ module Triangles = struct
   let draw = wall_gl_draw_triangles
 end
 
+type bigarray = Wall__geom.B.bigarray
+
 let gl_reversed = ref false
 
 let force_set_reversed t flag =

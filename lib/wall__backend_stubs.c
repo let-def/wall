@@ -763,6 +763,23 @@ CAMLprim value wall_gl_texture_generate_mipmap(value st, value t)
   return Val_unit;
 }
 
+CAMLprim value wall_blit_sub_array(value vsrc, value vdst, value vsrco, value vdsto, value vlen)
+{
+  void *src = Caml_ba_data_val(vsrc);
+  void *dst = Caml_ba_data_val(vdst);
+  long srcs = caml_ba_byte_size(Caml_ba_array_val(vsrc));
+  long dsts = caml_ba_byte_size(Caml_ba_array_val(vdst));
+  long srco = Long_val(vsrco);
+  long dsto = Long_val(vdsto);
+  long len  = Long_val(vlen);
+
+  if ((len < 0 || srco < 0 || dsto < 0) ||
+      (srco + len > srcs || dsto + len > dsts))
+    abort();
+  memmove(dst + dsto, src + srco, len);
+  return Val_unit;
+}
+
 /* Only used to measure deltas, so overflow is not a problem */
 
 #ifdef WORKAROUND_APPLE_CLOCK

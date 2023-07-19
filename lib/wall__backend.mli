@@ -64,7 +64,8 @@ module Triangles : sig
   val draw : state -> first:int -> count:int -> unit
 end
 
-val prepare : state -> width:float -> height:float -> Wall__geom.B.bigarray -> unit
+type bigarray = (float, Bigarray.float32_elt, Bigarray.c_layout) Bigarray.Array1.t
+val prepare : state -> width:float -> height:float -> bigarray -> unit
 val set_xform : state -> transform -> unit
 val finish : state -> unit
 

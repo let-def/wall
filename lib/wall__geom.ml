@@ -21,6 +21,10 @@ module BA = Bigarray.Array1
 let ba_make k l n = BA.create k l n
 let ba_empty = BA.create Bigarray.float32 Bigarray.c_layout 0
 
+external ba_copy :
+  src:_ Bigarray.Array1.t ->
+  dst:_ Bigarray.Array1.t -> src_offset:int -> dst_offset:int -> length:int -> unit = "wall_blit_sub_array"
+
 (* Algorithms from
    https://github.com/memononen/nanovg/blob/master/src/nanovg.c *)
 
@@ -154,8 +158,8 @@ module T = struct
       (*Printf.printf "grow: allocating %d points\n%!" d;*)
       let points = ba_make Bigarray.float32 Bigarray.c_layout (d * 2) in
       let points_flags = ba_make Bigarray.int8_unsigned Bigarray.c_layout d in
-      BA.blit t.points (BA.sub points 0 (d0 * 2));
-      BA.blit t.points_flags (BA.sub points_flags 0 d0);
+      ba_copy ~src:t.points ~dst:points ~src_offset:0 ~dst_offset:0 ~length:(d0 * 2 * 4);
+      ba_copy ~src:t.points_flags ~dst:points_flags ~src_offset:0 ~dst_offset:0 ~length:d0;
       t.points <- points;
       t.points_flags <- points_flags
 
@@ -536,7 +540,7 @@ module B = struct
       let data' = ba_make Bigarray.float32 Bigarray.c_layout
           (total * 3 / 2)
       in
-      BA.blit t.data (BA.sub data' 0 (BA.dim t.data));
+      ba_copy ~src:t.data ~dst:data' ~src_offset:0 ~dst_offset:0 ~length:(BA.dim t.data * 4);
       t.data <- data'
 
   let alloc t n =
@@ -554,9 +558,10 @@ module B = struct
 
   let copy ~from ~to_ ~offset ~count =
     reserve to_ count;
-    BA.blit
-      (BA.sub from.data offset count)
-      (BA.sub to_.data to_.cursor count);
+    ba_copy ~src:from.data ~dst:to_.data
+      ~src_offset:(offset * 4)
+      ~dst_offset:(to_.cursor * 4)
+      ~length:(count * 4);
     to_.cursor <- to_.cursor + count
 end
 
