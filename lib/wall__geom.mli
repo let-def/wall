@@ -34,6 +34,8 @@ module B : sig
   val alloc : t -> int -> int
   val offset : t -> int
 
+  val copy : from:t -> to_:t -> offset:int -> count:int -> unit
+
   val sub : t -> bigarray
 end
 
@@ -124,4 +126,6 @@ module V : sig
     line_cap:[ `BUTT | `ROUND | `SQUARE ] ->
     miter_limit:float ->
     T.path list -> path list
+
+  val copy : from:B.t -> path -> to_:B.t -> path
 end

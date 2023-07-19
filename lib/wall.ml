@@ -24,7 +24,10 @@ module Backend = Wall__backend
 
 type renderer = {
   t : Wall__geom.T.t;
-  b : Wall__geom.B.t;
+  mutable b : Wall__geom.B.t;
+  mutable b_mark: unit ref;
+  mutable b' : Wall__geom.B.t;
+  mutable b'_mark: unit ref;
   g : Backend.state;
   antialias : bool;
   stencil_strokes : bool;
@@ -761,12 +764,26 @@ module Path = struct
   let make closure = { closure }
 end
 
+type buffer_item = {
+  paths : Wall__geom.V.path list;
+  triangle_offset : int;
+  triangle_count  : int;
+  mark: unit ref;
+}
+
+let invalid_buffer_item = {
+  paths = [];
+  triangle_offset=0;
+  triangle_count=0;
+  mark=ref ();
+}
+
 module Image = struct
   type t =
     (* Base cases *)
     | Empty
-    | Fill    of Path.t
-    | Stroke  of Path.t * Outline.t
+    | Fill    of {path: Path.t; mutable item: buffer_item; mutable item_lod: int}
+    | Stroke  of {path: Path.t; outline: Outline.t; mutable item: buffer_item; mutable item_lod: int}
     | String  :  'a * 'a Typesetter.t -> t
     (* Recursive cases *)
     | Xform   of t * Transform.t
@@ -778,10 +795,10 @@ module Image = struct
   let empty = Empty
 
   let stroke outline path =
-    Stroke (path, outline)
+    Stroke {path; outline; item=invalid_buffer_item; item_lod = -1}
 
   let fill path =
-    Fill path
+    Fill {path; item=invalid_buffer_item; item_lod = -1}
 
   let typeset typesetter contents =
     String (contents, typesetter)
@@ -902,6 +919,9 @@ module Renderer = struct
   let create ?(antialias=true) ?(stencil_strokes=true) () = {
     t = T.make ();
     b = B.make ();
+    b_mark = ref ();
+    b' = B.make ();
+    b'_mark = ref ();
     g = Wall__backend.create ~antialias;
     antialias;
     stencil_strokes;
@@ -934,12 +954,6 @@ module Renderer = struct
       match cls.allocate t ~sx ~sy x with
       | None -> acc
       | Some f -> (f :: acc)
-
-  type buffer_item = {
-    paths : V.path list;
-    triangle_offset : int;
-    triangle_count  : int;
-  }
 
   type prepared_node =
     (* Base cases *)
@@ -991,45 +1005,87 @@ module Renderer = struct
     T.set_tess_tol t (0.25 /. factor);
     path.Path.closure t
 
+  let promote_item t {paths; mark; triangle_offset; triangle_count} =
+    assert (mark == t.b'_mark);
+    let paths = List.map (V.copy ~from:t.b' ~to_:t.b) paths in
+    let triangle_offset =
+      if triangle_count > 0 then (
+        let result = B.offset t.b / 4 in
+        B.copy ~from:t.b' ~to_:t.b
+          ~offset:(triangle_offset * 4)
+          ~count:(triangle_count * 4);
+        result
+      ) else
+        0
+    in
+    {paths; triangle_offset; triangle_count; mark=t.b_mark}
+
+  let should_promote_item t item =
+    item.mark == t.b'_mark
+
+  let is_item_valid t item =
+    item.mark == t.b_mark || item.mark == t.b'_mark
+
   let rec prepare t xf = function
-    (* Base cases *)
-    | Empty -> PEmpty
-    | Fill path ->
-      prepare_path t.t ~factor:(scale_factor xf) path;
-      let bounds, paths = T.flush t.t in
-      let paths =
-        V.fill t.t t.b
-          ~edge_antialias:t.antialias
-          ~scale:(1.0 /. Transform.average_scale xf)
-          paths
-      in
-      if is_convex paths then (
-        PFill { paths; triangle_offset = 0; triangle_count = 0 }
-      ) else (
-        let {T. minx; miny; maxx; maxy} = bounds in
-        B.reserve t.b (4 * 4);
-        let triangle_offset = B.offset t.b / 4 in
-        let q = quadbuf in
-        q.x0 <- minx; q.y0 <- miny;
-        q.x1 <- maxx; q.y1 <- maxy;
-        q.u0 <-  0.5; q.v0 <-  1.0;
-        q.u1 <-  0.5; q.v1 <-  1.0;
-        push_quad_strip t.b;
-        PFill { paths; triangle_offset; triangle_count = 4 }
-      )
-    | Stroke (path, {Outline. stroke_width; miter_limit; line_join; line_cap}) ->
+        (* Base cases *)
+        | Empty -> PEmpty
+    | Fill x ->
       let factor = scale_factor xf in
-      prepare_path t.t ~factor:factor path;
-      let _bounds, paths = T.flush t.t in
-      let paths =
-        V.stroke t.t t.b
-          ~width:stroke_width
-          ~miter_limit
-          ~line_join
-          ~line_cap
-          paths
-      in
-      PStroke ({ paths; triangle_offset = 0; triangle_count = 6 }, stroke_width)
+      let _, lod = frexp factor in
+      if is_item_valid t x.item && x.item_lod >= lod then (
+        if should_promote_item t x.item then
+          x.item <- promote_item t x.item;
+        PFill x.item
+      ) else (
+        prepare_path t.t ~factor x.path;
+        let bounds, paths = T.flush t.t in
+        let paths =
+          V.fill t.t t.b
+            ~edge_antialias:t.antialias
+            ~scale:(1.0 /. Transform.average_scale xf)
+            paths
+        in
+        let item =
+          if is_convex paths then (
+            {paths; triangle_offset = 0; triangle_count = 0; mark = t.b_mark}
+          ) else (
+            let {T. minx; miny; maxx; maxy} = bounds in
+            B.reserve t.b (4 * 4);
+            let triangle_offset = B.offset t.b / 4 in
+            let q = quadbuf in
+            q.x0 <- minx; q.y0 <- miny;
+            q.x1 <- maxx; q.y1 <- maxy;
+            q.u0 <-  0.5; q.v0 <-  1.0;
+            q.u1 <-  0.5; q.v1 <-  1.0;
+            push_quad_strip t.b;
+            {paths; triangle_offset; triangle_count = 4; mark = t.b_mark}
+          )
+        in
+        x.item <- item;
+        x.item_lod <- lod;
+        PFill item
+      )
+    | Stroke x ->
+      let {Outline. stroke_width; miter_limit; line_join; line_cap} = x.outline in
+      let factor = scale_factor xf in
+      let _, lod = frexp factor in
+      if is_item_valid t x.item && x.item_lod >= lod then (
+        if should_promote_item t x.item then
+          x.item <- promote_item t x.item;
+        PStroke (x.item, stroke_width)
+      ) else (
+        prepare_path t.t ~factor x.path;
+        let _bounds, paths = T.flush t.t in
+        let paths =
+          V.stroke t.t t.b
+            ~width:stroke_width
+            ~miter_limit
+            ~line_join
+            ~line_cap
+            paths
+        in
+        PStroke ({paths; triangle_offset = 0; triangle_count = 6; mark=t.b_mark}, stroke_width)
+      )
     | String (x, cls) ->
       let vbuffer = t.b in
       let offset = B.offset vbuffer in
@@ -1042,7 +1098,7 @@ module Renderer = struct
         | texture ->
           let triangle_offset = offset / 4 in
           let triangle_count  = (B.offset vbuffer - offset) / 4 in
-          PString ({ paths = []; triangle_offset; triangle_count; }, texture)
+          PString ({paths = []; triangle_offset; triangle_count; mark=t.b_mark}, texture)
       end
     (* Recursive cases *)
     | Xform  (n, xf') ->
@@ -1148,7 +1204,14 @@ module Renderer = struct
 
   let render t ?performance_counter ~width ~height node =
     T.clear t.t;
+    begin
+      let {b; b'; _} = t in
+      t.b <- b';
+      t.b' <- b;
+      t.b'_mark <- t.b_mark;
+    end;
     B.clear t.b;
+    t.b_mark <- ref ();
     let time0 = Backend.time_spent () and mem0 = Backend.memory_spent () in
     let todo = typesetter_prepare t [] 1.0 0.0 0.0 1.0 node in
     List.iter (fun f -> f ()) todo;

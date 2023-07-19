@@ -551,6 +551,13 @@ module B = struct
 
   let sub t =
     BA.sub t.data 0 t.cursor
+
+  let copy ~from ~to_ ~offset ~count =
+    reserve to_ count;
+    BA.blit
+      (BA.sub from.data offset count)
+      (BA.sub to_.data to_.cursor count);
+    to_.cursor <- to_.cursor + count
 end
 
 module V = struct
@@ -1120,4 +1127,12 @@ module V = struct
   let stroke t vb ~width ~line_join ~line_cap ~miter_limit paths =
     let width = width *. 0.5 in
     Stroke.expand t vb ~line_join ~line_cap ~miter_limit ~width paths
+
+  let copy ~from path ~to_ =
+    let fill_first = B.offset to_ / 4 in
+    B.copy ~from ~to_ ~offset:(path.fill_first * 4) ~count:(path.fill_count * 4);
+    let stroke_first = B.offset to_ / 4 in
+    B.copy ~from ~to_ ~offset:(path.stroke_first * 4) ~count:(path.stroke_count * 4);
+    {path with fill_first; stroke_first}
+
 end
