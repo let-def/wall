@@ -73,7 +73,7 @@ external wall_gl_set_reversed
   = "wall_gl_set_reversed" [@@noalloc]
 
 external wall_gl_frame_prepare
-  : state -> width:float -> height:float -> Wall__geom.B.bigarray -> unit
+  : state -> width:float -> height:float -> Wall__geom.B.bigarray -> bytes:int -> unit
   = "wall_gl_frame_prepare"
 
 external wall_gl_frame_finish
@@ -402,10 +402,10 @@ let set_xform t xf =
   Shader.set_xform t xf;
   set_reversed t xf
 
-let prepare t ~width ~height data =
+let prepare t ~width ~height data ~size =
   gl_reversed       := false;
   (* Setup gl state *)
-  wall_gl_frame_prepare t ~width ~height data
+  wall_gl_frame_prepare t ~width ~height data ~bytes:(size * 4)
 
 let finish = wall_gl_frame_finish
 

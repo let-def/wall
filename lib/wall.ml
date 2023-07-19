@@ -1219,7 +1219,7 @@ module Renderer = struct
     let todo = typesetter_prepare t [] 1.0 0.0 0.0 1.0 node in
     List.iter (fun f -> f ()) todo;
     let pnode = prepare t Transform.identity node in
-    Backend.prepare t.g width height (B.sub t.b);
+    Backend.prepare t.g width height t.b.data (B.offset t.b);
     let time1 = Backend.time_spent () and mem1 = Backend.memory_spent () in
     xform_outofdate := true;
     exec t Transform.identity Paint.black Frame.default pnode;

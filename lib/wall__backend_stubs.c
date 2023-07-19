@@ -548,7 +548,7 @@ CAMLprim value wall_gl_set_reversed(value t, value b)
   return Val_unit;
 }
 
-CAMLprim value wall_gl_frame_prepare(value t, value width, value height, value data)
+CAMLprim value wall_gl_frame_prepare(value t, value width, value height, value data, value datasize)
 {
   CAMLparam4(t, width, height, data);
 
@@ -576,10 +576,11 @@ CAMLprim value wall_gl_frame_prepare(value t, value width, value height, value d
   state->glBindVertexArray(state->vert_vao);
 #endif
   state->glBindBuffer(GL_ARRAY_BUFFER, state->vert_vbo);
-  state->glBufferData(GL_ARRAY_BUFFER,
-      caml_ba_byte_size(Caml_ba_array_val(data)),
-      Caml_ba_data_val(data),
-      GL_STREAM_DRAW);
+
+  long size = Long_val(datasize);
+  if (size < 0 || size > caml_ba_byte_size(Caml_ba_array_val(data)))
+    abort();
+  state->glBufferData(GL_ARRAY_BUFFER, size, Caml_ba_data_val(data), GL_STREAM_DRAW);
 
   state->glEnableVertexAttribArray(0);
   state->glEnableVertexAttribArray(1);

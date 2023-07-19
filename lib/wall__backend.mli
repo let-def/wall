@@ -65,7 +65,7 @@ module Triangles : sig
 end
 
 type bigarray = (float, Bigarray.float32_elt, Bigarray.c_layout) Bigarray.Array1.t
-val prepare : state -> width:float -> height:float -> bigarray -> unit
+val prepare : state -> width:float -> height:float -> bigarray -> size:int -> unit
 val set_xform : state -> transform -> unit
 val finish : state -> unit
 
