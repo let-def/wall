@@ -362,19 +362,19 @@ module T = struct
   let line_to t x y =
     T.add_point t x y flag_corner
 
-  let bezier_buf = ba_make Bigarray.Float32 Bigarray.c_layout 80
+  let bezier_buf : float array = Array.create_float 80
 
   let bezier_loop t =
     let level = ref 0 in
     while !level >= 0 do
-      let   x1 = bezier_buf.{!level * 8 + 0} in
-      let   y1 = bezier_buf.{!level * 8 + 1} in
-      let   x2 = bezier_buf.{!level * 8 + 2} in
-      let   y2 = bezier_buf.{!level * 8 + 3} in
-      let   x3 = bezier_buf.{!level * 8 + 4} in
-      let   y3 = bezier_buf.{!level * 8 + 5} in
-      let   x4 = bezier_buf.{!level * 8 + 6} in
-      let   y4 = bezier_buf.{!level * 8 + 7} in
+      let   x1 = Array.unsafe_get bezier_buf (!level * 8 + 0) in
+      let   y1 = Array.unsafe_get bezier_buf (!level * 8 + 1) in
+      let   x2 = Array.unsafe_get bezier_buf (!level * 8 + 2) in
+      let   y2 = Array.unsafe_get bezier_buf (!level * 8 + 3) in
+      let   x3 = Array.unsafe_get bezier_buf (!level * 8 + 4) in
+      let   y3 = Array.unsafe_get bezier_buf (!level * 8 + 5) in
+      let   x4 = Array.unsafe_get bezier_buf (!level * 8 + 6) in
+      let   y4 = Array.unsafe_get bezier_buf (!level * 8 + 7) in
       let  x12 = ( x1 +.  x2) *. 0.5 in
       let  y12 = ( y1 +.  y2) *. 0.5 in
       let  x23 = ( x2 +.  x3) *. 0.5 in
@@ -394,35 +394,35 @@ module T = struct
         let  y234 = ( y23 +.  y34) *. 0.5 in
         let x1234 = (x123 +. x234) *. 0.5 in
         let y1234 = (y123 +. y234) *. 0.5 in
-        bezier_buf.{!level * 8 + 0} <- x1234;
-        bezier_buf.{!level * 8 + 1} <- y1234;
-        bezier_buf.{!level * 8 + 2} <- x234;
-        bezier_buf.{!level * 8 + 3} <- y234;
-        bezier_buf.{!level * 8 + 4} <- x34;
-        bezier_buf.{!level * 8 + 5} <- y34;
-        bezier_buf.{!level * 8 + 6} <- x4;
-        bezier_buf.{!level * 8 + 7} <- y4;
+        Array.unsafe_set bezier_buf (!level * 8 + 0) x1234;
+        Array.unsafe_set bezier_buf (!level * 8 + 1) y1234;
+        Array.unsafe_set bezier_buf (!level * 8 + 2) x234;
+        Array.unsafe_set bezier_buf (!level * 8 + 3) y234;
+        Array.unsafe_set bezier_buf (!level * 8 + 4) x34;
+        Array.unsafe_set bezier_buf (!level * 8 + 5) y34;
+        Array.unsafe_set bezier_buf (!level * 8 + 6) x4;
+        Array.unsafe_set bezier_buf (!level * 8 + 7) y4;
         incr level;
-        bezier_buf.{!level * 8 + 0} <- x1;
-        bezier_buf.{!level * 8 + 1} <- y1;
-        bezier_buf.{!level * 8 + 2} <- x12;
-        bezier_buf.{!level * 8 + 3} <- y12;
-        bezier_buf.{!level * 8 + 4} <- x123;
-        bezier_buf.{!level * 8 + 5} <- y123;
-        bezier_buf.{!level * 8 + 6} <- x1234;
-        bezier_buf.{!level * 8 + 7} <- y1234;
+        Array.unsafe_set bezier_buf (!level * 8 + 0) x1;
+        Array.unsafe_set bezier_buf (!level * 8 + 1) y1;
+        Array.unsafe_set bezier_buf (!level * 8 + 2) x12;
+        Array.unsafe_set bezier_buf (!level * 8 + 3) y12;
+        Array.unsafe_set bezier_buf (!level * 8 + 4) x123;
+        Array.unsafe_set bezier_buf (!level * 8 + 5) y123;
+        Array.unsafe_set bezier_buf (!level * 8 + 6) x1234;
+        Array.unsafe_set bezier_buf (!level * 8 + 7) y1234;
       end
     done
 
   let bezier_to t ~x1 ~y1 ~x2 ~y2 ~x3 ~y3 =
-    bezier_buf.{0} <- (last_x t);
-    bezier_buf.{1} <- (last_y t);
-    bezier_buf.{2} <- x1;
-    bezier_buf.{3} <- y1;
-    bezier_buf.{4} <- x2;
-    bezier_buf.{5} <- y2;
-    bezier_buf.{6} <- x3;
-    bezier_buf.{7} <- y3;
+    Array.unsafe_set bezier_buf 0 (last_x t);
+    Array.unsafe_set bezier_buf 1 (last_y t);
+    Array.unsafe_set bezier_buf 2 x1;
+    Array.unsafe_set bezier_buf 3 y1;
+    Array.unsafe_set bezier_buf 4 x2;
+    Array.unsafe_set bezier_buf 5 y2;
+    Array.unsafe_set bezier_buf 6 x3;
+    Array.unsafe_set bezier_buf 7 y3;
     bezier_loop t;
     T.set_last_flags t flag_corner
 
