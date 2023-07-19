@@ -1027,8 +1027,8 @@ module Renderer = struct
     item.mark == t.b_mark || item.mark == t.b'_mark
 
   let rec prepare t xf = function
-        (* Base cases *)
-        | Empty -> PEmpty
+    (* Base cases *)
+    | Empty -> PEmpty
     | Fill x ->
       let factor = scale_factor xf in
       let _, lod = frexp factor in
@@ -1084,7 +1084,10 @@ module Renderer = struct
             ~line_cap
             paths
         in
-        PStroke ({paths; triangle_offset = 0; triangle_count = 6; mark=t.b_mark}, stroke_width)
+        let item = {paths; triangle_offset = 0; triangle_count = 6; mark=t.b_mark} in
+        x.item <- item;
+        x.item_lod <- lod;
+        PStroke (item, stroke_width)
       )
     | String (x, cls) ->
       let vbuffer = t.b in
