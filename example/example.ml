@@ -782,23 +782,9 @@ let draw_thumbnails ~x ~y ~w ~h images t =
          ~w:(8.-.2.) ~h:(scrollh-.2.) ~r:2.)
   ]
 
-let w = 1280
-
-let h = 960
-
-let many_graphs = 
- let t = 0.0 in
- let node = ref I.empty in
- let push n = node := I.stack !node n in
- for i = 0 to 500 do
-   push @@ draw_graph 0.0 (float h /. 2.0) (float w) (float h /. 2.0) (t +. (float i));
- done;
- !node 
-
 let draw_demo mx my w h t images = (
   let node = ref I.empty in
   let push n = node := I.stack !node n in
-  push @@ many_graphs;
   push @@ draw_eyes (w -. 250.0) 50.0 150.0 100.0 mx my t;
   push @@ draw_graph 0.0 (h /. 2.0) w (h /. 2.0) t;
   push @@ draw_colorwheel (w -. 300.0) (h -. 300.0) 250.0 250.0 t;
