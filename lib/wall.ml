@@ -20,8 +20,6 @@
 open Gg
 open Wall_types
 
-let compare = ()
-
 module Backend = Wall__backend
 
 type renderer = {

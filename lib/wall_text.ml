@@ -1,6 +1,5 @@
 open Wall
 open Wall__geom
-let compare = ()
 
 (* utf-8 decoding dfa, from http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ *)
 
