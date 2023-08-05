@@ -20,6 +20,8 @@
 open Gg
 open Wall_types
 
+let compare = ()
+
 module Backend = Wall__backend
 
 type renderer = {
@@ -977,23 +979,25 @@ module Renderer = struct
       x0 = 0.0; y0 = 0.0; x1 = 0.0; y1 = 0.0;
       u0 = 0.0; v0 = 0.0; u1 = 0.0; v1 = 0.0}
 
+  let ( .%{}<-) (arr: B.bigarray) idx v = Bigarray.Array1.unsafe_set arr idx v;;
+
   let push_quad b =
     let d = B.data b and c = B.alloc b (6 * 4) in
     let q = quadbuf in
-    d.{c+ 0+0}<-q.x0; d.{c+ 0+1}<-q.y0; d.{c+ 0+2}<-q.u0; d.{c+ 0+3}<-q.v0;
-    d.{c+ 4+0}<-q.x1; d.{c+ 4+1}<-q.y1; d.{c+ 4+2}<-q.u1; d.{c+ 4+3}<-q.v1;
-    d.{c+ 8+0}<-q.x1; d.{c+ 8+1}<-q.y0; d.{c+ 8+2}<-q.u1; d.{c+ 8+3}<-q.v0;
-    d.{c+12+0}<-q.x0; d.{c+12+1}<-q.y0; d.{c+12+2}<-q.u0; d.{c+12+3}<-q.v0;
-    d.{c+16+0}<-q.x0; d.{c+16+1}<-q.y1; d.{c+16+2}<-q.u0; d.{c+16+3}<-q.v1;
-    d.{c+20+0}<-q.x1; d.{c+20+1}<-q.y1; d.{c+20+2}<-q.u1; d.{c+20+3}<-q.v1
+    d.%{c+ 0+0}<-q.x0; d.%{c+ 0+1}<-q.y0; d.%{c+ 0+2}<-q.u0; d.%{c+ 0+3}<-q.v0;
+    d.%{c+ 4+0}<-q.x1; d.%{c+ 4+1}<-q.y1; d.%{c+ 4+2}<-q.u1; d.%{c+ 4+3}<-q.v1;
+    d.%{c+ 8+0}<-q.x1; d.%{c+ 8+1}<-q.y0; d.%{c+ 8+2}<-q.u1; d.%{c+ 8+3}<-q.v0;
+    d.%{c+12+0}<-q.x0; d.%{c+12+1}<-q.y0; d.%{c+12+2}<-q.u0; d.%{c+12+3}<-q.v0;
+    d.%{c+16+0}<-q.x0; d.%{c+16+1}<-q.y1; d.%{c+16+2}<-q.u0; d.%{c+16+3}<-q.v1;
+    d.%{c+20+0}<-q.x1; d.%{c+20+1}<-q.y1; d.%{c+20+2}<-q.u1; d.%{c+20+3}<-q.v1
 
   let push_quad_strip b =
     let d = B.data b and c = B.alloc b (4 * 4) in
     let q = quadbuf in
-    d.{c+ 0+0}<-q.x1; d.{c+ 0+1}<-q.y1; d.{c+ 0+2}<-q.u1; d.{c+ 0+3}<-q.v1;
-    d.{c+ 4+0}<-q.x1; d.{c+ 4+1}<-q.y0; d.{c+ 4+2}<-q.u1; d.{c+ 4+3}<-q.v0;
-    d.{c+ 8+0}<-q.x0; d.{c+ 8+1}<-q.y1; d.{c+ 8+2}<-q.u0; d.{c+ 8+3}<-q.v1;
-    d.{c+12+0}<-q.x0; d.{c+12+1}<-q.y0; d.{c+12+2}<-q.u0; d.{c+12+3}<-q.v0
+    d.%{c+ 0+0}<-q.x1; d.%{c+ 0+1}<-q.y1; d.%{c+ 0+2}<-q.u1; d.%{c+ 0+3}<-q.v1;
+    d.%{c+ 4+0}<-q.x1; d.%{c+ 4+1}<-q.y0; d.%{c+ 4+2}<-q.u1; d.%{c+ 4+3}<-q.v0;
+    d.%{c+ 8+0}<-q.x0; d.%{c+ 8+1}<-q.y1; d.%{c+ 8+2}<-q.u0; d.%{c+ 8+3}<-q.v1;
+    d.%{c+12+0}<-q.x0; d.%{c+12+1}<-q.y0; d.%{c+12+2}<-q.u0; d.%{c+12+3}<-q.v0
 
   let scale_factor xf =
     let sx = Utils.norm xf.x00 xf.x10 in

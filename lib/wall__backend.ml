@@ -2,6 +2,8 @@ open Wall_types
 open Gg
 open Bigarray
 
+let compare = ()
+
 type state
 
 external wall_gl_create

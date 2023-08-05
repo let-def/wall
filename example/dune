@@ -1,4 +1,4 @@
 (executables
- (names example minimal blemish colorweb)
+ (names example minimal blemish colorweb benchmarks)
  (flags :standard -w -3-6-27)
  (libraries tsdl tgls.tgles2 wall))
