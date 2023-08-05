@@ -12,7 +12,6 @@ module Font : sig
 
   type t = {
     glyphes     : Stb_truetype.t;
-    glyphes_id  : int;
     size        : float;
     blur        : float;
     spacing     : float;

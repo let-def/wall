@@ -45,7 +45,6 @@ module Font = struct
 
   type t = {
     glyphes: Stb_truetype.t;
-    glyphes_id : int;
     size: float;
     blur: float;
     spacing: float;
@@ -54,8 +53,7 @@ module Font = struct
   }
 
   let make ?(size=16.0) ?(blur=0.0) ?(spacing=0.0) ?(line_height=1.0) ?(placement=`Aligned) glyphes =
-    let glyphes_id = Oo.id (Obj.magic glyphes) in
-    { glyphes; glyphes_id; blur; size; spacing; line_height; placement }
+    { glyphes; blur; size; spacing; line_height; placement }
 
   type metrics = {
     ascent   : float;
@@ -150,16 +148,14 @@ module Glyph = struct
     cp    : int;
     scale : int;
     ttf   : Stb_truetype.t;
-    ttf_id : int;
     blur  : int;
   }
 
   let key ~sx ~sy font =
     let ttf = font.Font.glyphes in
-    let ttf_id = font.Font.glyphes_id in
     let blur = decimal_quantize font.Font.blur in
     let factor, scale = estimate_scale sx sy font in
-    (factor, (fun cp -> { cp; scale; ttf; ttf_id; blur }))
+    (factor, (fun cp -> { cp; scale; ttf; blur }))
 
   type cell = {
     box   : Stb_truetype.box;
@@ -180,33 +176,15 @@ let null_cell =
   {Glyph. box = null_box; uv = null_box;
    glyph = Stb_truetype.invalid_glyph; frame = -1 }
 
-module Glyphtbl = Hashtbl.Make (struct 
-  type t = Glyph.key
-
-  let equal (a :t) (b:t) = 
-    a.cp == b.cp && 
-    a.blur == b.blur && 
-    a.scale == b.scale && 
-    a.ttf_id == b.ttf_id
-
-  let hash (a :t) = 
-    let hash = a.cp in
-    let hash = Int.logxor (hash * 0x1f1f1f1f) a.blur  in 
-    let hash = Int.logxor (hash * 0x45d9f3b0) a.scale in 
-    let hash = Int.logxor (hash * 0x119de1f3) a.ttf_id in 
-    hash
-
-end)
 type font_stash = {
-  font_glyphes: Glyph.cell Glyphtbl.t;
-  font_todo: unit Glyphtbl.t;
+  font_glyphes: (Glyph.key, Glyph.cell) Hashtbl.t;
+  font_todo: (Glyph.key, unit) Hashtbl.t;
   mutable font_buffer: font_buffer option;
 }
 
-
 let font_stash () = {
-  font_glyphes = Glyphtbl.create 8;
-  font_todo = Glyphtbl.create 8;
+  font_glyphes = Hashtbl.create 8;
+  font_todo = Hashtbl.create 8;
   font_buffer = None;
 }
 
@@ -237,7 +215,7 @@ let render_glyphes stash _ xform (font,pos,text) quad ~(push : unit -> unit) =
     | -1 -> last := Stb_truetype.invalid_glyph
     | cp ->
       let key = key cp in
-      match Glyphtbl.find stash.font_glyphes key with
+      match Hashtbl.find stash.font_glyphes key with
       | cell when cell == null_cell ->
         last := Stb_truetype.invalid_glyph
       | { Glyph. box; uv; glyph; _ } ->
@@ -296,7 +274,7 @@ let bake_glyphs renderer t =
   let add_box ({ Glyph. scale; cp; ttf; blur } as key) () boxes =
     match Stb_truetype.find ttf cp with
     | None ->
-      Glyphtbl.add t.font_glyphes key null_cell;
+      Hashtbl.add t.font_glyphes key null_cell;
       boxes
     | Some glyph ->
       let scale = Stb_truetype.scale_for_pixel_height ttf (float scale /. 10.0) in
@@ -312,16 +290,16 @@ let bake_glyphs renderer t =
       in
       box :: boxes
   in
-  let todo = Glyphtbl.fold add_box t.font_todo [] in
+  let todo = Hashtbl.fold add_box t.font_todo [] in
   let room, boxes = Maxrects.insert_batch buffer.room todo in
   let room, boxes =
     if List.exists (function None -> true | _ -> false) boxes then (
-      let todo = Glyphtbl.fold
+      let todo = Hashtbl.fold
           (fun key cell todo ->
              if cell.Glyph.frame = !frame_nr then add_box key () todo else todo)
           t.font_glyphes todo
       in
-      Glyphtbl.reset t.font_glyphes;
+      Hashtbl.reset t.font_glyphes;
       Bigarray.Array1.fill (Stb_image.data buffer.image) 0;
       let room = Maxrects.add_bin ()
           (Stb_image.width buffer.image)
@@ -361,13 +339,13 @@ let bake_glyphs renderer t =
             uv, box
           )
         in
-        Glyphtbl.add t.font_glyphes key { Glyph. box; uv; frame = !frame_nr; glyph }
+        Hashtbl.add t.font_glyphes key { Glyph. box; uv; frame = !frame_nr; glyph }
     ) boxes;
-  Glyphtbl.reset t.font_todo;
+  Hashtbl.reset t.font_todo;
   Texture.update buffer.texture buffer.image;
   incr frame_nr
 
-let has_todo stash = Glyphtbl.length stash.font_todo > 0
+let has_todo stash = Hashtbl.length stash.font_todo > 0
 
 let allocate_glyphes stash renderer ~sx ~sy (font,_pos,text) =
   let _, key = Glyph.key sx sy font in
@@ -380,12 +358,12 @@ let allocate_glyphes stash renderer ~sx ~sy (font,_pos,text) =
     | -1 -> ()
     | cp ->
       let key = key cp in
-      match Glyphtbl.find stash.font_glyphes key with
+      match Hashtbl.find stash.font_glyphes key with
       | cache -> cache.Glyph.frame <- frame_nr
       | exception Not_found ->
-        if not (Glyphtbl.mem stash.font_todo key) then
+        if not (Hashtbl.mem stash.font_todo key) then
           (*(prerr_endline ("new glyph: " ^ string_of_int cp);*)
-          (Glyphtbl.add stash.font_todo key ())
+          (Hashtbl.add stash.font_todo key ())
   done;
   if not has_todo0 && (has_todo stash) then
     Some (fun () -> bake_glyphs renderer stash)
