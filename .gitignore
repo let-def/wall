@@ -9,6 +9,13 @@
 *.cmxa
 .merlin
 
+# opam switch
+_opam
+
+# perf tracing
+perf.data
+perf.data.*
+
 # ocamlbuild working directory
 _build/
 
