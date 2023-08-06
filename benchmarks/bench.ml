@@ -11,6 +11,7 @@ module type S = sig
   val name : string
   val init : Wall.Renderer.t -> state
   val frame : state -> width:float -> height:float -> elapsed_seconds:float -> I.t
+  val clear_color : Color.t
 end
 
 let load_font name =
@@ -45,7 +46,7 @@ let run (module T : S) =
          ~w:window_width
          ~h:window_height
          "SDL OpenGL"
-         Sdl.Window.(opengl + allow_highdpi)
+         Sdl.Window.(opengl + allow_highdpi + resizable + windowed)
      with
      | Error (`Msg e) ->
        Sdl.log "Create window error: %s" e;
@@ -74,7 +75,10 @@ let run (module T : S) =
           let prev_frame_fps = ref 0.0 in
           let freq = Sdl.get_performance_frequency () in
           let font_sans = Lazy.force font_sans in
+          let start_ticks = Sdl.get_ticks () in
           while not !quit do
+            let window_width, window_height = Sdl.get_window_size w in
+            let ow, oh = Sdl.gl_get_drawable_size w in
             let timing_start = Sdl.get_performance_counter () in
             while Sdl.poll_event (Some event) do
               match Sdl.Event.enum (Sdl.Event.get event Sdl.Event.typ) with
@@ -82,13 +86,19 @@ let run (module T : S) =
               | _ -> ()
             done;
             Gl.viewport 0 0 ow oh;
-            Gl.clear_color 0.3 0.3 0.32 1.0;
+            Gl.clear_color
+              (Color.r T.clear_color)
+              (Color.g T.clear_color)
+              (Color.b T.clear_color)
+              (Color.a T.clear_color);
             Gl.(clear (color_buffer_bit lor depth_buffer_bit lor stencil_buffer_bit));
             Gl.enable Gl.blend;
             Gl.blend_func_separate Gl.one Gl.src_alpha Gl.one Gl.one_minus_src_alpha;
             Gl.enable Gl.cull_face_enum;
             Gl.disable Gl.depth_test;
-            let elapsed_seconds = Int32.to_float (Sdl.get_ticks ()) /. 1000.0 in
+            let elapsed_seconds =
+              Int32.to_float (Int32.sub (Sdl.get_ticks ()) start_ticks) /. 1000.0
+            in
             let () =
               let width = float window_width in
               let height = float window_height in

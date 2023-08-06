@@ -1,4 +1,6 @@
-let benches : (module Bench.S) list = [ (module Lots_of_text); (module Many_graphs) ]
+let benches : (module Bench.S) list =
+  [ (module Lots_of_text); (module Many_graphs); (module Source_code) ]
+;;
 
 let print_usage argv0 =
   print_endline "Usage:";

@@ -139,3 +139,4 @@ let frame () ~width ~height ~elapsed_seconds =
 ;;
 
 let name = "many-graphs"
+let clear_color = Color.black

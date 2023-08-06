@@ -76,3 +76,4 @@ let frame { font; commands } ~width ~height ~elapsed_seconds =
 ;;
 
 let name = "lots-of-text"
+let clear_color = Color.white
