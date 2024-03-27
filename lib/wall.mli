@@ -19,7 +19,12 @@
 open Gg
 open Wall_types
 
+(**/**)
+
+(** @canonical Wall.Renderer.t *)
 type renderer
+
+(**/**)
 
 (** Definition of colors, taken from Gg *)
 module Color : sig
@@ -86,26 +91,26 @@ end
 
 
 (** {1 Wall drawing model}
- *
- * Drawing in wall is achieved by intersecting a simple, infinite image with a
- * shape.
- *
- * This image is described by a ['a Paint.t] value and is simple by nature:
- * - a single color,
- * - a few different kinds of gradients,
- * - some user-defined pattern or textures, as determined by ['a].
- *
- * The ['a] depends on the renderer and in practice it will be a
- * [Wall_texture.t], an abstraction over OpenGL texture.
- *
- * The shapes are made from a [Path.t] that is filled or stroked.
- * The path is list of points that are connected by straight or curved (bezier)
- * lines.
- * When filled, the path is interpreted as the contour of a surface and the
- * resulting image is this surface.
- * When stroked, the path is interpreted as one or more lines: an [Outline.t]
- * that describe the style of line rendering (thickness, square or round ends,
- * etc) is used transform the abstract lines into a surface.
+ 
+ Drawing in wall is achieved by intersecting a simple, infinite image with a
+ shape.
+ 
+ This image is described by a ['a Paint.t] value and is simple by nature:
+ - a single color,
+ - a few different kinds of gradients,
+ - some user-defined pattern or textures, as determined by ['a].
+ 
+ The ['a] depends on the renderer and in practice it will be a
+ [Wall_texture.t], an abstraction over OpenGL texture.
+ 
+ The shapes are made from a [Path.t] that is filled or stroked.
+ The path is list of points that are connected by straight or curved (bezier)
+ lines.
+ When filled, the path is interpreted as the contour of a surface and the
+ resulting image is this surface.
+ When stroked, the path is interpreted as one or more lines: an [Outline.t]
+ that describe the style of line rendering (thickness, square or round ends,
+ etc) is used transform the abstract lines into a surface.
  *)
 
 module Paint : sig
@@ -250,13 +255,15 @@ end
 module Image : sig
   type t
 
-  (* Primitive images *)
+  (** {1 Primitive images} *)
+
   val empty : t
   val stroke : Outline.t -> Path.t -> t
   val fill : Path.t -> t
   val typeset : 'input Typesetter.t -> 'input -> t
 
-  (* Composite images *)
+  (** {1 Composite images} *)
+
   val paint : Texture.t Paint.t -> t -> t
   val transform : Transform.t -> t -> t
   val scissor : ?transform:Transform.t -> Gg.box2 -> t -> t
@@ -266,7 +273,8 @@ module Image : sig
   val stack : t -> t -> t
   val seq : t list -> t
 
-  (* Convenience functions *)
+  (** {1 Convenience functions} *)
+
   val stroke_path : Outline.t -> (Path.ctx -> unit) -> t
   val fill_path : (Path.ctx -> unit) -> t
 end
@@ -290,6 +298,7 @@ end
 module Renderer : sig
   (** A renderer allocates the OpenGL resources that are necessary to
       render contents.  *)
+
   type t = renderer
 
   (** [create ~antialias] creates a new drawing context.
